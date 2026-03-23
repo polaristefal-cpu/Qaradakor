@@ -1,0 +1,280 @@
+import { createClient } from "@supabase/supabase-js";
+import { projectId, publicAnonKey } from "/utils/supabase/info";
+
+const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-59141208`;
+
+export const supabase = createClient(
+  `https://${projectId}.supabase.co`,
+  publicAnonKey
+);
+
+async function getToken(): Promise<string> {
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data?.session) {
+      return publicAnonKey;
+    }
+    
+    const token = data.session.access_token;
+    // Decode and check expiry with 60s buffer
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.exp * 1000 < Date.now() + 60_000) {
+        // Token expired or about to expire — refresh
+        const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError || !refreshed?.session?.access_token) {
+          console.log("[CineLib] refresh failed:", refreshError?.message);
+          // Don't sign out here — just return anonKey and let the caller handle it
+          return publicAnonKey;
+        }
+        console.log("[CineLib] token refreshed successfully");
+        return refreshed.session.access_token;
+      }
+    } catch {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      if (refreshed?.session?.access_token) return refreshed.session.access_token;
+      return publicAnonKey;
+    }
+    
+    return token;
+  } catch {
+    return publicAnonKey;
+  }
+}
+
+async function request(path: string, options: RequestInit = {}) {
+  // For public routes (TMDB proxy, signup), no session token needed
+  const isPublicRoute = path.startsWith("/tmdb/") || path === "/signup";
+  const sessionToken = isPublicRoute ? null : await getToken();
+  const hasSession = sessionToken && sessionToken !== publicAnonKey;
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    // Always send anonKey for Supabase gateway auth
+    Authorization: `Bearer ${publicAnonKey}`,
+  };
+  // Pass user session token in a custom header so gateway doesn't reject it
+  if (hasSession) {
+    headers["x-user-token"] = sessionToken;
+  }
+
+  console.log("[CineLib] request", path, "hasSession:", !!hasSession);
+  const res = await fetch(`${BASE}${path}`, {
+    ...options,
+    headers: {
+      ...headers,
+      ...(options.headers as Record<string, string>),
+    },
+  });
+
+  // If 401 and we had a session, try refreshing and retry once
+  if (res.status === 401 && hasSession) {
+    console.log("[CineLib] Got 401, attempting token refresh and retry...");
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    if (refreshed?.session?.access_token) {
+      const retryRes = await fetch(`${BASE}${path}`, {
+        ...options,
+        headers: {
+          ...headers,
+          "x-user-token": refreshed.session.access_token,
+          ...(options.headers as Record<string, string>),
+        },
+      });
+      const retryData = await retryRes.json();
+      if (!retryRes.ok) {
+        console.error(`API error ${path} after retry:`, retryData);
+        throw new Error(retryData.error || "Request failed");
+      }
+      return retryData;
+    } else {
+      throw new Error("Session expired");
+    }
+  }
+
+  const data = await res.json();
+  if (!res.ok) {
+    console.error(`API error ${path}:`, data);
+    throw new Error(data.error || "Request failed");
+  }
+  return data;
+}
+
+// Auth
+export async function signup(email: string, password: string, name: string) {
+  return request("/signup", {
+    method: "POST",
+    body: JSON.stringify({ email, password, name }),
+    headers: { Authorization: `Bearer ${publicAnonKey}` },
+  });
+}
+
+export async function login(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function logout() {
+  await supabase.auth.signOut();
+}
+
+export async function getProfile() {
+  return request("/profile");
+}
+
+export async function updateProfile(data: { name?: string; bio?: string; favoriteGenres?: string[] }) {
+  return request("/profile", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+// 2FA / Phone
+export async function savePhone(phone: string, enable2fa: boolean) {
+  return request("/profile/phone", {
+    method: "POST",
+    body: JSON.stringify({ phone, enable2fa }),
+  });
+}
+
+export async function get2FAStatus() {
+  return request("/auth/2fa-status");
+}
+
+export async function sendOtp() {
+  return request("/auth/send-otp", { method: "POST" });
+}
+
+export async function verifyOtp(code: string) {
+  return request("/auth/verify-otp", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+// TMDB
+export async function searchMovies(query: string, page = 1) {
+  return request(`/tmdb/search/movie?query=${encodeURIComponent(query)}&language=ru-RU&page=${page}`);
+}
+
+export async function getMovie(id: number) {
+  return request(`/tmdb/movie/${id}?language=ru-RU&append_to_response=credits`);
+}
+
+export async function getMovieBasic(id: number) {
+  return request(`/tmdb/movie/${id}?language=ru-RU`);
+}
+
+export async function getMovieVideos(id: number) {
+  return request(`/tmdb/movie/${id}/videos?language=ru-RU`);
+}
+
+export async function getTrending() {
+  return request(`/tmdb/trending/movie/week?language=ru-RU`);
+}
+
+export async function getPopular(page = 1) {
+  return request(`/tmdb/movie/popular?language=ru-RU&page=${page}`);
+}
+
+export async function getTopRated(page = 1) {
+  return request(`/tmdb/movie/top_rated?language=ru-RU&page=${page}`);
+}
+
+export async function getUpcoming(page = 1) {
+  return request(`/tmdb/movie/upcoming?language=ru-RU&page=${page}`);
+}
+
+export async function getNowPlaying(page = 1) {
+  return request(`/tmdb/movie/now_playing?language=ru-RU&page=${page}`);
+}
+
+export async function getGenres() {
+  return request(`/tmdb/genre/movie/list?language=ru-RU`);
+}
+
+export async function getMoviesByGenre(genreId: number, page = 1) {
+  return request(`/tmdb/discover/movie?with_genres=${genreId}&language=ru-RU&sort_by=popularity.desc&page=${page}`);
+}
+
+// Watched
+export async function getWatched() {
+  return request("/watched");
+}
+
+export async function addWatched(movieId: number, rating: number, review?: string) {
+  return request("/watched", {
+    method: "POST",
+    body: JSON.stringify({ movieId, rating, review }),
+  });
+}
+
+export async function removeWatched(movieId: number) {
+  return request(`/watched/${movieId}`, { method: "DELETE" });
+}
+
+// Friends
+export async function getFriends() {
+  return request("/friends");
+}
+
+export async function sendFriendRequest(targetEmail: string) {
+  return request("/friends/request", {
+    method: "POST",
+    body: JSON.stringify({ targetEmail }),
+  });
+}
+
+export async function getFriendRequests() {
+  return request("/friends/requests");
+}
+
+export async function acceptFriend(fromId: string) {
+  return request("/friends/accept", {
+    method: "POST",
+    body: JSON.stringify({ fromId }),
+  });
+}
+
+export async function rejectFriend(fromId: string) {
+  return request("/friends/reject", {
+    method: "POST",
+    body: JSON.stringify({ fromId }),
+  });
+}
+
+export async function removeFriend(friendId: string) {
+  return request(`/friends/${friendId}`, { method: "DELETE" });
+}
+
+export async function getFriendWatched(friendId: string) {
+  return request(`/friends/${friendId}/watched`);
+}
+
+// Recommendations
+export async function getRecommendations() {
+  return request("/recommendations");
+}
+
+// AI
+export async function aiChat(message: string, history: { role: string; content: string }[]) {
+  return request("/ai/chat", {
+    method: "POST",
+    body: JSON.stringify({ message, history }),
+  });
+}
+
+export async function aiAnalyzeReview(review: string, movieTitle: string) {
+  return request("/ai/analyze-review", {
+    method: "POST",
+    body: JSON.stringify({ review, movieTitle }),
+  });
+}
+
+export async function aiExplain(movieId: number) {
+  return request("/ai/explain", {
+    method: "POST",
+    body: JSON.stringify({ movieId }),
+  });
+}
+
+export const TMDB_IMG = "https://image.tmdb.org/t/p";

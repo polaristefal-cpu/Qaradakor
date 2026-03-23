@@ -1,0 +1,213 @@
+@custom-variant dark (&:is(.dark *));
+
+/* ─── LIGHT MODE ─────────────────────────────────────────────────────────────
+   Cinema-grade warm light palette inspired by Letterboxd / TMDB
+   ──────────────────────────────────────────────────────────────────────────── */
+:root {
+  --font-size: 16px;
+
+  /* Surfaces */
+  --background:        #F5F0EA;   /* warm parchment */
+  --background-alt:    #EDE8E0;   /* slightly darker surface */
+  --foreground:        #1A1714;   /* near-black warm */
+
+  /* Cards / Panels */
+  --card:              #FFFFFF;
+  --card-foreground:   #1A1714;
+  --popover:           #FFFFFF;
+  --popover-foreground:#1A1714;
+
+  /* Muted / Subtle */
+  --muted:             #EEE8DF;
+  --muted-foreground:  #7A736C;
+
+  /* Accent surface */
+  --accent:            #F0E9DF;
+  --accent-foreground: #1A1714;
+
+  /* Borders & Inputs */
+  --border:            #DDD5CA;
+  --input:             transparent;
+  --input-background:  #FFFFFF;
+  --switch-background: #C8BFB5;
+  --ring:              #C8914B;
+
+  /* Primary — Cinema Gold */
+  --primary:           #C8914B;
+  --primary-foreground:#FFFFFF;
+
+  /* Secondary — Cinema Navy */
+  --secondary:         #1E3A5F;
+  --secondary-foreground: #FFFFFF;
+
+  /* Status */
+  --destructive:       #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --success:           #16A34A;
+  --success-foreground:#FFFFFF;
+
+  /* Charts */
+  --chart-1: #C8914B;
+  --chart-2: #1E3A5F;
+  --chart-3: #DC2626;
+  --chart-4: #0D9488;
+  --chart-5: #7C3AED;
+
+  /* Layout */
+  --radius: 0.625rem;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+
+  /* Nav specific */
+  --nav-bg: rgba(255, 255, 255, 0.96);
+  --nav-border: #DDD5CA;
+
+  /* Sidebar */
+  --sidebar:                #FFFFFF;
+  --sidebar-foreground:     #1A1714;
+  --sidebar-primary:        #C8914B;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent:         #EEE8DF;
+  --sidebar-accent-foreground: #1A1714;
+  --sidebar-border:         #DDD5CA;
+  --sidebar-ring:           #C8914B;
+}
+
+/* ─── DARK MODE ──────────────────────────────────────────────────────────────
+   Deep cinema dark — Kinopoisk / Letterboxd style
+   ──────────────────────────────────────────────────────────────────────────── */
+.dark {
+  /* Surfaces */
+  --background:        #0F1117;
+  --background-alt:    #13161E;
+  --foreground:        #E8E2D9;
+
+  /* Cards / Panels */
+  --card:              #181C26;
+  --card-foreground:   #E8E2D9;
+  --popover:           #1E2230;
+  --popover-foreground:#E8E2D9;
+
+  /* Muted */
+  --muted:             #1E2230;
+  --muted-foreground:  #8A8480;
+
+  /* Accent surface */
+  --accent:            #22263A;
+  --accent-foreground: #E8E2D9;
+
+  /* Borders & Inputs */
+  --border:            #2A2D3E;
+  --input:             transparent;
+  --input-background:  #1E2230;
+  --switch-background: #3A3D4E;
+  --ring:              #D4A574;
+
+  /* Primary — Cinema Gold (slightly brighter in dark) */
+  --primary:           #D4A574;
+  --primary-foreground:#0F1117;
+
+  /* Secondary — lighter blue for dark bg readability */
+  --secondary:         #3A7DC4;
+  --secondary-foreground: #0F1117;
+
+  /* Status */
+  --destructive:       #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --success:           #22C55E;
+  --success-foreground:#0F1117;
+
+  /* Charts */
+  --chart-1: #D4A574;
+  --chart-2: #3A7DC4;
+  --chart-3: #EF4444;
+  --chart-4: #14B8A6;
+  --chart-5: #A78BFA;
+
+  /* Nav */
+  --nav-bg: rgba(20, 23, 34, 0.96);
+  --nav-border: #2A2D3E;
+
+  /* Sidebar */
+  --sidebar:                #181C26;
+  --sidebar-foreground:     #E8E2D9;
+  --sidebar-primary:        #D4A574;
+  --sidebar-primary-foreground: #0F1117;
+  --sidebar-accent:         #1E2230;
+  --sidebar-accent-foreground: #E8E2D9;
+  --sidebar-border:         #2A2D3E;
+  --sidebar-ring:           #D4A574;
+}
+
+/* ─── TAILWIND TOKEN MAP ────────────────────────────────────────────────────── */
+@theme inline {
+  --color-background:         var(--background);
+  --color-background-alt:     var(--background-alt);
+  --color-foreground:         var(--foreground);
+  --color-card:               var(--card);
+  --color-card-foreground:    var(--card-foreground);
+  --color-popover:            var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary:            var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary:          var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted:              var(--muted);
+  --color-muted-foreground:   var(--muted-foreground);
+  --color-accent:             var(--accent);
+  --color-accent-foreground:  var(--accent-foreground);
+  --color-destructive:        var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border:             var(--border);
+  --color-input:              var(--input);
+  --color-input-background:   var(--input-background);
+  --color-switch-background:  var(--switch-background);
+  --color-ring:               var(--ring);
+  --color-chart-1:            var(--chart-1);
+  --color-chart-2:            var(--chart-2);
+  --color-chart-3:            var(--chart-3);
+  --color-chart-4:            var(--chart-4);
+  --color-chart-5:            var(--chart-5);
+  --color-nav-bg:             var(--nav-bg);
+  --color-nav-border:         var(--nav-border);
+  --color-sidebar:            var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary:    var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent:     var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border:     var(--sidebar-border);
+  --color-sidebar-ring:       var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ─── BASE STYLES ───────────────────────────────────��────────────────────────── */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    font-size: var(--font-size);
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  h1 { font-size: var(--text-2xl); font-weight: 700; line-height: 1.3; }
+  h2 { font-size: var(--text-xl);  font-weight: 600; line-height: 1.4; }
+  h3 { font-size: var(--text-lg);  font-weight: 600; line-height: 1.4; }
+  h4 { font-size: var(--text-base); font-weight: 600; line-height: 1.5; }
+
+  label  { font-size: var(--text-sm); font-weight: 500; line-height: 1.5; }
+  button { font-size: var(--text-sm); font-weight: 500; line-height: 1.5; }
+  input  { font-size: var(--text-sm); font-weight: 400; line-height: 1.5; }
+  textarea { font-size: var(--text-sm); font-weight: 400; line-height: 1.6; }
+}
