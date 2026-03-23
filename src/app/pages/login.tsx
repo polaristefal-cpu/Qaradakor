@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { login, logout, get2FAStatus, sendOtp, verifyOtp } from "../lib/api";
+import { useAuth } from "../lib/auth-context";
 import {
   Clapperboard, Eye, EyeOff, LogIn,
   Smartphone, ShieldCheck, RefreshCw, ArrowLeft,
@@ -10,6 +11,8 @@ type Step = "credentials" | "otp";
 
 export function LoginPage() {
   const [step, setStep] = useState<Step>("credentials");
+  const { session } = useAuth();
+  const navigate = useNavigate();
 
   // Step 1
   const [email, setEmail] = useState("");
@@ -26,7 +29,12 @@ export function LoginPage() {
   const [resendCooldown, setResendCooldown] = useState(0);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  const navigate = useNavigate();
+  // If user is already logged in and NOT in 2FA OTP step → redirect to home
+  useEffect(() => {
+    if (session && step === "credentials") {
+      navigate("/", { replace: true });
+    }
+  }, [session, step, navigate]);
 
   // Cooldown timer
   useEffect(() => {
@@ -45,10 +53,19 @@ export function LoginPage() {
       // Check if 2FA is enabled for this user
       const status = await get2FAStatus();
       if (status.enabled) {
-        // Send OTP
-        const res = await sendOtp();
-        setMaskedPhone(res.masked || status.masked || "");
-        setResendCooldown(60);
+        // Send OTP — handle 429 (too many requests) gracefully
+        try {
+          const res = await sendOtp();
+          setMaskedPhone(res.masked || status.masked || "");
+          setResendCooldown(60);
+        } catch (otpErr: any) {
+          // Parse remaining wait time from server error message (e.g. "Подождите 45 сек.")
+          const waitMatch = otpErr.message?.match(/(\d+)\s*сек/);
+          const waitSec = waitMatch ? parseInt(waitMatch[1]) : 60;
+          setResendCooldown(waitSec);
+          setMaskedPhone(status.masked || "");
+          // Still proceed to OTP step — user can wait and resend
+        }
         setStep("otp");
         setTimeout(() => inputRefs.current[0]?.focus(), 100);
       } else {
@@ -56,7 +73,7 @@ export function LoginPage() {
       }
     } catch (err: any) {
       setError(err.message);
-      // If login succeeded but 2FA check failed, sign out to be safe
+      // If login succeeded but something else failed, sign out to be safe
       try { await logout(); } catch {}
     } finally {
       setLoading(false);

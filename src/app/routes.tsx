@@ -51,6 +51,8 @@ function ProtectedLayout() {
 }
 
 // Only for guests — redirects logged-in users to /
+// NOTE: Login page is intentionally excluded from PublicLayout to avoid
+// race-condition where session is set mid-2FA flow and redirects too early.
 function PublicLayout() {
   const { session, loading } = useAuth();
   if (loading) {
@@ -64,12 +66,31 @@ function PublicLayout() {
   return <Outlet />;
 }
 
+// Neutral layout: no session redirect — used for login page so 2FA flow isn't interrupted
+function NeutralLayout() {
+  const { loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
+  return <Outlet />;
+}
+
 export const router = createBrowserRouter([
-  // Public auth pages (login/register)
+  // Login page — uses NeutralLayout so 2FA OTP step isn't interrupted by session redirect
+  {
+    Component: NeutralLayout,
+    children: [
+      { path: "/login", Component: LoginPage },
+    ],
+  },
+  // Register page — uses PublicLayout (no 2FA involved)
   {
     Component: PublicLayout,
     children: [
-      { path: "/login", Component: LoginPage },
       { path: "/register", Component: RegisterPage },
     ],
   },

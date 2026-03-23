@@ -551,7 +551,15 @@ function TwoFASection() {
       setCooldown(60);
       toast.success("Тестовый код отправлен на ваш номер");
     } catch (e: any) {
-      setTestError(e.message);
+      // Handle 429 rate limit — parse remaining seconds from server message
+      const waitMatch = e.message?.match(/(\d+)\s*сек/);
+      if (waitMatch) {
+        const waitSec = parseInt(waitMatch[1]);
+        setCooldown(waitSec);
+        setTestError(`Код уже был отправлен. Подождите ${waitSec} сек.`);
+      } else {
+        setTestError(e.message);
+      }
     } finally {
       setTestLoading(false);
     }
@@ -622,16 +630,19 @@ function TwoFASection() {
             <div>
               <p className="text-xs text-muted-foreground mb-2">Проверить работу 2FA:</p>
               {testStep === "idle" && (
-                <button
-                  onClick={handleSendTestOtp}
-                  disabled={testLoading || cooldown > 0}
-                  className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl bg-muted border border-border hover:border-primary/30 text-foreground disabled:opacity-50 transition-all"
-                >
-                  {testLoading
-                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    : <RefreshCw className="w-3.5 h-3.5" />}
-                  {cooldown > 0 ? `Подождите ${cooldown}с` : "Отправить тестовый код"}
-                </button>
+                <div className="space-y-2">
+                  <button
+                    onClick={handleSendTestOtp}
+                    disabled={testLoading || cooldown > 0}
+                    className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-xl bg-muted border border-border hover:border-primary/30 text-foreground disabled:opacity-50 transition-all"
+                  >
+                    {testLoading
+                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      : <RefreshCw className="w-3.5 h-3.5" />}
+                    {cooldown > 0 ? `Подождите ${cooldown}с` : "Отправить тестовый код"}
+                  </button>
+                  {testError && <p className="text-destructive text-xs">{testError}</p>}
+                </div>
               )}
               {testStep === "sent" && (
                 <div className="space-y-2">
