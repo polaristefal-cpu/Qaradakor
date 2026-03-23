@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { aiChat, TMDB_IMG } from "../lib/api";
 import { Bot, Send, Loader2, User, Film, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   role: "user" | "assistant";
@@ -17,6 +18,65 @@ const SUGGESTIONS = [
   "Что посмотреть, чтобы поднять настроение?",
   "Порекомендуй хорроры, от которых реально страшно",
 ];
+
+// Markdown renderer components for AI messages
+const markdownComponents: React.ComponentProps<typeof ReactMarkdown>["components"] = {
+  p: ({ children }) => (
+    <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>
+  ),
+  strong: ({ children }) => (
+    <strong className="font-bold" style={{ color: "var(--color-primary)" }}>
+      {children}
+    </strong>
+  ),
+  em: ({ children }) => (
+    <em className="not-italic font-medium opacity-70">{children}</em>
+  ),
+  ol: ({ children }) => (
+    <ol className="space-y-2 my-2 pl-0 list-none" style={{ counterReset: "ai-counter" }}>
+      {children}
+    </ol>
+  ),
+  ul: ({ children }) => (
+    <ul className="space-y-2 my-2 pl-0 list-none">{children}</ul>
+  ),
+  li: ({ children, ordered, index }: any) => (
+    <li className="text-sm leading-relaxed flex gap-2 items-start">
+      <span
+        className="shrink-0 mt-0.5 min-w-[1.4em] text-xs font-mono"
+        style={{ color: "var(--color-primary)", opacity: 0.8 }}
+      >
+        {ordered ? `${(index ?? 0) + 1}.` : "•"}
+      </span>
+      <span>{children}</span>
+    </li>
+  ),
+  h1: ({ children }) => (
+    <h1 className="font-bold text-base mb-2" style={{ color: "var(--color-primary)" }}>
+      {children}
+    </h1>
+  ),
+  h2: ({ children }) => (
+    <h2 className="font-bold text-sm mb-1.5" style={{ color: "var(--color-primary)" }}>
+      {children}
+    </h2>
+  ),
+  h3: ({ children }) => (
+    <h3 className="font-semibold text-sm mb-1">{children}</h3>
+  ),
+  code: ({ children }) => (
+    <code className="bg-muted px-1 py-0.5 rounded text-xs font-mono">{children}</code>
+  ),
+  blockquote: ({ children }) => (
+    <blockquote
+      className="border-l-2 pl-3 italic my-2 opacity-70"
+      style={{ borderColor: "var(--color-primary)" }}
+    >
+      {children}
+    </blockquote>
+  ),
+  hr: () => <hr className="border-border my-3" />,
+};
 
 export function AiChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -39,9 +99,15 @@ export function AiChatPage() {
     try {
       const history = messages.map((m) => ({ role: m.role, content: m.content }));
       const data = await aiChat(msg, history);
-      setMessages((prev) => [...prev, { role: "assistant", content: data.response, movies: data.movies }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.response, movies: data.movies },
+      ]);
     } catch (e: any) {
-      setMessages((prev) => [...prev, { role: "assistant", content: `Ошибка: ${e.message}` }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: `Ошибка: ${e.message}` },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -57,7 +123,9 @@ export function AiChatPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-sm font-bold text-foreground">Qaradakor AI</h1>
-            <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">GPT-5.4 mini</span>
+            <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">
+              GPT-5.4 mini
+            </span>
           </div>
           <p className="text-muted-foreground text-xs">Кино-ассистент, знающий вашу библиотеку</p>
         </div>
@@ -97,15 +165,25 @@ export function AiChatPage() {
                 <Bot className="w-3.5 h-3.5 text-primary-foreground" />
               </div>
             )}
-            <div className={`max-w-[82%]`}>
-              <div className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
-                msg.role === "user"
-                  ? "bg-primary text-primary-foreground rounded-br-md"
-                  : "bg-card text-foreground rounded-bl-md border border-border shadow-sm"
-              }`}>
-                {msg.content}
+
+            <div className="max-w-[82%]">
+              <div
+                className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                  msg.role === "user"
+                    ? "bg-primary text-primary-foreground rounded-br-md"
+                    : "bg-card text-foreground rounded-bl-md border border-border shadow-sm"
+                }`}
+              >
+                {msg.role === "user" ? (
+                  <span>{msg.content}</span>
+                ) : (
+                  <ReactMarkdown components={markdownComponents}>
+                    {msg.content}
+                  </ReactMarkdown>
+                )}
               </div>
 
+              {/* Movie cards */}
               {msg.movies && msg.movies.length > 0 && (
                 <div className="mt-3 flex gap-2.5 overflow-x-auto pb-1 scrollbar-hide">
                   {msg.movies.map((m: any) => (
@@ -161,7 +239,10 @@ export function AiChatPage() {
       {/* Input */}
       <div className="shrink-0 pt-3 border-t border-border">
         <form
-          onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            sendMessage();
+          }}
           className="flex gap-2.5"
         >
           <input

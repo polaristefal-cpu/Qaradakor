@@ -59,7 +59,7 @@ async function callOpenAI(messages: any[], temperature = 0.7, max_tokens = 1024)
       model: "gpt-5.4-mini",
       messages,
       temperature,
-      max_tokens,
+      max_completion_tokens: max_tokens,
     }),
   });
   const data = await resp.json();
@@ -781,13 +781,14 @@ app.post("/make-server-59141208/ai/chat", async (c) => {
 
 ПРАВИЛА:
 1. Отвечай на русском языке
-2. Когда рекомендуешь фильмы, ОБЯЗАТЕЛЬНО включай JSON-блок в формате:
+2. Используй markdown форматирование: **жирный** для названий фильмов, *курсив* для акцентов, нумерованные списки для перечислений
+3. Когда рекомендуешь фильмы, ОБЯЗАТЕЛЬНО в самом конце ответа включай JSON-блок в формате:
    |||MOVIES|||[{"title":"Название на английском","year":2020}]|||END|||
-   Это нужно для автоматического поиска в TMDB. Включай этот блок ПОСЛЕ текстового ответа.
-3. Объясняй ПОЧЕМУ конкретный фильм подойдёт этому пользователю, основываясь на его вкусах
-4. Будь дружелюбным и увлечённым кино
-5. Можешь обсуждать режиссёров, актёров, жанры, киноисторию
-6. Если пользователь описывает настроение или ситуацию, подбирай фильмы под это`;
+   ВАЖНО: этот блок должен быть ПОСЛЕДНИМ в ответе, после всего текста
+4. Объясняй ПОЧЕМУ конкретный фильм подойдёт этому пользователю, основываясь на его вкусах
+5. Будь дружелюбным и увлечённым кино
+6. Можешь обсуждать режиссёров, актёров, жанры, киноисторию
+7. Если пользователь описывает настроение или ситуацию, подбирай фильмы под это`;
 
     const messages = [
       { role: "system", content: systemPrompt },
@@ -818,6 +819,30 @@ app.post("/make-server-59141208/ai/chat", async (c) => {
         movies = results.filter(Boolean);
       } catch (e) {
         console.log("[AI Chat] Failed to parse movie JSON:", e);
+      }
+    }
+
+    // Fallback: extract movies from markdown bold text like **Title (Year)**
+    if (movies.length === 0) {
+      const boldMovies = [...aiResponse.matchAll(/\*\*([^*]+?\s*\(\d{4}\))[^*]*?\*\*/g)];
+      if (boldMovies.length > 0) {
+        const fallbackPromises = boldMovies.slice(0, 8).map(async (match) => {
+          try {
+            // Extract title and year: "Paddington 2 (2017)" → title="Paddington 2", year="2017"
+            const raw = match[1].trim();
+            const yearMatch = raw.match(/^(.+?)\s*\((\d{4})\)$/);
+            if (!yearMatch) return null;
+            const title = yearMatch[1].trim();
+            const year = yearMatch[2];
+            const resp = await tmdbFetch(`/search/movie?query=${encodeURIComponent(title)}&language=ru-RU&year=${year}`);
+            const data = await resp.json();
+            if (data.results?.[0]) return data.results[0];
+          } catch {}
+          return null;
+        });
+        const fallbackResults = await Promise.all(fallbackPromises);
+        movies = fallbackResults.filter(Boolean);
+        console.log(`[AI Chat] Fallback extracted ${movies.length} movies from bold text`);
       }
     }
 
