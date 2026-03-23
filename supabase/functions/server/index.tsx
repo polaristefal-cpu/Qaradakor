@@ -172,6 +172,42 @@ app.delete("/make-server-59141208/watched/:movieId", async (c) => {
   return c.json({ ok: true });
 });
 
+// ---- WATCHLIST ----
+app.get("/make-server-59141208/watchlist", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const watchlist = await kv.get(`user:${user.id}:watchlist`) || [];
+  return c.json(watchlist);
+});
+
+app.post("/make-server-59141208/watchlist", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const { movieId, title, poster_path, release_date, vote_average } = await c.req.json();
+    if (!movieId) return c.json({ error: "movieId required" }, 400);
+    const watchlist: any[] = await kv.get(`user:${user.id}:watchlist`) || [];
+    if (watchlist.some((w: any) => w.movieId === movieId)) {
+      return c.json({ ok: true, alreadyExists: true });
+    }
+    watchlist.push({ movieId, title, poster_path, release_date, vote_average, addedAt: new Date().toISOString() });
+    await kv.set(`user:${user.id}:watchlist`, watchlist);
+    return c.json({ ok: true });
+  } catch (e: any) {
+    return c.json({ error: `Watchlist add error: ${e.message}` }, 500);
+  }
+});
+
+app.delete("/make-server-59141208/watchlist/:movieId", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const movieId = parseInt(c.req.param("movieId"));
+  let watchlist: any[] = await kv.get(`user:${user.id}:watchlist`) || [];
+  watchlist = watchlist.filter((w: any) => w.movieId !== movieId);
+  await kv.set(`user:${user.id}:watchlist`, watchlist);
+  return c.json({ ok: true });
+});
+
 // ---- FRIENDS ----
 app.get("/make-server-59141208/friends", async (c) => {
   const user = await getUser(c);

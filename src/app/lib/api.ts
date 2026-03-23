@@ -267,6 +267,28 @@ export async function removeWatched(movieId: number) {
   return request(`/watched/${movieId}`, { method: "DELETE" });
 }
 
+// Watchlist
+export async function getWatchlist() {
+  return request("/watchlist");
+}
+
+export async function addToWatchlist(movie: {
+  movieId: number;
+  title: string;
+  poster_path: string | null;
+  release_date: string;
+  vote_average: number;
+}) {
+  return request("/watchlist", {
+    method: "POST",
+    body: JSON.stringify(movie),
+  });
+}
+
+export async function removeFromWatchlist(movieId: number) {
+  return request(`/watchlist/${movieId}`, { method: "DELETE" });
+}
+
 // Friends
 export async function getFriends() {
   return request("/friends");
@@ -333,3 +355,16 @@ export async function aiExplain(movieId: number) {
 }
 
 export const TMDB_IMG = "https://image.tmdb.org/t/p";
+
+// People / Persons
+export async function searchPeople(query: string) {
+  return request(`/tmdb/search/person?query=${encodeURIComponent(query)}&language=ru-RU`);
+}
+
+export async function getPersonDetails(personId: number) {
+  return request(`/tmdb/person/${personId}?language=ru-RU`);
+}
+
+export async function getPersonMovies(personId: number) {
+  return request(`/tmdb/person/${personId}/movie_credits?language=ru-RU`);
+}

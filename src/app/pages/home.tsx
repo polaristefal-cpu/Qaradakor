@@ -32,6 +32,7 @@ import {
   Users as Users2,
   Bot,
 } from "lucide-react";
+import { MovieCard } from "../components/movie-card";
 
 interface Movie {
   id: number;
@@ -61,49 +62,7 @@ const GENRES = [
 ];
 
 // ─── Poster Card ──────────────────────────────────────────────────────────────
-function PosterCard({ movie }: { movie: Movie }) {
-  const navigate = useNavigate();
-  return (
-    <div
-      onClick={() => navigate(`/movie/${movie.id}`)}
-      className="group cursor-pointer shrink-0 w-32 sm:w-36"
-    >
-      <div className="relative rounded-xl overflow-hidden bg-muted border border-border shadow-sm transition-all duration-300 group-hover:scale-[1.04] group-hover:shadow-xl group-hover:border-primary/40">
-        {movie.poster_path ? (
-          <img
-            src={`${TMDB_IMG}/w342${movie.poster_path}`}
-            alt={movie.title}
-            className="w-full aspect-[2/3] object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full aspect-[2/3] bg-muted flex items-center justify-center">
-            <Film className="w-10 h-10 text-muted-foreground/30" />
-          </div>
-        )}
-        {/* Hover overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-        <div className="absolute bottom-0 left-0 right-0 p-2.5 opacity-0 group-hover:opacity-100 transition-opacity">
-          <p className="text-white text-[11px] font-semibold line-clamp-2 leading-snug">{movie.title}</p>
-          {movie.release_date && (
-            <p className="text-white/50 text-[10px] mt-0.5">{movie.release_date.slice(0, 4)}</p>
-          )}
-        </div>
-        {/* Rating */}
-        {movie.vote_average > 0 && (
-          <div className="absolute top-1.5 left-1.5 bg-black/65 backdrop-blur-sm rounded-md px-1.5 py-0.5 flex items-center gap-1">
-            <Star className="w-2.5 h-2.5 text-primary fill-primary" />
-            <span className="text-white text-[10px] font-bold">{movie.vote_average.toFixed(1)}</span>
-          </div>
-        )}
-      </div>
-      <p className="mt-1.5 text-xs font-medium text-foreground line-clamp-1 px-0.5">{movie.title}</p>
-      {movie.release_date && (
-        <p className="text-[10px] text-muted-foreground px-0.5">{movie.release_date.slice(0, 4)}</p>
-      )}
-    </div>
-  );
-}
+// removed — using MovieCard instead
 
 // ─── Section Header ────────────────────────────────────────────────────────────
 function SectionHeader({
@@ -168,10 +127,17 @@ function MovieRow({
 
         <div
           ref={scrollRef}
-          className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide"
+          className="flex gap-3 overflow-x-auto pb-2 scroll-smooth"
+          style={{ scrollbarWidth: "none" }}
         >
           {movies.map((m) => (
-            <PosterCard key={m.id} movie={m} />
+            <div key={m.id} className="shrink-0 w-32 sm:w-36">
+              <MovieCard movie={m} />
+              <p className="mt-1.5 text-xs font-medium text-foreground line-clamp-1 px-0.5">{m.title}</p>
+              {m.release_date && (
+                <p className="text-[10px] text-muted-foreground px-0.5">{m.release_date.slice(0, 4)}</p>
+              )}
+            </div>
           ))}
         </div>
       </div>
@@ -418,7 +384,7 @@ function GenreSection() {
       {!loading && genreMovies.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
           {genreMovies.slice(0, 16).map((m) => (
-            <PosterCard key={m.id} movie={m} />
+            <MovieCard key={m.id} movie={m} />
           ))}
         </div>
       )}

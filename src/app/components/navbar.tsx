@@ -4,7 +4,7 @@ import { logout, getProfile } from "../lib/api";
 import {
   Clapperboard, Search, Users, Sparkles, Library,
   LogOut, LogIn, Menu, X, Bot, UserPlus,
-  User, ChevronDown, Settings,
+  User, ChevronDown, Settings, Bookmark,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ThemeToggle } from "./theme-toggle";
@@ -54,6 +54,7 @@ export function Navbar() {
 
   const authLinks = [
     { to: "/library", icon: Library, label: "Библиотека" },
+    { to: "/watchlist", icon: Bookmark, label: "Вотчлист" },
     { to: "/recommendations", icon: Sparkles, label: "Рекомендации" },
     { to: "/ai", icon: Bot, label: "AI" },
     { to: "/friends", icon: Users, label: "Друзья" },
@@ -172,6 +173,14 @@ export function Navbar() {
                     >
                       <Library className="w-3.5 h-3.5 text-muted-foreground" />
                       Библиотека
+                    </Link>
+                    <Link
+                      to="/watchlist"
+                      onClick={() => setUserMenuOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                    >
+                      <Bookmark className="w-3.5 h-3.5 text-muted-foreground" />
+                      Хочу посмотреть
                     </Link>
                     <div className="border-t border-border my-1" />
                     <button

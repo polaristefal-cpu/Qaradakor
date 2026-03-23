@@ -11,6 +11,8 @@ import { RecommendationsPage } from "./pages/recommendations";
 import { FriendsPage } from "./pages/friends";
 import { AiChatPage } from "./pages/ai-chat";
 import { ProfilePage } from "./pages/profile";
+import { WatchlistPage } from "./pages/watchlist";
+import { PersonPage } from "./pages/person";
 import { Loader2 } from "lucide-react";
 
 // Available for everyone — shows Navbar for both guests and logged-in users
@@ -101,6 +103,7 @@ export const router = createBrowserRouter([
       { path: "/", Component: HomePage },
       { path: "/search", Component: SearchPage },
       { path: "/movie/:id", Component: MovieDetailPage },
+      { path: "/person/:id", Component: PersonPage },
     ],
   },
   // Protected pages — require auth
@@ -108,6 +111,7 @@ export const router = createBrowserRouter([
     Component: ProtectedLayout,
     children: [
       { path: "/library", Component: LibraryPage },
+      { path: "/watchlist", Component: WatchlistPage },
       { path: "/recommendations", Component: RecommendationsPage },
       { path: "/friends", Component: FriendsPage },
       { path: "/ai", Component: AiChatPage },

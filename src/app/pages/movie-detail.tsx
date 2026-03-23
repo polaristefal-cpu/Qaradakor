@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router";
 import {
   getMovie, addWatched, removeWatched, getWatched,
   TMDB_IMG, aiExplain, aiAnalyzeReview,
+  addToWatchlist, removeFromWatchlist, getWatchlist,
 } from "../lib/api";
 import {
   Star, Clock, ArrowLeft, Check, Trash2, Loader2,
   Calendar, Users, Film, Bot, Brain, LogIn, UserPlus, Sparkles,
+  Bookmark, BookmarkCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../lib/auth-context";
@@ -26,10 +28,12 @@ export function MovieDetailPage() {
   const [aiExplainLoading, setAiExplainLoading] = useState(false);
   const [sentimentData, setSentimentData] = useState<any>(null);
   const [sentimentLoading, setSentimentLoading] = useState(false);
+  const [inWatchlist, setInWatchlist] = useState(false);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
 
   useEffect(() => {
     if (!id) return;
-    setLoading(true); setMovie(null); setWatched(null); setRating(0); setReview("");
+    setLoading(true); setMovie(null); setWatched(null); setRating(0); setReview(""); setInWatchlist(false);
 
     getMovie(Number(id))
       .then(setMovie)
@@ -43,6 +47,12 @@ export function MovieDetailPage() {
           if (e) { setWatched(e); setRating(e.rating || 0); setReview(e.review || ""); }
         }
       }).catch(() => {});
+
+      getWatchlist().then((wl) => {
+        if (Array.isArray(wl)) {
+          setInWatchlist(wl.some((x: any) => x.movieId === Number(id)));
+        }
+      }).catch(() => {});
     }
   }, [id, session]);
 
@@ -53,6 +63,11 @@ export function MovieDetailPage() {
     try {
       await addWatched(Number(id), rating, review);
       setWatched({ movieId: Number(id), rating, review });
+      // If movie was in watchlist, remove it automatically
+      if (inWatchlist) {
+        await removeFromWatchlist(Number(id));
+        setInWatchlist(false);
+      }
       toast.success("Добавлено в библиотеку!");
     } catch { toast.error("Ошибка при добавлении"); }
     finally { setSaving(false); }
@@ -66,6 +81,32 @@ export function MovieDetailPage() {
       toast.success("Удалено из библиотеки");
     } catch { toast.error("Ошибка при удалении"); }
     finally { setSaving(false); }
+  };
+
+  const handleToggleWatchlist = async () => {
+    if (!session) { toast.error("Войдите в аккаунт"); return; }
+    setWatchlistLoading(true);
+    try {
+      if (inWatchlist) {
+        await removeFromWatchlist(Number(id));
+        setInWatchlist(false);
+        toast.success("Удалено из «Хочу посмотреть»");
+      } else {
+        await addToWatchlist({
+          movieId: Number(id),
+          title: movie.title,
+          poster_path: movie.poster_path,
+          release_date: movie.release_date,
+          vote_average: movie.vote_average,
+        });
+        setInWatchlist(true);
+        toast.success("Добавлено в «Хочу посмотреть»!");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Ошибка");
+    } finally {
+      setWatchlistLoading(false);
+    }
   };
 
   if (loading) return (
@@ -179,6 +220,29 @@ export function MovieDetailPage() {
               </div>
             )}
 
+            {/* Watchlist button — prominent, near genres */}
+            {session && !watched && (
+              <div>
+                <button
+                  onClick={handleToggleWatchlist}
+                  disabled={watchlistLoading}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+                    inWatchlist
+                      ? "bg-primary/10 text-primary border-primary/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+                      : "bg-muted text-muted-foreground border-border hover:text-foreground hover:border-primary/30"
+                  }`}
+                >
+                  {watchlistLoading
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : inWatchlist
+                      ? <BookmarkCheck className="w-4 h-4" />
+                      : <Bookmark className="w-4 h-4" />
+                  }
+                  {inWatchlist ? "В списке «Хочу посмотреть»" : "Хочу посмотреть"}
+                </button>
+              </div>
+            )}
+
             {/* Overview */}
             {movie.overview && (
               <div>
@@ -219,7 +283,20 @@ export function MovieDetailPage() {
             {/* Details grid */}
             <div className="grid grid-cols-2 gap-3 pt-1">
               {directors.length > 0 && (
-                <div><p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Режиссёр</p><p className="text-sm text-foreground">{directors.map((d: any) => d.name).join(", ")}</p></div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Режиссёр</p>
+                  <div className="flex flex-wrap gap-1">
+                    {directors.map((d: any) => (
+                      <button
+                        key={d.id}
+                        onClick={() => navigate(`/person/${d.id}`)}
+                        className="text-sm text-primary hover:underline"
+                      >
+                        {d.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               )}
               {countries && (
                 <div><p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Страна</p><p className="text-sm text-foreground">{countries}</p></div>
@@ -245,9 +322,13 @@ export function MovieDetailPage() {
             </h3>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
               {cast.map((c: any) => (
-                <div key={c.id} className="bg-card border border-border rounded-xl overflow-hidden hover:border-primary/30 hover:shadow-md transition-all">
+                <div
+                  key={c.id}
+                  onClick={() => navigate(`/person/${c.id}`)}
+                  className="bg-card border border-border rounded-xl overflow-hidden hover:border-primary/30 hover:shadow-md transition-all cursor-pointer group"
+                >
                   {c.profile_path ? (
-                    <img src={`${TMDB_IMG}/w185${c.profile_path}`} alt={c.name} className="w-full aspect-[2/3] object-cover" loading="lazy" />
+                    <img src={`${TMDB_IMG}/w185${c.profile_path}`} alt={c.name} className="w-full aspect-[2/3] object-cover group-hover:scale-[1.03] transition-transform duration-300" loading="lazy" />
                   ) : (
                     <div className="w-full aspect-[2/3] bg-muted flex items-center justify-center">
                       <Users className="w-7 h-7 text-muted-foreground/20" />
