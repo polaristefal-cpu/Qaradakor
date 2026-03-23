@@ -141,6 +141,30 @@ export async function get2FAStatus() {
   return request("/auth/2fa-status");
 }
 
+// 2FA Setup: step 1 — verify password + send OTP to new phone
+export async function setup2FASend(phone: string, password: string) {
+  return request("/auth/2fa-setup-send", {
+    method: "POST",
+    body: JSON.stringify({ phone, password }),
+  });
+}
+
+// 2FA Setup: step 2 — confirm OTP and enable 2FA
+export async function setup2FAConfirm(code: string) {
+  return request("/auth/2fa-setup-confirm", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
+}
+
+// Disable 2FA — requires password confirmation
+export async function disable2FA(password: string) {
+  return request("/auth/2fa-disable", {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
 export async function sendOtp() {
   return request("/auth/send-otp", { method: "POST" });
 }

@@ -60,7 +60,7 @@ function tmdbFetch(path: string) {
   return fetch(url, { headers });
 }
 
-async function getUser(c: any): Promise<{ id: string } | null> {
+async function getUser(c: any): Promise<{ id: string; email: string } | null> {
   // Session token is passed via x-user-token header (Authorization is reserved for Supabase gateway)
   const token = c.req.header("x-user-token");
   if (!token) return null;
@@ -69,7 +69,7 @@ async function getUser(c: any): Promise<{ id: string } | null> {
     console.log("getUser error:", error?.message);
     return null;
   }
-  return { id: data.user.id };
+  return { id: data.user.id, email: data.user.email || "" };
 }
 
 // Health
@@ -482,6 +482,130 @@ app.get("/make-server-59141208/auth/2fa-status", async (c) => {
     ? `+7 *** *** ${phone.slice(7, 9)} ${phone.slice(9)}`
     : "";
   return c.json({ enabled, masked });
+});
+
+// ---- 2FA SETUP: Step 1 — verify password + send OTP to new phone ----
+app.post("/make-server-59141208/auth/2fa-setup-send", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const { phone, password } = await c.req.json();
+    if (!phone || !password) return c.json({ error: "Укажите телефон и пароль" }, 400);
+
+    // Verify current password by signing in with Supabase
+    const { error: signInError } = await supabaseAnon().auth.signInWithPassword({
+      email: user.email,
+      password,
+    });
+    if (signInError) {
+      return c.json({ error: "Неверный пароль" }, 401);
+    }
+
+    // Normalize phone
+    const digits = phone.replace(/\D/g, "");
+    const normalized = digits.startsWith("8") ? "7" + digits.slice(1) : digits;
+    if (normalized.length !== 11 || !normalized.startsWith("7")) {
+      return c.json({ error: "Неверный формат номера. Используйте +7XXXXXXXXXX" }, 400);
+    }
+
+    // Rate-limit: не чаще раза в 60 секунд
+    const existingOtp: any = await kv.get(`otp:${normalized}`) || {};
+    if (existingOtp.sentAt && Date.now() - existingOtp.sentAt < 60_000) {
+      const wait = Math.ceil((60_000 - (Date.now() - existingOtp.sentAt)) / 1000);
+      return c.json({ error: `Подождите ${wait} сек. перед повторной отправкой` }, 429);
+    }
+
+    // Save phone temporarily (not yet enabled)
+    const existing: any = await kv.get(`user:${user.id}:profile`) || {};
+    await kv.set(`user:${user.id}:profile`, { ...existing, phone: normalized, twofa_enabled: false });
+
+    // Generate & send OTP
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+    await kv.set(`otp:${normalized}`, { code, expiresAt, attempts: 0, sentAt: Date.now(), purpose: "setup" });
+
+    const apiKey = Deno.env.get("MOBIZON_API_KEY")!;
+    const text = encodeURIComponent(`Qaradakor.kz: код подтверждения — ${code}. Действителен 5 минут.`);
+    const mobizonUrl = `https://api.mobizon.kz/service/Message/SendSmsMessage?output=json&api=v1&apiKey=${apiKey}&recipient=${normalized}&text=${text}`;
+    const resp = await fetch(mobizonUrl);
+    const result = await resp.json();
+    console.log("[2FA Setup] Mobizon response:", JSON.stringify(result));
+    if (result.code !== 0) {
+      return c.json({ error: `Ошибка отправки SMS: ${result.message}` }, 500);
+    }
+
+    const masked = `+7 *** *** ${normalized.slice(7, 9)} ${normalized.slice(9)}`;
+    return c.json({ ok: true, masked });
+  } catch (e: any) {
+    console.log("[2FA Setup Send] Error:", e.message);
+    return c.json({ error: `Ошибка: ${e.message}` }, 500);
+  }
+});
+
+// ---- 2FA SETUP: Step 2 — verify OTP and enable 2FA ----
+app.post("/make-server-59141208/auth/2fa-setup-confirm", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const { code } = await c.req.json();
+    const profile: any = await kv.get(`user:${user.id}:profile`) || {};
+    const phone: string = profile.phone || "";
+    if (!phone) return c.json({ error: "Телефон не найден, начните сначала" }, 400);
+
+    const stored: any = await kv.get(`otp:${phone}`);
+    if (!stored) return c.json({ error: "Код не найден или истёк. Запросите новый." }, 400);
+    if (Date.now() > stored.expiresAt) {
+      await kv.del(`otp:${phone}`);
+      return c.json({ error: "Код истёк. Запросите новый." }, 400);
+    }
+    if (stored.attempts >= 3) {
+      await kv.del(`otp:${phone}`);
+      return c.json({ error: "Превышено число попыток. Запросите новый код." }, 400);
+    }
+    if (stored.code !== String(code).trim()) {
+      stored.attempts += 1;
+      await kv.set(`otp:${phone}`, stored);
+      const left = 3 - stored.attempts;
+      return c.json({ error: `Неверный код. Осталось попыток: ${left}` }, 400);
+    }
+
+    // OTP correct — enable 2FA
+    await kv.del(`otp:${phone}`);
+    const updated = { ...profile, twofa_enabled: true };
+    await kv.set(`user:${user.id}:profile`, updated);
+    const masked = `+7 *** *** ${phone.slice(7, 9)} ${phone.slice(9)}`;
+    return c.json({ ok: true, masked });
+  } catch (e: any) {
+    console.log("[2FA Setup Confirm] Error:", e.message);
+    return c.json({ error: `Ошибка: ${e.message}` }, 500);
+  }
+});
+
+// ---- 2FA DISABLE — verify password and disable 2FA ----
+app.post("/make-server-59141208/auth/2fa-disable", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const { password } = await c.req.json();
+    if (!password) return c.json({ error: "Введите текущий пароль" }, 400);
+
+    // Verify password
+    const { error: signInError } = await supabaseAnon().auth.signInWithPassword({
+      email: user.email,
+      password,
+    });
+    if (signInError) {
+      return c.json({ error: "Неверный пароль" }, 401);
+    }
+
+    const profile: any = await kv.get(`user:${user.id}:profile`) || {};
+    const updated = { ...profile, twofa_enabled: false };
+    await kv.set(`user:${user.id}:profile`, updated);
+    return c.json({ ok: true });
+  } catch (e: any) {
+    console.log("[2FA Disable] Error:", e.message);
+    return c.json({ error: `Ошибка: ${e.message}` }, 500);
+  }
 });
 
 // ---- SEND OTP ----
