@@ -671,7 +671,7 @@ app.post("/make-server-59141208/auth/send-otp", async (c) => {
     const profile: any = await kv.get(`user:${user.id}:profile`) || {};
     const phone: string = profile.phone || "";
     if (!phone) return c.json({ error: "Телефон не привязан к аккаунту" }, 400);
-    if (!profile.twofa_enabled) return c.json({ error: "2FA не включена для этого аккаунта" }, 400);
+    if (!profile.twofa_enabled) return c.json({ error: "2FA н включена для этого аккаунта" }, 400);
 
     // Rate-limit: не чаще раза в 60 секунд
     const existing: any = await kv.get(`otp:login:${phone}`) || {};
@@ -1104,7 +1104,7 @@ app.post("/make-server-59141208/auth/sms-login-verify", async (c) => {
     if (stored.purpose !== "sms-login") return c.json({ error: "Неверный тип кода." }, 400);
     if (Date.now() > stored.expiresAt) {
       await kv.del(`otp:smslogin:${normalized}`);
-      return c.json({ error: "Код истёк. Запросите но��ый." }, 400);
+      return c.json({ error: "Код истёк. Запросите новый." }, 400);
     }
     if (stored.attempts >= 3) {
       await kv.del(`otp:smslogin:${normalized}`);
@@ -1120,17 +1120,129 @@ app.post("/make-server-59141208/auth/sms-login-verify", async (c) => {
     // OTP correct — create Supabase session for this user
     await kv.del(`otp:smslogin:${normalized}`);
 
-    const { data: sessionData, error: sessionError } = await supabaseAdmin().auth.admin.createSession({
-      user_id: stored.userId,
-    });
+    // Get user email (needed for generateLink)
+    const { data: userData, error: userErr } = await supabaseAdmin().auth.admin.getUserById(stored.userId);
+    if (userErr || !userData?.user?.email) {
+      console.log("[SMS Login Verify] getUserById error:", userErr?.message);
+      return c.json({ error: "Не удалось получить данные пользователя" }, 500);
+    }
+    const email = userData.user.email;
 
-    if (sessionError || !sessionData?.session) {
-      console.log("[SMS Login Verify] createSession error:", sessionError?.message);
-      return c.json({ error: "Не удалось создать сессию. Попробуйте войти через email." }, 500);
+    // Generate server-side magic link token (no email sent since we handle it server-side)
+    const { data: linkData, error: linkErr } = await supabaseAdmin().auth.admin.generateLink({
+      type: "magiclink",
+      email,
+    });
+    if (linkErr || !linkData?.properties) {
+      console.log("[SMS Login Verify] generateLink error:", linkErr?.message);
+      return c.json({ error: "Не удалось сгенерировать токен входа" }, 500);
     }
 
-    const { access_token, refresh_token, expires_in } = sessionData.session;
-    console.log("[SMS Login] Session created for userId:", stored.userId);
+    console.log("[SMS Login] generateLink properties keys:", Object.keys(linkData.properties));
+    console.log("[SMS Login] hashed_token present:", !!linkData.properties.hashed_token);
+    console.log("[SMS Login] action_link present:", !!linkData.properties.action_link);
+    console.log("[SMS Login] email_otp present:", !!linkData.properties.email_otp);
+
+    let sessionResult: any = null;
+    let sessionErr: any = null;
+
+    // --- Approach 1: token_hash (correct API for hashed_token) ---
+    if (linkData.properties.hashed_token) {
+      const r = await supabaseAnon().auth.verifyOtp({
+        token_hash: linkData.properties.hashed_token,
+        type: "magiclink",
+      });
+      console.log("[SMS Login] Approach 1 (token_hash) error:", r.error?.message, "session:", !!r.data?.session);
+      if (!r.error && r.data?.session) {
+        sessionResult = r.data.session;
+      } else {
+        sessionErr = r.error;
+      }
+    }
+
+    // --- Approach 2: raw token extracted from action_link URL ---
+    if (!sessionResult && linkData.properties.action_link) {
+      try {
+        const actionUrl = new URL(linkData.properties.action_link);
+        const rawToken = actionUrl.searchParams.get("token");
+        console.log("[SMS Login] Approach 2: raw token from action_link, length:", rawToken?.length);
+        if (rawToken) {
+          const r = await supabaseAnon().auth.verifyOtp({
+            email,
+            token: rawToken,
+            type: "magiclink",
+          });
+          console.log("[SMS Login] Approach 2 (raw token) error:", r.error?.message, "session:", !!r.data?.session);
+          if (!r.error && r.data?.session) {
+            sessionResult = r.data.session;
+          } else {
+            sessionErr = r.error;
+          }
+        }
+      } catch (e2: any) {
+        console.log("[SMS Login] Approach 2 exception:", e2.message);
+      }
+    }
+
+    // --- Approach 3: email_otp field ---
+    if (!sessionResult && linkData.properties.email_otp) {
+      const r = await supabaseAnon().auth.verifyOtp({
+        email,
+        token: linkData.properties.email_otp,
+        type: "magiclink",
+      });
+      console.log("[SMS Login] Approach 3 (email_otp) error:", r.error?.message, "session:", !!r.data?.session);
+      if (!r.error && r.data?.session) {
+        sessionResult = r.data.session;
+      } else {
+        sessionErr = r.error;
+      }
+    }
+
+    // --- Approach 4: direct REST call to /auth/v1/verify ---
+    if (!sessionResult && linkData.properties.hashed_token) {
+      try {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+        const verifyResp = await fetch(`${supabaseUrl}/auth/v1/verify`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": anonKey,
+            "Authorization": `Bearer ${anonKey}`,
+          },
+          body: JSON.stringify({
+            type: "magiclink",
+            token_hash: linkData.properties.hashed_token,
+          }),
+        });
+        const verifyStatus = verifyResp.status;
+        // /auth/v1/verify might redirect (302) — follow redirect response header
+        console.log("[SMS Login] Approach 4 REST status:", verifyStatus);
+        if (verifyResp.ok) {
+          const verifyData = await verifyResp.json().catch(() => null);
+          console.log("[SMS Login] Approach 4 REST response keys:", verifyData ? Object.keys(verifyData) : "null");
+          if (verifyData?.access_token) {
+            sessionResult = verifyData;
+          }
+        } else if (verifyStatus === 302) {
+          // Redirect means success — but we can't extract session from redirect in server env
+          console.log("[SMS Login] Approach 4: got 302 redirect (token valid but session extraction not possible via REST)");
+        }
+      } catch (e4: any) {
+        console.log("[SMS Login] Approach 4 exception:", e4.message);
+      }
+    }
+
+    if (!sessionResult) {
+      console.log("[SMS Login Verify] All approaches failed. Last error:", sessionErr?.message);
+      return c.json({
+        error: `Не удалось создать сессию: ${sessionErr?.message || "неизвестная ошибка"}. Попробуйте войти через email.`,
+      }, 500);
+    }
+
+    const { access_token, refresh_token, expires_in } = sessionResult;
+    console.log("[SMS Login] Session created successfully for userId:", stored.userId);
 
     return c.json({ ok: true, access_token, refresh_token, expires_in });
   } catch (e: any) {
