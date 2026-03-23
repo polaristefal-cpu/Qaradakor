@@ -9,6 +9,40 @@ import {
 
 type Step = "credentials" | "checking" | "otp" | "sms-phone" | "sms-otp";
 
+// ── OtpBoxes MUST be outside LoginPage to avoid remount on every render ──────
+interface OtpBoxesProps {
+  value: string[];
+  onChange: (i: number, v: string) => void;
+  onKeyDown: (i: number, e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onPaste: (e: React.ClipboardEvent) => void;
+  refs: React.MutableRefObject<(HTMLInputElement | null)[]>;
+}
+
+function OtpBoxes({ value, onChange, onKeyDown, onPaste, refs }: OtpBoxesProps) {
+  return (
+    <div className="flex gap-2 justify-center" onPaste={onPaste}>
+      {value.map((digit, i) => (
+        <input
+          key={i}
+          ref={(el) => { refs.current[i] = el; }}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={digit}
+          onChange={(e) => onChange(i, e.target.value)}
+          onKeyDown={(e) => onKeyDown(i, e)}
+          className={`w-11 text-center rounded-xl border-2 bg-muted text-foreground transition-all focus:outline-none ${
+            digit
+              ? "border-primary bg-primary/5 text-primary"
+              : "border-border focus:border-primary focus:ring-2 focus:ring-primary/15"
+          }`}
+          style={{ height: "3.25rem", fontSize: "1.25rem", fontWeight: 900 }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function LoginPage() {
   const [step, setStep] = useState<Step>("credentials");
   const { session } = useAuth();
@@ -36,7 +70,7 @@ export function LoginPage() {
   const [smsMasked, setSmsMasked] = useState("");
   const [smsCooldown, setSmsCooldown] = useState(0);
 
-  // SMS Login — OTP input (reuses otp state)
+  // SMS Login — OTP input
   const smsOtpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const [smsOtp, setSmsOtp] = useState(["", "", "", "", "", ""]);
   const [smsOtpError, setSmsOtpError] = useState("");
@@ -69,7 +103,6 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      // Switch to "checking" BEFORE any await — blocks the session useEffect redirect
       setStep("checking");
       const status = await get2FAStatus();
       if (status.enabled) {
@@ -210,7 +243,6 @@ export function LoginPage() {
     setSmsOtpLoading(true);
     try {
       const result = await smsLoginVerify(("7" + smsPhone).trim(), code);
-      // Set session in Supabase client — auth-context picks it up automatically
       const { error } = await supabase.auth.setSession({
         access_token: result.access_token,
         refresh_token: result.refresh_token,
@@ -239,40 +271,6 @@ export function LoginPage() {
     } catch (err: any) { setSmsOtpError(err.message); }
     finally { setSmsLoading(false); }
   };
-
-  // ── Shared OTP boxes renderer ─────────────────────────────────────────────
-  function OtpBoxes({
-    value, onChange, onKeyDown, onPaste, refs,
-  }: {
-    value: string[];
-    onChange: (i: number, v: string) => void;
-    onKeyDown: (i: number, e: React.KeyboardEvent<HTMLInputElement>) => void;
-    onPaste: (e: React.ClipboardEvent) => void;
-    refs: React.MutableRefObject<(HTMLInputElement | null)[]>;
-  }) {
-    return (
-      <div className="flex gap-2 justify-center" onPaste={onPaste}>
-        {value.map((digit, i) => (
-          <input
-            key={i}
-            ref={(el) => { refs.current[i] = el; }}
-            type="text"
-            inputMode="numeric"
-            maxLength={1}
-            value={digit}
-            onChange={(e) => onChange(i, e.target.value)}
-            onKeyDown={(e) => onKeyDown(i, e)}
-            className={`w-11 text-center text-xl font-black rounded-xl border-2 bg-muted text-foreground transition-all focus:outline-none ${
-              digit
-                ? "border-primary bg-primary/5 text-primary"
-                : "border-border focus:border-primary focus:ring-2 focus:ring-primary/15"
-            }`}
-            style={{ height: "3.25rem" }}
-          />
-        ))}
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -539,9 +537,10 @@ export function LoginPage() {
         {/* ── STEP: SMS Login — OTP verification ── */}
         {step === "sms-otp" && (
           <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-5">
+            {/* Header */}
             <div className="text-center">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-3">
-                <MessageSquare className="w-7 h-7 text-primary" />
+              <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/30">
+                <MessageSquare className="w-7 h-7 text-primary-foreground" />
               </div>
               <h2 className="text-lg font-black text-foreground">Код отправлен</h2>
               <p className="text-muted-foreground text-xs mt-1.5 leading-relaxed">
@@ -550,17 +549,19 @@ export function LoginPage() {
               </p>
             </div>
 
+            {/* Error */}
             {smsOtpError && (
               <div className="bg-destructive/10 border border-destructive/25 text-destructive text-xs rounded-xl p-3 text-center">
                 {smsOtpError}
               </div>
             )}
 
+            {/* OTP form */}
             <form onSubmit={handleSmsOtpVerify} className="space-y-4">
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-3 text-center">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-center mb-3">
                   Введите 6-значный код
-                </label>
+                </p>
                 <OtpBoxes
                   value={smsOtp}
                   onChange={handleSmsOtpChange}
@@ -573,16 +574,17 @@ export function LoginPage() {
               <button
                 type="submit"
                 disabled={smsOtpLoading || smsOtp.join("").length < 6}
-                className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 font-semibold py-2.5 rounded-xl transition-all shadow-sm text-sm"
+                className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 font-semibold py-3 rounded-xl transition-all shadow-md shadow-primary/20 text-sm"
               >
                 {smsOtpLoading
                   ? <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                  : <LogIn className="w-4 h-4" />}
+                  : <span className="text-base">→</span>}
                 {smsOtpLoading ? "Входим…" : "Войти"}
               </button>
             </form>
 
-            <div className="flex items-center justify-between pt-1">
+            {/* Bottom actions */}
+            <div className="flex items-center justify-between">
               <button
                 onClick={() => { setStep("sms-phone"); setSmsOtp(["", "", "", "", "", ""]); setSmsOtpError(""); }}
                 className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
@@ -595,16 +597,17 @@ export function LoginPage() {
                 disabled={smsCooldown > 0 || smsLoading}
                 className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
               >
-                <RefreshCw className="w-3.5 h-3.5" />
-                {smsCooldown > 0 ? `Повторить (${smsCooldown}с)` : "Отправить снова"}
+                <RefreshCw className={`w-3.5 h-3.5 ${smsLoading ? "animate-spin" : ""}`} />
+                {smsCooldown > 0 ? `Повторить (${smsCooldown}с)` : "Повторить"}
               </button>
             </div>
 
+            {/* Info box */}
             <div className="flex items-start gap-2.5 bg-muted/60 border border-border rounded-xl p-3">
               <Smartphone className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
               <p className="text-muted-foreground text-[11px] leading-relaxed">
-                Код действителен <strong className="text-foreground">5 минут</strong>. До 3 попыток ввода.
-                Никому не сообщайте код.
+                Код действителен <strong className="text-foreground">5 минут</strong>. До 3 попыток ввода.{" "}
+                <span className="text-primary">Никому не сообщайте код.</span>
               </p>
             </div>
           </div>
