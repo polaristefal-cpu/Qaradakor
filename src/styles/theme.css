@@ -1,43 +1,43 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ─── LIGHT MODE ─────────────────────────────────────────────────────────────
-   Cinema-grade warm light palette inspired by Letterboxd / TMDB
+   White / Alabaster Grey / Electric Aqua / Onyx
    ──────────────────────────────────────────────────────────────────────────── */
 :root {
   --font-size: 16px;
 
   /* Surfaces */
-  --background:        #F5F0EA;   /* warm parchment */
-  --background-alt:    #EDE8E0;   /* slightly darker surface */
-  --foreground:        #1A1714;   /* near-black warm */
+  --background:        #FFFFFF;   /* White */
+  --background-alt:    #E2E2E2;   /* Alabaster Grey */
+  --foreground:        #0A0A0A;   /* Onyx */
 
   /* Cards / Panels */
   --card:              #FFFFFF;
-  --card-foreground:   #1A1714;
+  --card-foreground:   #0A0A0A;
   --popover:           #FFFFFF;
-  --popover-foreground:#1A1714;
+  --popover-foreground:#0A0A0A;
 
   /* Muted / Subtle */
-  --muted:             #EEE8DF;
-  --muted-foreground:  #7A736C;
+  --muted:             #E2E2E2;
+  --muted-foreground:  #6B6B6B;
 
   /* Accent surface */
-  --accent:            #F0E9DF;
-  --accent-foreground: #1A1714;
+  --accent:            #E2E2E2;
+  --accent-foreground: #0A0A0A;
 
   /* Borders & Inputs */
-  --border:            #DDD5CA;
+  --border:            #D4D4D4;
   --input:             transparent;
   --input-background:  #FFFFFF;
-  --switch-background: #C8BFB5;
-  --ring:              #C8914B;
+  --switch-background: #C0C0C0;
+  --ring:              #6BF1F1;
 
-  /* Primary — Cinema Gold */
-  --primary:           #C8914B;
-  --primary-foreground:#FFFFFF;
+  /* Primary — Electric Aqua */
+  --primary:           #6BF1F1;
+  --primary-foreground:#0A0A0A;
 
-  /* Secondary — Cinema Navy */
-  --secondary:         #1E3A5F;
+  /* Secondary — Onyx */
+  --secondary:         #0A0A0A;
   --secondary-foreground: #FFFFFF;
 
   /* Status */
@@ -47,8 +47,8 @@
   --success-foreground:#FFFFFF;
 
   /* Charts */
-  --chart-1: #C8914B;
-  --chart-2: #1E3A5F;
+  --chart-1: #6BF1F1;
+  --chart-2: #0A0A0A;
   --chart-3: #DC2626;
   --chart-4: #0D9488;
   --chart-5: #7C3AED;
@@ -60,83 +60,83 @@
 
   /* Nav specific */
   --nav-bg: rgba(255, 255, 255, 0.96);
-  --nav-border: #DDD5CA;
+  --nav-border: #D4D4D4;
 
   /* Sidebar */
   --sidebar:                #FFFFFF;
-  --sidebar-foreground:     #1A1714;
-  --sidebar-primary:        #C8914B;
-  --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent:         #EEE8DF;
-  --sidebar-accent-foreground: #1A1714;
-  --sidebar-border:         #DDD5CA;
-  --sidebar-ring:           #C8914B;
+  --sidebar-foreground:     #0A0A0A;
+  --sidebar-primary:        #6BF1F1;
+  --sidebar-primary-foreground: #0A0A0A;
+  --sidebar-accent:         #E2E2E2;
+  --sidebar-accent-foreground: #0A0A0A;
+  --sidebar-border:         #D4D4D4;
+  --sidebar-ring:           #6BF1F1;
 }
 
 /* ─── DARK MODE ──────────────────────────────────────────────────────────────
-   Deep cinema dark — Kinopoisk / Letterboxd style
+   Onyx base with Electric Aqua accent
    ──────────────────────────────────────────────────────────────────────────── */
 .dark {
   /* Surfaces */
-  --background:        #0F1117;
-  --background-alt:    #13161E;
-  --foreground:        #E8E2D9;
+  --background:        #0A0A0A;   /* Onyx */
+  --background-alt:    #141414;
+  --foreground:        #FFFFFF;   /* White */
 
   /* Cards / Panels */
-  --card:              #181C26;
-  --card-foreground:   #E8E2D9;
-  --popover:           #1E2230;
-  --popover-foreground:#E8E2D9;
+  --card:              #1A1A1A;
+  --card-foreground:   #FFFFFF;
+  --popover:           #1A1A1A;
+  --popover-foreground:#FFFFFF;
 
   /* Muted */
-  --muted:             #1E2230;
-  --muted-foreground:  #8A8480;
+  --muted:             #1E1E1E;
+  --muted-foreground:  #888888;
 
   /* Accent surface */
-  --accent:            #22263A;
-  --accent-foreground: #E8E2D9;
+  --accent:            #222222;
+  --accent-foreground: #FFFFFF;
 
   /* Borders & Inputs */
-  --border:            #2A2D3E;
+  --border:            #2A2A2A;
   --input:             transparent;
-  --input-background:  #1E2230;
-  --switch-background: #3A3D4E;
-  --ring:              #D4A574;
+  --input-background:  #1A1A1A;
+  --switch-background: #3A3A3A;
+  --ring:              #6BF1F1;
 
-  /* Primary — Cinema Gold (slightly brighter in dark) */
-  --primary:           #D4A574;
-  --primary-foreground:#0F1117;
+  /* Primary — Electric Aqua */
+  --primary:           #6BF1F1;
+  --primary-foreground:#0A0A0A;
 
-  /* Secondary — lighter blue for dark bg readability */
-  --secondary:         #3A7DC4;
-  --secondary-foreground: #0F1117;
+  /* Secondary — Alabaster Grey */
+  --secondary:         #E2E2E2;
+  --secondary-foreground: #0A0A0A;
 
   /* Status */
   --destructive:       #EF4444;
   --destructive-foreground: #FFFFFF;
   --success:           #22C55E;
-  --success-foreground:#0F1117;
+  --success-foreground:#0A0A0A;
 
   /* Charts */
-  --chart-1: #D4A574;
-  --chart-2: #3A7DC4;
+  --chart-1: #6BF1F1;
+  --chart-2: #E2E2E2;
   --chart-3: #EF4444;
   --chart-4: #14B8A6;
   --chart-5: #A78BFA;
 
   /* Nav */
-  --nav-bg: rgba(20, 23, 34, 0.96);
-  --nav-border: #2A2D3E;
+  --nav-bg: rgba(10, 10, 10, 0.96);
+  --nav-border: #2A2A2A;
 
   /* Sidebar */
-  --sidebar:                #181C26;
-  --sidebar-foreground:     #E8E2D9;
-  --sidebar-primary:        #D4A574;
-  --sidebar-primary-foreground: #0F1117;
-  --sidebar-accent:         #1E2230;
-  --sidebar-accent-foreground: #E8E2D9;
-  --sidebar-border:         #2A2D3E;
-  --sidebar-ring:           #D4A574;
+  --sidebar:                #0A0A0A;
+  --sidebar-foreground:     #FFFFFF;
+  --sidebar-primary:        #6BF1F1;
+  --sidebar-primary-foreground: #0A0A0A;
+  --sidebar-accent:         #1A1A1A;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border:         #2A2A2A;
+  --sidebar-ring:           #6BF1F1;
 }
 
 /* ─── TAILWIND TOKEN MAP ────────────────────────────────────────────────────── */
@@ -184,7 +184,7 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* ─── BASE STYLES ───────────────────────────────────��────────────────────────── */
+/* ─── BASE STYLES ───────────────────────────────────────────────────────────── */
 @layer base {
   * {
     @apply border-border outline-ring/50;

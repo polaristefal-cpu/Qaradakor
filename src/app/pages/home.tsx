@@ -31,8 +31,62 @@ import {
   X,
   Users as Users2,
   Bot,
+  Search,
+  Shuffle,
+  Hash,
+  Library,
+  Heart,
+  MessageSquare,
+  ArrowRight,
 } from "lucide-react";
 import { MovieCard } from "../components/movie-card";
+
+// ─── Home Search Block ─────────────────────────────────────────────────────────
+function HomeSearchBlock() {
+  const [query, setQuery] = useState("");
+  const navigate = useNavigate();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = query.trim();
+    if (q) navigate(`/search?q=${encodeURIComponent(q)}`);
+  };
+
+  return (
+    <div className="bg-background border-b border-border">
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        
+        <form onSubmit={handleSubmit}>
+          <div className="flex items-center gap-3 bg-card border border-border rounded-2xl px-4 py-3 shadow-sm w-full focus-within:border-primary/50 transition-colors">
+            <Search className="w-4.5 h-4.5 text-muted-foreground shrink-0" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Введите название фильма или сериала..."
+              className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground text-sm outline-none"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button
+              type="submit"
+              className="px-5 py-1.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all shrink-0"
+            >
+              Найти
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 interface Movie {
   id: number;
@@ -107,10 +161,6 @@ function MovieRow({
     <section>
       <SectionHeader icon={icon} label={label} iconClass={iconClass} />
       <div className="relative group/row">
-        {/* Fade edges */}
-        <div className="pointer-events-none absolute left-0 top-0 bottom-2 w-8 bg-gradient-to-r from-background to-transparent z-10" />
-        <div className="pointer-events-none absolute right-0 top-0 bottom-2 w-8 bg-gradient-to-l from-background to-transparent z-10" />
-
         {/* Scroll arrows */}
         <button
           onClick={() => scroll("left")}
@@ -230,7 +280,7 @@ function HeroSection({ movies }: { movies: Movie[] }) {
         <TrailerModal videoKey={trailerKey} onClose={() => setTrailerKey(null)} />
       )}
 
-      <section className="relative h-[58vh] min-h-[440px] max-h-[640px] overflow-hidden">
+      <section className="relative h-screen min-h-[600px] overflow-hidden">
         {/* Backdrop */}
         <div className="absolute inset-0">
           {movie.backdrop_path ? (
@@ -395,21 +445,17 @@ function GenreSection() {
 // ─── Guest CTA ─────────────────────────────────────────────────────────────────
 function GuestCTA() {
   return (
-    <div className="rounded-2xl overflow-hidden border border-border relative">
-      {/* Gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-secondary via-secondary/90 to-secondary/70" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_rgba(212,165,116,0.15)_0%,_transparent_60%)]" />
-
+    <div className="rounded-2xl overflow-hidden border border-border relative bg-white">
       <div className="relative z-10 p-7 md:p-10 flex flex-col md:flex-row items-start md:items-center gap-6">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="w-4 h-4 text-primary" />
             <span className="text-primary text-xs font-bold uppercase tracking-widest">qaradakor.kz</span>
           </div>
-          <h2 className="text-secondary-foreground text-xl md:text-2xl font-black mb-2 leading-tight">
+          <h2 className="text-xl md:text-2xl font-black mb-2 leading-tight" style={{ color: "#0A0A0A" }}>
             Ваша персональная кинобиблиотека
           </h2>
-          <p className="text-secondary-foreground/70 text-sm leading-relaxed mb-5">
+          <p className="text-sm leading-relaxed mb-5" style={{ color: "#6B6B6B" }}>
             Отслеживайте просмотренные фильмы, ставьте оценки,
             получайте AI-рекомендации и делитесь коллекцией с друзьями.
           </p>
@@ -423,7 +469,10 @@ function GuestCTA() {
             </Link>
             <Link
               to="/login"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/10 text-white font-medium text-sm border border-white/20 hover:bg-white/20 transition-all"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm border transition-all"
+              style={{ color: "#0A0A0A", borderColor: "#D4D4D4", backgroundColor: "transparent" }}
+              onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#F3F3F3")}
+              onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
             >
               <LogIn className="w-4 h-4" />
               Войти
@@ -439,14 +488,190 @@ function GuestCTA() {
             { icon: Users2, label: "Друзья" },
             { icon: Bot, label: "AI-чатбот" },
           ].map(({ icon: Icon, label }) => (
-            <div key={label} className="flex items-center gap-2 bg-white/8 rounded-xl px-3 py-2 border border-white/10">
+            <div
+              key={label}
+              className="flex items-center gap-2 rounded-xl px-3 py-2"
+              style={{ backgroundColor: "#F5F5F5", border: "1px solid #E5E5E5" }}
+            >
               <Icon className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span className="text-white/80 text-xs font-medium">{label}</span>
+              <span className="text-xs font-medium" style={{ color: "#0A0A0A" }}>{label}</span>
             </div>
           ))}
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Top-10 Numbered List ──────────────────────────────────────────────────────
+function Top10Section({ movies }: { movies: Movie[] }) {
+  const navigate = useNavigate();
+  const top = movies.slice(0, 10);
+  if (!top.length) return null;
+
+  return (
+    <section>
+      <SectionHeader icon={Hash} label="Топ-10 недели" iconClass="text-primary" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        {top.map((m, i) => (
+          <button
+            key={m.id}
+            onClick={() => navigate(`/movie/${m.id}`)}
+            className="flex items-center gap-3 bg-card border border-border rounded-xl p-3 hover:border-primary/40 hover:bg-muted transition-all text-left group"
+          >
+            <span className="text-2xl font-black text-primary/30 w-8 text-center shrink-0 group-hover:text-primary/60 transition-colors">
+              {i + 1}
+            </span>
+            {m.poster_path ? (
+              <img
+                src={`${TMDB_IMG}/w92${m.poster_path}`}
+                alt={m.title}
+                className="w-10 h-14 rounded-md object-cover shrink-0"
+              />
+            ) : (
+              <div className="w-10 h-14 rounded-md bg-muted shrink-0 flex items-center justify-center">
+                <Film className="w-4 h-4 text-muted-foreground" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground line-clamp-1">{m.title}</p>
+              <div className="flex items-center gap-2 mt-0.5">
+                {m.vote_average > 0 && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Star className="w-3 h-3 text-primary fill-primary" />
+                    {m.vote_average.toFixed(1)}
+                  </span>
+                )}
+                {m.release_date && (
+                  <span className="text-xs text-muted-foreground">{m.release_date.slice(0, 4)}</span>
+                )}
+              </div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ─── Random Movie Card ──────────────────────────────────────────────────────────
+function RandomMovieCard({ movies }: { movies: Movie[] }) {
+  const navigate = useNavigate();
+  const [movie, setMovie] = useState<Movie | null>(null);
+
+  const pickRandom = () => {
+    if (!movies.length) return;
+    const m = movies[Math.floor(Math.random() * movies.length)];
+    setMovie(m);
+  };
+
+  useEffect(() => { pickRandom(); }, [movies.length]);
+
+  if (!movie) return null;
+
+  return (
+    <section>
+      <SectionHeader icon={Shuffle} label="Случайный фильм" iconClass="text-primary" />
+      <div className="flex flex-col sm:flex-row gap-4 bg-card border border-border rounded-2xl p-5 overflow-hidden">
+        {movie.backdrop_path ? (
+          <img
+            src={`${TMDB_IMG}/w780${movie.backdrop_path}`}
+            alt={movie.title}
+            className="w-full sm:w-64 h-36 rounded-xl object-cover shrink-0"
+          />
+        ) : movie.poster_path ? (
+          <img
+            src={`${TMDB_IMG}/w342${movie.poster_path}`}
+            alt={movie.title}
+            className="w-full sm:w-64 h-36 rounded-xl object-cover shrink-0"
+          />
+        ) : null}
+        <div className="flex-1 flex flex-col justify-between min-w-0">
+          <div>
+            <h3 className="text-lg font-bold text-foreground mb-1">{movie.title}</h3>
+            <div className="flex items-center gap-2 mb-2">
+              {movie.vote_average > 0 && (
+                <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Star className="w-3.5 h-3.5 text-primary fill-primary" />
+                  {movie.vote_average.toFixed(1)}
+                </span>
+              )}
+              {movie.release_date && (
+                <span className="text-sm text-muted-foreground">{movie.release_date.slice(0, 4)}</span>
+              )}
+            </div>
+            {movie.overview && (
+              <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">{movie.overview}</p>
+            )}
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={() => navigate(`/movie/${movie.id}`)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all"
+            >
+              <Info className="w-3.5 h-3.5" />
+              Подробнее
+            </button>
+            <button
+              onClick={pickRandom}
+              className="flex items-center gap-1.5 px-4 py-2 bg-foreground/10 text-foreground rounded-xl text-sm font-medium border border-border hover:bg-foreground/15 transition-all"
+            >
+              <Shuffle className="w-3.5 h-3.5" />
+              Ещё
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── Platform Stats ─────────────────────────────────────────────────────────────
+function PlatformStats() {
+  const stats = [
+    { icon: Film, value: "700K+", label: "Фильмов в базе" },
+    { icon: Star, value: "∞", label: "Оценок и отзывов" },
+    { icon: Users2, value: "Бесплатно", label: "Для всех" },
+    { icon: Bot, value: "AI", label: "Рекомендации" },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {stats.map((s) => (
+        <div key={s.label} className="bg-card border border-border rounded-xl p-4 text-center hover:border-primary/30 transition-colors">
+          <s.icon className="w-5 h-5 text-primary mx-auto mb-2" />
+          <p className="text-xl font-black text-foreground">{s.value}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{s.label}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── How It Works (guest) ───────────────────────────────────────────────────────
+function HowItWorks() {
+  const steps = [
+    { icon: UserPlus, title: "Создайте аккаунт", desc: "Регистрация за 30 секунд через email" },
+    { icon: Heart, title: "Оценивайте фильмы", desc: "Ставьте оценки и пишите отзывы" },
+    { icon: Sparkles, title: "Получайте рекомендации", desc: "AI подберёт фильмы по вашим вкусам" },
+    { icon: Users2, title: "Делитесь с друзьями", desc: "Смотрите библиотеки друг друга" },
+  ];
+
+  return (
+    <section>
+      <SectionHeader icon={Info} label="Как это работает" iconClass="text-primary" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+        {steps.map((s, i) => (
+          <div key={s.title} className="bg-card border border-border rounded-xl p-5 relative group hover:border-primary/30 transition-colors">
+            <span className="absolute top-3 right-3 text-xs font-bold text-primary/30">{i + 1}</span>
+            <s.icon className="w-5 h-5 text-primary mb-3" />
+            <h3 className="text-sm font-bold text-foreground mb-1">{s.title}</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">{s.desc}</p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -487,6 +712,9 @@ export function HomePage() {
       {/* Hero */}
       <HeroSection movies={trending} />
 
+      {/* Search */}
+      <HomeSearchBlock />
+
       <div className="max-w-7xl mx-auto px-4 mt-10 space-y-12">
         <MovieRow label="В тренде на этой неделе" icon={Zap} iconClass="text-primary" movies={trending.slice(0, 20)} />
         <MovieRow label="Сейчас в кино" icon={Flame} iconClass="text-destructive" movies={nowPlaying.slice(0, 20)} />
@@ -495,11 +723,24 @@ export function HomePage() {
         {/* Guest CTA midway */}
         {!session && <GuestCTA />}
 
+        {/* Platform Stats */}
+        <PlatformStats />
+
         <MovieRow label="Высокий рейтинг" icon={Award} iconClass="text-primary" movies={topRated.slice(0, 20)} />
+
+        {/* Top-10 */}
+        <Top10Section movies={topRated} />
+
+        {/* Random Movie */}
+        <RandomMovieCard movies={[...popular, ...topRated, ...trending]} />
+
         <MovieRow label="Скоро в кино" icon={Clock} iconClass="text-secondary" movies={upcoming.slice(0, 20)} />
 
         {/* Genre browser */}
         <GenreSection />
+
+        {/* How it works (guest) */}
+        {!session && <HowItWorks />}
 
         {/* Bottom CTA */}
         {!session && (
@@ -524,12 +765,7 @@ export function HomePage() {
         )}
 
         {/* TMDB credit */}
-        <p className="text-center text-muted-foreground/50 text-xs">
-          Данные предоставлены{" "}
-          <a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer" className="hover:text-primary underline transition-colors">
-            The Movie Database (TMDB)
-          </a>
-        </p>
+        
       </div>
     </div>
   );

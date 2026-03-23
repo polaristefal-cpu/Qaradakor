@@ -1,6 +1,9 @@
 import { createBrowserRouter, Navigate, Outlet } from "react-router";
+import { useEffect, useState } from "react";
 import { useAuth } from "./lib/auth-context";
-import { Navbar } from "./components/navbar";
+import { useSidebar } from "./lib/sidebar-context";
+import { Sidebar } from "./components/sidebar";
+import { Footer } from "./components/footer";
 import { LoginPage } from "./pages/login";
 import { RegisterPage } from "./pages/register";
 import { HomePage } from "./pages/home";
@@ -15,88 +18,84 @@ import { WatchlistPage } from "./pages/watchlist";
 import { PersonPage } from "./pages/person";
 import { Loader2 } from "lucide-react";
 
-// Available for everyone — shows Navbar for both guests and logged-in users
+// ── Shared shell with sidebar ─────────────────────────────────────────────────
+function AppShell() {
+  const { sidebarWidth } = useSidebar();
+  const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 768);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-background flex">
+      <Sidebar />
+      <main
+        className="flex-1 min-w-0 transition-all duration-300 ease-in-out pt-13 md:pt-0 flex flex-col"
+        style={{ marginRight: isDesktop ? sidebarWidth : 0 }}
+      >
+        <div className="flex-1">
+          <Outlet />
+        </div>
+        <Footer />
+      </main>
+    </div>
+  );
+}
+
+// ── Open layout (guests + auth) ───────────────────────────────────────────────
 function OpenLayout() {
   const { loading } = useAuth();
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-      </div>
-    );
-  }
-  return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <Outlet />
-    </div>
-  );
+  if (loading) return <Loader />;
+  return <AppShell />;
 }
 
-// Requires auth — redirects guests to /login
+// ── Protected layout ──────────────────────────────────────────────────────────
 function ProtectedLayout() {
   const { session, loading } = useAuth();
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <Loader />;
   if (!session) return <Navigate to="/login" replace />;
-  return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <Outlet />
-    </div>
-  );
+  return <AppShell />;
 }
 
-// Only for guests — redirects logged-in users to /
-// NOTE: Login page is intentionally excluded from PublicLayout to avoid
-// race-condition where session is set mid-2FA flow and redirects too early.
+// ── Public layout (guests only) ───────────────────────────────────────────────
 function PublicLayout() {
   const { session, loading } = useAuth();
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <Loader />;
   if (session) return <Navigate to="/" replace />;
   return <Outlet />;
 }
 
-// Neutral layout: no session redirect — used for login page so 2FA flow isn't interrupted
+// ── Neutral (no redirect) — for login/2FA flow ────────────────────────────────
 function NeutralLayout() {
   const { loading } = useAuth();
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <Loader />;
   return <Outlet />;
 }
 
+function Loader() {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <Loader2 className="w-8 h-8 text-primary animate-spin" />
+    </div>
+  );
+}
+
 export const router = createBrowserRouter([
-  // Login page — uses NeutralLayout so 2FA OTP step isn't interrupted by session redirect
+  // Login — NeutralLayout so 2FA isn't interrupted
   {
     Component: NeutralLayout,
-    children: [
-      { path: "/login", Component: LoginPage },
-    ],
+    children: [{ path: "/login", Component: LoginPage }],
   },
-  // Register page — uses PublicLayout (no 2FA involved)
+  // Register — guests only
   {
     Component: PublicLayout,
-    children: [
-      { path: "/register", Component: RegisterPage },
-    ],
+    children: [{ path: "/register", Component: RegisterPage }],
   },
-  // Open pages — accessible without auth
+  // Open pages
   {
     Component: OpenLayout,
     children: [
@@ -106,7 +105,7 @@ export const router = createBrowserRouter([
       { path: "/person/:id", Component: PersonPage },
     ],
   },
-  // Protected pages — require auth
+  // Protected pages
   {
     Component: ProtectedLayout,
     children: [

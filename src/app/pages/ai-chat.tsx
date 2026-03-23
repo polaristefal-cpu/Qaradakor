@@ -57,7 +57,7 @@ export function AiChatPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-sm font-bold text-foreground">Qaradakor AI</h1>
-            <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">GPT-4.1</span>
+            <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">GPT-5.4 mini</span>
           </div>
           <p className="text-muted-foreground text-xs">Кино-ассистент, знающий вашу библиотеку</p>
         </div>

@@ -134,7 +134,7 @@ export function ProfilePage() {
       const res = await updateProfile({ name: nameVal.trim(), bio: bioVal.trim(), favoriteGenres: genresVal });
       setProfile((prev: any) => ({ ...prev, ...res.profile }));
       setEditing(false);
-      toast.success("Профиль обновлён");
+      toast.success("Профиль обно��лён");
     } catch {
       toast.error("Не удалось обновить профиль");
     } finally {
@@ -191,7 +191,7 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-5">
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
 
       {/* ── Profile Card ── */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
@@ -399,11 +399,8 @@ export function ProfilePage() {
 
       {/* ── Recent Watches ── */}
       <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-            <Library className="w-4 h-4 text-primary" />
-            Последние просмотренные
-          </h2>
+        <div className="flex items-center justify-between mb-5">
+          <SectionHeader icon={Library} label="Последние просмотренные" />
           <button
             onClick={() => navigate("/library")}
             className="text-xs text-primary hover:underline font-semibold transition"
@@ -480,10 +477,9 @@ export function ProfilePage() {
       {/* ── Activity summary ── */}
       {totalMovies > 0 && (
         <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
-          <h2 className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
-            <TrendingUp className="w-4 h-4 text-primary" />
-            Активность
-          </h2>
+          <div className="mb-5">
+            <SectionHeader icon={TrendingUp} label="Активность" />
+          </div>
           <div className="space-y-2.5">
             {/* Rating distribution */}
             {[10, 9, 8, 7, 6].map((score) => {
@@ -937,6 +933,25 @@ function TwoFASection() {
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Section Header (matches home page style) ─────────────────────────────────
+function SectionHeader({
+  icon: Icon,
+  label,
+  iconClass = "text-primary",
+}: {
+  icon: React.ElementType;
+  label: string;
+  iconClass?: string;
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="w-0.5 h-5 rounded-full bg-primary" />
+      <Icon className={`w-4.5 h-4.5 ${iconClass}`} />
+      <h2 className="text-lg font-bold text-foreground tracking-tight">{label}</h2>
     </div>
   );
 }

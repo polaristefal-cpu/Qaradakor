@@ -3,6 +3,7 @@ import { router } from "./routes";
 import { AuthProvider } from "./lib/auth-context";
 import { ThemeProvider } from "./lib/theme-context";
 import { UserDataProvider } from "./lib/user-data-context";
+import { SidebarProvider } from "./lib/sidebar-context";
 import { Toaster } from "sonner";
 
 export default function App() {
@@ -10,8 +11,10 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <UserDataProvider>
-          <RouterProvider router={router} />
-          <Toaster position="bottom-right" richColors theme="system" />
+          <SidebarProvider>
+            <RouterProvider router={router} />
+            <Toaster position="bottom-left" richColors theme="system" />
+          </SidebarProvider>
         </UserDataProvider>
       </AuthProvider>
     </ThemeProvider>
