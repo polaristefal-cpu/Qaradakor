@@ -516,6 +516,8 @@ app.post("/make-server-59141208/profile/phone", async (c) => {
     }
     const updated = { ...existing, phone: normalized, twofa_enabled: !!enable2fa };
     await kv.set(`user:${user.id}:profile`, updated);
+    // Maintain phone → userId index for SMS login
+    await kv.set(`phone_index:${normalized}`, { userId: user.id });
     return c.json({ ok: true, phone: normalized, twofa_enabled: !!enable2fa });
   } catch (e: any) {
     return c.json({ error: `Save phone error: ${e.message}` }, 500);
@@ -567,9 +569,10 @@ app.post("/make-server-59141208/auth/2fa-setup-send", async (c) => {
       return c.json({ error: `Подождите ${wait} сек. перед повторной отправкой` }, 429);
     }
 
-    // Save phone temporarily (not yet enabled)
+    // Save phone temporarily (not yet enabled) + phone index
     const existing: any = await kv.get(`user:${user.id}:profile`) || {};
     await kv.set(`user:${user.id}:profile`, { ...existing, phone: normalized, twofa_enabled: false });
+    await kv.set(`phone_index:${normalized}`, { userId: user.id });
 
     // Generate & send OTP
     const code = String(Math.floor(100000 + Math.random() * 900000));
@@ -668,9 +671,10 @@ app.post("/make-server-59141208/auth/send-otp", async (c) => {
     const profile: any = await kv.get(`user:${user.id}:profile`) || {};
     const phone: string = profile.phone || "";
     if (!phone) return c.json({ error: "Телефон не привязан к аккаунту" }, 400);
+    if (!profile.twofa_enabled) return c.json({ error: "2FA не включена для этого аккаунта" }, 400);
 
     // Rate-limit: не чаще раза в 60 секунд
-    const existing: any = await kv.get(`otp:${phone}`) || {};
+    const existing: any = await kv.get(`otp:login:${phone}`) || {};
     if (existing.sentAt && Date.now() - existing.sentAt < 60_000) {
       const wait = Math.ceil((60_000 - (Date.now() - existing.sentAt)) / 1000);
       return c.json({ error: `Подождите ${wait} сек. перед повторной отправкой` }, 429);
@@ -679,9 +683,8 @@ app.post("/make-server-59141208/auth/send-otp", async (c) => {
     // Generate 6-digit OTP
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = Date.now() + 5 * 60 * 1000; // 5 минут
-    await kv.set(`otp:${phone}`, { code, expiresAt, attempts: 0, sentAt: Date.now() });
 
-    // Send via Mobizon
+    // Send via Mobizon FIRST — only save to KV if SMS succeeds
     const apiKey = Deno.env.get("MOBIZON_API_KEY")!;
     const text = encodeURIComponent(`Qaradakor.kz: ваш код подтверждения — ${code}. Действителен 5 минут.`);
     const mobizonUrl = `https://api.mobizon.kz/service/Message/SendSmsMessage?output=json&api=v1&apiKey=${apiKey}&recipient=${phone}&text=${text}`;
@@ -694,6 +697,9 @@ app.post("/make-server-59141208/auth/send-otp", async (c) => {
       console.log("[2FA] Mobizon error:", result.message);
       return c.json({ error: `Ошибка отправки SMS: ${result.message}` }, 500);
     }
+
+    // Save OTP only after successful SMS delivery
+    await kv.set(`otp:login:${phone}`, { code, expiresAt, attempts: 0, sentAt: Date.now(), purpose: "login" });
 
     // Mask phone for response
     const masked = `+7 *** *** ${phone.slice(7, 9)} ${phone.slice(9)}`;
@@ -714,25 +720,29 @@ app.post("/make-server-59141208/auth/verify-otp", async (c) => {
     const phone: string = profile.phone || "";
     if (!phone) return c.json({ error: "Телефон не привязан" }, 400);
 
-    const stored: any = await kv.get(`otp:${phone}`);
+    const stored: any = await kv.get(`otp:login:${phone}`);
     if (!stored) return c.json({ error: "Код не найден или истёк. Запросите новый." }, 400);
+    // Ensure this is a login OTP, not a setup OTP
+    if (stored.purpose && stored.purpose !== "login") {
+      return c.json({ error: "Неверный код. Запросите новый." }, 400);
+    }
     if (Date.now() > stored.expiresAt) {
-      await kv.del(`otp:${phone}`);
+      await kv.del(`otp:login:${phone}`);
       return c.json({ error: "Код истёк. Запросите новый." }, 400);
     }
     if (stored.attempts >= 3) {
-      await kv.del(`otp:${phone}`);
+      await kv.del(`otp:login:${phone}`);
       return c.json({ error: "Превышено число попыток. Запросите новый код." }, 400);
     }
     if (stored.code !== String(code).trim()) {
       stored.attempts += 1;
-      await kv.set(`otp:${phone}`, stored);
+      await kv.set(`otp:login:${phone}`, stored);
       const left = 3 - stored.attempts;
       return c.json({ error: `Неверный код. Осталось попыток: ${left}` }, 400);
     }
 
     // Success — delete OTP
-    await kv.del(`otp:${phone}`);
+    await kv.del(`otp:login:${phone}`);
     return c.json({ ok: true });
   } catch (e: any) {
     console.log("[2FA] verify-otp exception:", e.message);
@@ -997,6 +1007,135 @@ app.get("/make-server-59141208/profile/avatar", async (c) => {
   } catch (e: any) {
     console.log("[Avatar] Get error:", e.message);
     return c.json({ url: null });
+  }
+});
+
+// ---- SMS LOGIN: Step 1 — send OTP by phone (public, no session needed) ----
+app.post("/make-server-59141208/auth/sms-login-send", async (c) => {
+  try {
+    const { phone } = await c.req.json();
+    if (!phone) return c.json({ error: "Укажите номер телефона" }, 400);
+
+    // Normalize phone
+    const digits = phone.replace(/\D/g, "");
+    const normalized = digits.startsWith("8") ? "7" + digits.slice(1) : digits;
+    if (normalized.length !== 11 || !normalized.startsWith("7")) {
+      return c.json({ error: "Неверный формат. Используйте +7XXXXXXXXXX" }, 400);
+    }
+
+    // Find userId by phone index (fast path)
+    let userId: string | null = null;
+    const indexed: any = await kv.get(`phone_index:${normalized}`);
+    if (indexed?.userId) {
+      userId = indexed.userId;
+    } else {
+      // Fallback: scan all Supabase users in parallel and match against KV profiles
+      const { data } = await supabaseAdmin().auth.admin.listUsers({ perPage: 1000 });
+      const users = data?.users || [];
+      // Parallel KV lookups
+      const results = await Promise.all(
+        users.map(async (u: any) => {
+          const profile: any = await kv.get(`user:${u.id}:profile`);
+          return profile?.phone === normalized ? u.id : null;
+        })
+      );
+      const found = results.find((id) => id !== null);
+      if (found) {
+        userId = found;
+        // Build index for next time
+        await kv.set(`phone_index:${normalized}`, { userId: found });
+      }
+    }
+
+    if (!userId) {
+      // Don't reveal if phone exists — generic message
+      return c.json({ error: "Аккаунт с этим номером не найден. Сначала зарегистрируйтесь и привяжите телефон в профиле." }, 404);
+    }
+
+    // Rate-limit: не чаще раза в 60 секунд
+    const existing: any = await kv.get(`otp:smslogin:${normalized}`) || {};
+    if (existing.sentAt && Date.now() - existing.sentAt < 60_000) {
+      const wait = Math.ceil((60_000 - (Date.now() - existing.sentAt)) / 1000);
+      return c.json({ error: `Подождите ${wait} сек. перед повторной отправкой` }, 429);
+    }
+
+    // Generate OTP
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+
+    // Send via Mobizon FIRST
+    const apiKey = Deno.env.get("MOBIZON_API_KEY")!;
+    const text = encodeURIComponent(`Qaradakor.kz: код для входа — ${code}. Действителен 5 минут. Никому не сообщайте.`);
+    const mobizonUrl = `https://api.mobizon.kz/service/Message/SendSmsMessage?output=json&api=v1&apiKey=${apiKey}&recipient=${normalized}&text=${text}`;
+    const resp = await fetch(mobizonUrl);
+    const result = await resp.json();
+    console.log("[SMS Login] Mobizon response:", JSON.stringify(result));
+
+    if (result.code !== 0) {
+      return c.json({ error: `Ошибка отправки SMS: ${result.message}` }, 500);
+    }
+
+    // Save OTP after successful send
+    await kv.set(`otp:smslogin:${normalized}`, {
+      code, expiresAt, attempts: 0, sentAt: Date.now(),
+      purpose: "sms-login", userId,
+    });
+
+    const masked = `+7 *** *** ${normalized.slice(7, 9)} ${normalized.slice(9)}`;
+    return c.json({ ok: true, masked });
+  } catch (e: any) {
+    console.log("[SMS Login Send] Error:", e.message);
+    return c.json({ error: `Ошибка: ${e.message}` }, 500);
+  }
+});
+
+// ---- SMS LOGIN: Step 2 — verify OTP and create session (public) ----
+app.post("/make-server-59141208/auth/sms-login-verify", async (c) => {
+  try {
+    const { phone, code } = await c.req.json();
+    if (!phone || !code) return c.json({ error: "Укажите телефон и код" }, 400);
+
+    // Normalize phone
+    const digits = phone.replace(/\D/g, "");
+    const normalized = digits.startsWith("8") ? "7" + digits.slice(1) : digits;
+
+    const stored: any = await kv.get(`otp:smslogin:${normalized}`);
+    if (!stored) return c.json({ error: "Код не найден или истёк. Запросите новый." }, 400);
+    if (stored.purpose !== "sms-login") return c.json({ error: "Неверный тип кода." }, 400);
+    if (Date.now() > stored.expiresAt) {
+      await kv.del(`otp:smslogin:${normalized}`);
+      return c.json({ error: "Код истёк. Запросите но��ый." }, 400);
+    }
+    if (stored.attempts >= 3) {
+      await kv.del(`otp:smslogin:${normalized}`);
+      return c.json({ error: "Превышено число попыток. Запросите новый код." }, 400);
+    }
+    if (stored.code !== String(code).trim()) {
+      stored.attempts += 1;
+      await kv.set(`otp:smslogin:${normalized}`, stored);
+      const left = 3 - stored.attempts;
+      return c.json({ error: `Неверный код. Осталось попыток: ${left}` }, 400);
+    }
+
+    // OTP correct — create Supabase session for this user
+    await kv.del(`otp:smslogin:${normalized}`);
+
+    const { data: sessionData, error: sessionError } = await supabaseAdmin().auth.admin.createSession({
+      user_id: stored.userId,
+    });
+
+    if (sessionError || !sessionData?.session) {
+      console.log("[SMS Login Verify] createSession error:", sessionError?.message);
+      return c.json({ error: "Не удалось создать сессию. Попробуйте войти через email." }, 500);
+    }
+
+    const { access_token, refresh_token, expires_in } = sessionData.session;
+    console.log("[SMS Login] Session created for userId:", stored.userId);
+
+    return c.json({ ok: true, access_token, refresh_token, expires_in });
+  } catch (e: any) {
+    console.log("[SMS Login Verify] Error:", e.message);
+    return c.json({ error: `Ошибка верификации: ${e.message}` }, 500);
   }
 });
 

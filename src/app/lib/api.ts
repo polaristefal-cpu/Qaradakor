@@ -44,7 +44,8 @@ async function getToken(): Promise<string> {
 
 async function request(path: string, options: RequestInit = {}) {
   // For public routes (TMDB proxy, signup), no session token needed
-  const isPublicRoute = path.startsWith("/tmdb/") || path === "/signup";
+  const isPublicRoute = path.startsWith("/tmdb/") || path === "/signup" ||
+    path === "/auth/sms-login-send" || path === "/auth/sms-login-verify";
   const sessionToken = isPublicRoute ? null : await getToken();
   const hasSession = sessionToken && sessionToken !== publicAnonKey;
 
@@ -91,7 +92,25 @@ async function request(path: string, options: RequestInit = {}) {
     }
   }
 
-  const data = await res.json();
+  // Read body ONCE as text, then try to parse as JSON
+  let data: any;
+  const rawText = await res.text().catch(() => "");
+
+  try {
+    data = JSON.parse(rawText);
+  } catch {
+    // Hono returns plain-text "404 Not Found" when a route isn't registered
+    // This typically means the Edge Function is deployed with an older version
+    console.error(`API non-JSON response ${path}: status=${res.status} body="${rawText}"`);
+    if (res.status === 404) {
+      throw new Error(
+        "Маршрут не найден (404). Edge Function устарела — задеплойте свежую версию командой: supabase functions deploy make-server-59141208"
+      );
+    }
+    if (res.status >= 500) throw new Error("Ошибка сервера. Попробуйте повторить запрос через несколько секунд.");
+    throw new Error(`Неожиданный ответ сервера (${res.status}). Попробуйте позже.`);
+  }
+
   if (!res.ok) {
     console.error(`API error ${path}:`, data);
     throw new Error(data.error || "Request failed");
@@ -204,6 +223,23 @@ export async function verifyOtp(code: string) {
   return request("/auth/verify-otp", {
     method: "POST",
     body: JSON.stringify({ code }),
+  });
+}
+
+// SMS Login (passwordless)
+export async function smsLoginSend(phone: string) {
+  return request("/auth/sms-login-send", {
+    method: "POST",
+    body: JSON.stringify({ phone }),
+  });
+}
+
+export async function smsLoginVerify(phone: string, code: string): Promise<{
+  ok: boolean; access_token: string; refresh_token: string; expires_in: number;
+}> {
+  return request("/auth/sms-login-verify", {
+    method: "POST",
+    body: JSON.stringify({ phone, code }),
   });
 }
 // TMDB

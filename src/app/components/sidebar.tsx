@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "../lib/auth-context";
 import { logout, getProfile } from "../lib/api";
@@ -7,8 +7,7 @@ import { ThemeToggle } from "./theme-toggle";
 import {
   Clapperboard, Search, Users, Sparkles, Library,
   LogOut, LogIn, Bot, UserPlus, User, Bookmark,
-  ChevronLeft, ChevronRight, Home, Settings,
-  Film, Star, Bell,
+  ChevronLeft, ChevronRight, Home,
 } from "lucide-react";
 import { useUserData } from "../lib/user-data-context";
 
@@ -18,8 +17,6 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<{ name?: string; email?: string } | null>(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const overlayRef = useRef<HTMLDivElement>(null);
 
   // Watchlist count badge
   const userData = (() => { try { return useUserData(); } catch { return null; } })();
@@ -32,9 +29,6 @@ export function Sidebar() {
       setProfile(null);
     }
   }, [session]);
-
-  // Close mobile on route change
-  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -68,7 +62,25 @@ export function Sidebar() {
     { to: "/friends", icon: Users, label: "Друзья" },
   ];
 
-  const navLinks = session ? [...publicLinks, ...authLinks] : publicLinks;
+  // ── Mobile bottom nav items ────────────────────────────────────────────────
+  // Auth: Home, Library, Watchlist, AI, Profile
+  // Guest: Home, Search, Login, Register
+  const mobileAuthNav = [
+    { to: "/", icon: Home, label: "Главная", badge: 0 },
+    { to: "/library", icon: Library, label: "Библиотека", badge: 0 },
+    { to: "/watchlist", icon: Bookmark, label: "Вотчлист", badge: watchlistCount },
+    { to: "/ai", icon: Bot, label: "AI-чат", badge: 0 },
+    { to: "/profile", icon: User, label: "Профиль", badge: 0 },
+  ];
+
+  const mobileGuestNav = [
+    { to: "/", icon: Home, label: "Главная" },
+    { to: "/search", icon: Search, label: "Поиск" },
+    { to: "/login", icon: LogIn, label: "Войти" },
+    { to: "/register", icon: UserPlus, label: "Регистрация" },
+  ];
+
+  const mobileNav = session ? mobileAuthNav : mobileGuestNav;
 
   // ── Shared NavLink component ──────────────────────────────────────────────
   function NavItem({
@@ -125,13 +137,13 @@ export function Sidebar() {
   }
 
   // ── Sidebar inner content ─────────────────────────────────────────────────
-  function SidebarContent({ onClose }: { onClose?: () => void }) {
+  function SidebarContent() {
     return (
       <div className="flex flex-col h-full">
 
         {/* ── Logo ── */}
         <div className={`flex items-center mb-6 ${collapsed ? "justify-center px-0 pt-5" : "px-4 pt-5 gap-2.5"}`}>
-          <Link to="/" onClick={onClose} className="flex items-center gap-2.5 group shrink-0">
+          <Link to="/" className="flex items-center gap-2.5 group shrink-0">
             <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/25 group-hover:scale-105 transition-transform shrink-0">
               <Clapperboard className="w-4.5 h-4.5 text-primary-foreground" />
             </div>
@@ -148,12 +160,12 @@ export function Sidebar() {
         <nav className={`flex-1 overflow-y-auto overflow-x-hidden space-y-0.5 ${collapsed ? "px-2" : "px-3"}`}>
           <SectionLabel>Навигация</SectionLabel>
           {publicLinks.map(l => (
-            <NavItem key={l.to} {...l} onClick={onClose} />
+            <NavItem key={l.to} {...l} />
           ))}
 
           <SectionLabel>Моё</SectionLabel>
           {authLinks.map(l => (
-            <NavItem key={l.to} {...l} onClick={onClose} />
+            <NavItem key={l.to} {...l} />
           ))}
         </nav>
 
@@ -171,7 +183,6 @@ export function Sidebar() {
               {/* Profile link */}
               <Link
                 to="/profile"
-                onClick={onClose}
                 title={collapsed ? "Мой профиль" : undefined}
                 className={`relative flex items-center gap-3 rounded-xl transition-all hover:bg-muted group
                   ${collapsed ? "justify-center w-10 h-10 mx-auto" : "px-3 py-2.5"}`}
@@ -194,7 +205,7 @@ export function Sidebar() {
 
               {/* Logout */}
               <button
-                onClick={() => { onClose?.(); handleLogout(); }}
+                onClick={handleLogout}
                 title={collapsed ? "Выйти" : undefined}
                 className={`relative flex items-center gap-3 rounded-xl transition-all text-destructive hover:bg-destructive/10 group w-full
                   ${collapsed ? "justify-center w-10 h-10 mx-auto" : "px-3 py-2"}`}
@@ -212,7 +223,6 @@ export function Sidebar() {
             <>
               <Link
                 to="/login"
-                onClick={onClose}
                 title={collapsed ? "Войти" : undefined}
                 className={`relative flex items-center gap-3 rounded-xl transition-all text-muted-foreground hover:text-foreground hover:bg-muted group
                   ${collapsed ? "justify-center w-10 h-10 mx-auto" : "px-3 py-2.5"}`}
@@ -227,7 +237,6 @@ export function Sidebar() {
               </Link>
               <Link
                 to="/register"
-                onClick={onClose}
                 title={collapsed ? "Регистрация" : undefined}
                 className={`relative flex items-center gap-3 rounded-xl transition-all bg-primary text-primary-foreground hover:bg-primary/90 group shadow-sm
                   ${collapsed ? "justify-center w-10 h-10 mx-auto" : "px-3 py-2.5"}`}
@@ -259,7 +268,7 @@ export function Sidebar() {
       >
         <SidebarContent />
 
-        {/* Collapse toggle button — left edge of sidebar */}
+        {/* Collapse toggle button */}
         <button
           onClick={toggle}
           className="absolute -left-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-card border border-border shadow-md flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/40 transition-all z-50"
@@ -289,46 +298,57 @@ export function Sidebar() {
 
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
-          {/* Burger */}
-          <button
-            onClick={() => setMobileOpen(true)}
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
+          {session && (
+            <Link
+              to="/profile"
+              className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center text-primary-foreground text-xs font-black shadow-sm"
+            >
+              {initials}
+            </Link>
+          )}
         </div>
       </header>
 
-      {/* ── Mobile drawer overlay ── */}
-      {mobileOpen && (
-        <div
-          className="md:hidden fixed inset-0 z-50 flex justify-end"
-          onClick={() => setMobileOpen(false)}
-        >
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-
-          {/* Drawer */}
-          <div
-            className="relative w-72 max-w-[85vw] h-full border-l border-border shadow-2xl overflow-y-auto"
-            style={{ background: "var(--sidebar)" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Close btn */}
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="absolute top-4 left-4 w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all z-10"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <SidebarContent onClose={() => setMobileOpen(false)} />
-          </div>
+      {/* ── Mobile Bottom Navigation Bar ── */}
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-border"
+        style={{ background: "var(--nav-bg)", backdropFilter: "blur(14px)" }}
+      >
+        {/* Safe area for devices with home indicator */}
+        <div className="flex items-center justify-around px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+          {mobileNav.map((item) => {
+            const active = isActive(item.to);
+            const Icon = item.icon;
+            const badge = "badge" in item ? item.badge : 0;
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="relative flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all min-w-[3rem]"
+              >
+                <div className={`relative w-10 h-9 flex items-center justify-center rounded-xl transition-all duration-200 ${
+                  active ? "bg-primary/15" : "hover:bg-muted"
+                }`}>
+                  <Icon className={`w-5 h-5 transition-colors duration-200 ${
+                    active ? "text-primary" : "text-muted-foreground"
+                  }`} />
+                  {/* Badge */}
+                  {badge !== undefined && badge > 0 && (
+                    <span className="absolute top-1 right-1 w-4 h-4 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center">
+                      {badge > 99 ? "99+" : badge}
+                    </span>
+                  )}
+                </div>
+                <span className={`text-[10px] font-semibold transition-colors duration-200 leading-none ${
+                  active ? "text-primary" : "text-muted-foreground"
+                }`}>
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
         </div>
-      )}
+      </nav>
     </>
   );
 }

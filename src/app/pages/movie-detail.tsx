@@ -8,7 +8,8 @@ import {
 import {
   Star, Clock, ArrowLeft, Check, Trash2, Loader2,
   Calendar, Users, Film, Bot, Brain, LogIn, UserPlus, Sparkles,
-  Bookmark, BookmarkCheck,
+  Bookmark, BookmarkCheck, Quote, ChevronDown, ChevronUp, Pencil,
+  MessageSquare, ThumbsUp, ThumbsDown, Minus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../lib/auth-context";
@@ -30,10 +31,13 @@ export function MovieDetailPage() {
   const [sentimentLoading, setSentimentLoading] = useState(false);
   const [inWatchlist, setInWatchlist] = useState(false);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
+  const [reviewExpanded, setReviewExpanded] = useState(false);
+  const [savedReviewData, setSavedReviewData] = useState<{ review: string; rating: number; savedAt?: string; sentiment?: any } | null>(null);
 
   useEffect(() => {
     if (!id) return;
     setLoading(true); setMovie(null); setWatched(null); setRating(0); setReview(""); setInWatchlist(false);
+    setSavedReviewData(null); setReviewExpanded(false); setSentimentData(null);
 
     getMovie(Number(id))
       .then(setMovie)
@@ -44,7 +48,17 @@ export function MovieDetailPage() {
       getWatched().then((w) => {
         if (Array.isArray(w)) {
           const e = w.find((x: any) => x.movieId === Number(id));
-          if (e) { setWatched(e); setRating(e.rating || 0); setReview(e.review || ""); }
+          if (e) {
+            setWatched(e); setRating(e.rating || 0); setReview(e.review || "");
+            if (e.review?.trim()) {
+              setSavedReviewData({
+                review: e.review,
+                rating: e.rating || 0,
+                savedAt: e.addedAt,
+                sentiment: e.sentiment || null,
+              });
+            }
+          }
         }
       }).catch(() => {});
 
@@ -63,6 +77,11 @@ export function MovieDetailPage() {
     try {
       await addWatched(Number(id), rating, review);
       setWatched({ movieId: Number(id), rating, review });
+      if (review.trim()) {
+        setSavedReviewData({ review, rating, savedAt: new Date().toISOString(), sentiment: sentimentData || null });
+      } else {
+        setSavedReviewData(null);
+      }
       // If movie was in watchlist, remove it automatically
       if (inWatchlist) {
         await removeFromWatchlist(Number(id));
@@ -77,7 +96,7 @@ export function MovieDetailPage() {
     setSaving(true);
     try {
       await removeWatched(Number(id));
-      setWatched(null); setRating(0); setReview("");
+      setWatched(null); setRating(0); setReview(""); setSavedReviewData(null); setSentimentData(null);
       toast.success("Удалено из библиотеки");
     } catch { toast.error("Ошибка при удалении"); }
     finally { setSaving(false); }
@@ -422,7 +441,13 @@ export function MovieDetailPage() {
                   <button
                     onClick={async () => {
                       setSentimentLoading(true);
-                      try { const d = await aiAnalyzeReview(review, movie?.title || ""); setSentimentData(d); }
+                      try {
+                        const d = await aiAnalyzeReview(review, movie?.title || "");
+                        setSentimentData(d);
+                        if (savedReviewData) {
+                          setSavedReviewData({ ...savedReviewData, sentiment: d });
+                        }
+                      }
                       catch { toast.error("Ошибка анализа"); }
                       finally { setSentimentLoading(false); }
                     }}
@@ -504,6 +529,132 @@ export function MovieDetailPage() {
             </div>
           )}
         </div>
+
+        {/* ─── Блок рецензии ─────────────────────────── */}
+        {savedReviewData && savedReviewData.review.trim().length > 0 && (
+          <div className="mt-6">
+            {/* Header */}
+            <div className="flex items-center gap-2 mb-3">
+              <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Ваша рецензия</h3>
+            </div>
+
+            <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+              {/* Top accent bar */}
+              <div className="h-0.5 bg-gradient-to-r from-primary via-primary/50 to-transparent" />
+
+              <div className="p-6 space-y-4">
+                {/* Rating row + sentiment badge */}
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-3">
+                    {/* Mini star rating display */}
+                    <div className="flex items-center gap-0.5">
+                      {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                        <Star
+                          key={n}
+                          className={`w-3.5 h-3.5 ${n <= savedReviewData.rating ? "text-primary fill-primary" : "text-border"}`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-primary font-black text-lg leading-none">
+                      {savedReviewData.rating}
+                      <span className="text-muted-foreground text-xs font-normal">/10</span>
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Sentiment badge */}
+                    {savedReviewData.sentiment && (
+                      <span className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
+                        savedReviewData.sentiment.sentiment === "positive"
+                          ? "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20"
+                          : savedReviewData.sentiment.sentiment === "negative"
+                          ? "bg-destructive/10 text-destructive border-destructive/20"
+                          : savedReviewData.sentiment.sentiment === "mixed"
+                          ? "bg-primary/10 text-primary border-primary/20"
+                          : "bg-muted text-muted-foreground border-border"
+                      }`}>
+                        {savedReviewData.sentiment.sentiment === "positive"
+                          ? <ThumbsUp className="w-3 h-3" />
+                          : savedReviewData.sentiment.sentiment === "negative"
+                          ? <ThumbsDown className="w-3 h-3" />
+                          : <Minus className="w-3 h-3" />}
+                        {savedReviewData.sentiment.sentiment === "positive" ? "Позитивная"
+                          : savedReviewData.sentiment.sentiment === "negative" ? "Негативная"
+                          : savedReviewData.sentiment.sentiment === "mixed" ? "Смешанная"
+                          : "Нейтральная"}
+                      </span>
+                    )}
+                    {/* Date */}
+                    {savedReviewData.savedAt && (
+                      <span className="text-[11px] text-muted-foreground/60">
+                        {new Date(savedReviewData.savedAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Review text */}
+                <div className="relative">
+                  <Quote className="w-8 h-8 text-primary/10 absolute -top-1 -left-1 shrink-0" />
+                  <div className={`relative pl-5 transition-all duration-300 ${!reviewExpanded && savedReviewData.review.length > 280 ? "max-h-[96px] overflow-hidden" : ""}`}>
+                    <p className="text-foreground/85 text-sm leading-relaxed whitespace-pre-wrap">
+                      {savedReviewData.review}
+                    </p>
+                    {/* Fade gradient when collapsed */}
+                    {!reviewExpanded && savedReviewData.review.length > 280 && (
+                      <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-card to-transparent pointer-events-none" />
+                    )}
+                  </div>
+
+                  {/* Expand/collapse */}
+                  {savedReviewData.review.length > 280 && (
+                    <button
+                      onClick={() => setReviewExpanded(!reviewExpanded)}
+                      className="mt-2 pl-5 flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                    >
+                      {reviewExpanded ? (
+                        <><ChevronUp className="w-3.5 h-3.5" /> Свернуть</>
+                      ) : (
+                        <><ChevronDown className="w-3.5 h-3.5" /> Читать полностью</>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                {/* Emotion keywords */}
+                {savedReviewData.sentiment?.keywords?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {savedReviewData.sentiment.keywords.slice(0, 6).map((kw: string, i: number) => (
+                      <span key={i} className="text-[10px] bg-primary/8 text-primary/70 border border-primary/15 px-2 py-0.5 rounded-full">
+                        #{kw}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Footer */}
+                <div className="flex items-center justify-between pt-1 border-t border-border/50">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center">
+                      <span className="text-primary text-[10px] font-black">Я</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">Моя рецензия</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      // Scroll to rating panel
+                      document.querySelector("[data-rating-panel]")?.scrollIntoView({ behavior: "smooth", block: "center" });
+                    }}
+                    className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Pencil className="w-3 h-3" /> Редактировать
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <p className="text-center text-muted-foreground/40 text-xs mt-10">
           This product uses the TMDB API but is not endorsed or certified by TMDB.
