@@ -1,7 +1,7 @@
 
-  # Movie Library App
+  # qaradakor.kz
 
-  This is a code bundle for Movie Library App. The original project is available at https://www.figma.com/design/99o5bIZQ3VMi8ZuWhQ3gqj/Movie-Library-App.
+  This is a code bundle for qaradakor.kz. The original project is available at https://www.figma.com/design/99o5bIZQ3VMi8ZuWhQ3gqj/qaradakor.kz.
 
   ## Running the code
 
