@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { getProfile, updateProfile, getWatched, getMovieBasic, get2FAStatus, setup2FASend, setup2FAConfirm, disable2FA, TMDB_IMG } from "../lib/api";
+import { useState, useEffect, useRef } from "react";
+import { getProfile, updateProfile, getWatched, getMovieBasic, get2FAStatus, setup2FASend, setup2FAConfirm, disable2FA, TMDB_IMG, uploadAvatar, getAvatarUrl } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
 import { useNavigate } from "react-router";
 import {
@@ -7,6 +7,7 @@ import {
   Loader2, Library, Sparkles, Calendar,
   Users, Bot, TrendingUp, Smartphone, ShieldCheck,
   ShieldOff, ShieldAlert, Eye, EyeOff, Phone, ArrowLeft,
+  Camera, Mail, Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -47,6 +48,11 @@ export function ProfilePage() {
   const [genresVal, setGenresVal] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // Avatar
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
   // Stats & movies
   const [watchedEntries, setWatchedEntries] = useState<WatchedEntry[]>([]);
   const [recentMovies, setRecentMovies] = useState<MovieSnap[]>([]);
@@ -55,19 +61,17 @@ export function ProfilePage() {
   useEffect(() => {
     if (!session) { navigate("/login"); return; }
 
-    Promise.all([getProfile(), getWatched()])
-      .then(([p, w]) => {
-        // Profile
+    Promise.all([getProfile(), getWatched(), getAvatarUrl()])
+      .then(([p, w, avatarUrlResult]) => {
         setProfile(p);
         setNameVal(p?.name || "");
         setBioVal(p?.bio || "");
         setGenresVal(p?.favoriteGenres || []);
+        setAvatarUrl(avatarUrlResult);
 
-        // Watched entries
         const entries: WatchedEntry[] = Array.isArray(w) ? w : [];
         setWatchedEntries(entries);
 
-        // Load last 6 movies (basic info only — no credits)
         if (entries.length > 0) {
           setLoadingMovies(true);
           const recent = [...entries].sort(
@@ -98,6 +102,31 @@ export function ProfilePage() {
       })
       .finally(() => setLoadingProfile(false));
   }, [session]);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Выберите изображение"); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error("Файл слишком большой (макс. 5 МБ)"); return; }
+
+    // Preview immediately
+    const objectUrl = URL.createObjectURL(file);
+    setAvatarUrl(objectUrl);
+    setAvatarUploading(true);
+    try {
+      const result = await uploadAvatar(file);
+      setAvatarUrl(result.url);
+      toast.success("Фото профиля обновлено");
+    } catch (err: any) {
+      toast.error(err.message || "Ошибка загрузки фото");
+      // Revert preview on error
+      setAvatarUrl(null);
+    } finally {
+      setAvatarUploading(false);
+      // Reset input
+      if (avatarInputRef.current) avatarInputRef.current.value = "";
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -137,7 +166,6 @@ export function ProfilePage() {
       })
     : null;
 
-  // Display name — prefer saved name, then email prefix, then fallback
   const displayName =
     profile?.name?.trim() ||
     session?.user?.email?.split("@")[0] ||
@@ -168,45 +196,80 @@ export function ProfilePage() {
       {/* ── Profile Card ── */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
         {/* Cover banner */}
-        <div className="h-28 relative overflow-hidden bg-gradient-to-br from-[#1a1f2e] via-[#232a45] to-[#2e1a47]">
-          {/* decorative blobs */}
-          <div className="absolute -top-4 -left-4 w-32 h-32 bg-primary/20 rounded-full blur-2xl" />
-          <div className="absolute -bottom-6 right-10 w-40 h-40 bg-secondary/15 rounded-full blur-3xl" />
-          <div className="absolute top-2 right-1/3 w-16 h-16 bg-primary/10 rounded-full blur-xl" />
+        <div className="h-36 sm:h-44 relative overflow-hidden bg-gradient-to-br from-[#1a1f2e] via-[#232a45] to-[#2e1a47]">
+          <div className="absolute -top-6 -left-6 w-48 h-48 bg-primary/25 rounded-full blur-3xl" />
+          <div className="absolute -bottom-8 right-8 w-56 h-56 bg-secondary/20 rounded-full blur-3xl" />
+          <div className="absolute top-4 right-1/3 w-20 h-20 bg-primary/15 rounded-full blur-2xl" />
+          <div className="absolute bottom-4 left-1/4 w-16 h-16 bg-purple-500/10 rounded-full blur-2xl" />
         </div>
 
-        <div className="px-5 pb-6">
-          {/* Avatar row */}
-          <div className="flex items-end justify-between -mt-8 mb-4">
-            <div className="w-16 h-16 rounded-2xl bg-primary border-4 border-card flex items-center justify-center text-primary-foreground text-2xl font-black shadow-lg select-none">
-              {initials}
+        <div className="px-5 sm:px-6 pb-6">
+          {/* Avatar + Actions row */}
+          <div className="flex items-end justify-between -mt-12 mb-5">
+            {/* Avatar */}
+            <div className="relative group">
+              <div className="w-24 h-24 rounded-full border-4 border-card shadow-xl overflow-hidden bg-primary flex items-center justify-center">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={displayName}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-primary-foreground text-3xl font-black select-none">
+                    {initials}
+                  </span>
+                )}
+                {avatarUploading && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full">
+                    <Loader2 className="w-6 h-6 text-white animate-spin" />
+                  </div>
+                )}
+              </div>
+              {/* Camera button overlay */}
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={avatarUploading}
+                className="absolute bottom-0.5 right-0.5 w-7 h-7 rounded-full bg-primary border-2 border-card flex items-center justify-center hover:bg-primary/90 transition-all shadow-md"
+                title="Изменить фото"
+              >
+                <Camera className="w-3.5 h-3.5 text-primary-foreground" />
+              </button>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarChange}
+              />
             </div>
 
+            {/* Edit / Save buttons */}
             {!editing ? (
               <button
                 onClick={() => setEditing(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-muted-foreground bg-muted border border-border hover:text-foreground hover:border-primary/30 transition-all"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-foreground bg-muted border border-border hover:border-primary/40 hover:bg-muted/80 transition-all"
               >
-                <Edit3 className="w-3.5 h-3.5" />
+                <Edit3 className="w-4 h-4" />
                 Редактировать
               </button>
             ) : (
               <div className="flex gap-2">
                 <button
                   onClick={handleCancelEdit}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-muted-foreground bg-muted border border-border hover:text-foreground transition-all"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-muted-foreground bg-muted border border-border hover:text-foreground transition-all"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                   Отмена
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-50 transition-all shadow-sm"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-primary-foreground bg-primary hover:bg-primary/90 disabled:opacity-50 transition-all shadow-sm"
                 >
                   {saving
-                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    : <Check className="w-3.5 h-3.5" />}
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <Check className="w-4 h-4" />}
                   Сохранить
                 </button>
               </div>
@@ -215,24 +278,33 @@ export function ProfilePage() {
 
           {/* View mode */}
           {!editing ? (
-            <div className="space-y-1.5">
-              <h1 className="text-xl font-black text-foreground leading-tight">{displayName}</h1>
-              {displayEmail && (
-                <p className="text-muted-foreground text-xs">{displayEmail}</p>
-              )}
-              {memberSince && (
-                <p className="text-muted-foreground text-xs flex items-center gap-1.5 mt-0.5">
-                  <Calendar className="w-3 h-3 shrink-0" />
-                  Участник с {memberSince}
-                </p>
-              )}
+            <div className="space-y-3">
+              <div>
+                <h1 className="text-2xl font-black text-foreground leading-tight">{displayName}</h1>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5">
+                  {displayEmail && (
+                    <span className="text-muted-foreground text-sm flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5 shrink-0" />
+                      {displayEmail}
+                    </span>
+                  )}
+                  {memberSince && (
+                    <span className="text-muted-foreground text-sm flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 shrink-0" />
+                      С {memberSince}
+                    </span>
+                  )}
+                </div>
+              </div>
+
               {profile?.bio && (
-                <p className="text-foreground/80 text-sm mt-3 leading-relaxed border-t border-border pt-3">
+                <p className="text-foreground/80 text-sm leading-relaxed border-t border-border pt-3">
                   {profile.bio}
                 </p>
               )}
+
               {profile?.favoriteGenres?.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-2">
+                <div className="flex flex-wrap gap-1.5 pt-1">
                   {profile.favoriteGenres.map((g: string) => (
                     <span
                       key={g}
@@ -243,8 +315,9 @@ export function ProfilePage() {
                   ))}
                 </div>
               )}
+
               {!profile?.bio && !profile?.favoriteGenres?.length && (
-                <p className="text-muted-foreground/50 text-xs mt-2 italic">
+                <p className="text-muted-foreground/50 text-sm italic">
                   Добавьте информацию о себе — нажмите «Редактировать»
                 </p>
               )}
@@ -298,50 +371,31 @@ export function ProfilePage() {
               </div>
             </div>
           )}
+
+          {/* Stats row inside card */}
+          <div className="grid grid-cols-3 border-t border-border">
+            {[
+              { label: "Фильмов", value: totalMovies, icon: Film, color: "text-foreground" },
+              { label: "Ср. оценка", value: avgRating, icon: Star, color: "text-primary" },
+              { label: "Жанров", value: profile?.favoriteGenres?.length || 0, icon: Sparkles, color: "text-secondary" },
+            ].map(({ label, value, icon: Icon, color }, i) => (
+              <div
+                key={label}
+                className={`flex flex-col items-center py-4 gap-1 ${i < 2 ? "border-r border-border" : ""}`}
+              >
+                <p className={`text-2xl font-black ${color}`}>{value}</p>
+                <div className={`flex items-center gap-1 text-xs text-muted-foreground`}>
+                  <Icon className={`w-3.5 h-3.5 ${color} opacity-70`} />
+                  {label}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* ─── 2FA Section ───────────────────────────────────────────────────────────── */}
       <TwoFASection />
-
-      {/* ── Stats ── */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          {
-            label: "Фильмов",
-            value: totalMovies,
-            icon: Film,
-            colorClass: "text-foreground",
-            sub: totalMovies === 1 ? "в библиотеке" : "в библиотеке",
-          },
-          {
-            label: "Ср. оценка",
-            value: avgRating,
-            icon: Star,
-            colorClass: "text-primary",
-            sub: totalMovies > 0 ? "из 10" : "пока нет",
-          },
-          {
-            label: "Жанров",
-            value: profile?.favoriteGenres?.length || 0,
-            icon: Sparkles,
-            colorClass: "text-secondary",
-            sub: (profile?.favoriteGenres?.length || 0) > 0 ? "любимых" : "не выбрано",
-          },
-        ].map(({ label, value, icon: Icon, colorClass, sub }) => (
-          <div
-            key={label}
-            className="bg-card border border-border rounded-2xl p-4 text-center shadow-sm hover:border-border/70 transition"
-          >
-            <Icon className={`w-5 h-5 ${colorClass} mx-auto mb-2 opacity-70`} />
-            <p className={`text-2xl font-black ${colorClass}`}>{value}</p>
-            <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-widest mt-0.5">
-              {label}
-            </p>
-            <p className="text-muted-foreground/50 text-[9px] mt-0.5">{sub}</p>
-          </div>
-        ))}
-      </div>
 
       {/* ── Recent Watches ── */}
       <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
@@ -645,7 +699,7 @@ function TwoFASection() {
             <div className="flex items-center gap-3 bg-green-500/8 border border-green-500/20 rounded-xl p-3.5">
               <Smartphone className="w-4 h-4 text-green-500 shrink-0" />
               <div>
-                <p className="text-foreground text-xs font-semibold">Привязанный ном��р</p>
+                <p className="text-foreground text-xs font-semibold">Привязанный номр</p>
                 <p className="text-muted-foreground text-xs mt-0.5">{status.masked}</p>
               </div>
             </div>

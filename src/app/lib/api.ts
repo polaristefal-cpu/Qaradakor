@@ -129,6 +129,37 @@ export async function updateProfile(data: { name?: string; bio?: string; favorit
   });
 }
 
+// Avatar
+export async function uploadAvatar(file: File): Promise<{ url: string }> {
+  const sessionToken = await getToken();
+  const hasSession = sessionToken && sessionToken !== publicAnonKey;
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${publicAnonKey}`,
+  };
+  if (hasSession) headers["x-user-token"] = sessionToken;
+
+  const formData = new FormData();
+  formData.append("avatar", file);
+
+  const res = await fetch(`${BASE}/profile/avatar`, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Ошибка загрузки");
+  return data;
+}
+
+export async function getAvatarUrl(): Promise<string | null> {
+  try {
+    const data = await request("/profile/avatar");
+    return data.url || null;
+  } catch {
+    return null;
+  }
+}
+
 // 2FA / Phone
 export async function savePhone(phone: string, enable2fa: boolean) {
   return request("/profile/phone", {

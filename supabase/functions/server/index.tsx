@@ -31,6 +31,22 @@ const supabaseAnon = () => createClient(
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const tmdbKey = () => Deno.env.get("TMDB_API_KEY")!;
 const openaiKey = () => Deno.env.get("OPENAI_API_KEY")!;
+const AVATAR_BUCKET = "make-59141208-avatars";
+
+// Create avatar bucket on startup
+(async () => {
+  try {
+    const supabase = supabaseAdmin();
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const exists = buckets?.some((b: any) => b.name === AVATAR_BUCKET);
+    if (!exists) {
+      await supabase.storage.createBucket(AVATAR_BUCKET, { public: false });
+      console.log("[Storage] Avatar bucket created:", AVATAR_BUCKET);
+    }
+  } catch (e: any) {
+    console.log("[Storage] Bucket init error:", e.message);
+  }
+})();
 
 async function callOpenAI(messages: any[], temperature = 0.7, max_tokens = 1024) {
   const resp = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -862,6 +878,64 @@ app.post("/make-server-59141208/ai/explain", async (c) => {
   } catch (e: any) {
     console.log("[AI Explain] Error:", e.message);
     return c.json({ explanation: "Не удалось сгенерировать объяснение", error: e.message });
+  }
+});
+
+// ---- AVATAR UPLOAD ----
+app.post("/make-server-59141208/profile/avatar", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const formData = await c.req.formData();
+    const file = formData.get("avatar") as File | null;
+    if (!file) return c.json({ error: "Файл не предоставлен" }, 400);
+    if (!file.type.startsWith("image/")) return c.json({ error: "Разрешены только изображения" }, 400);
+    if (file.size > 5 * 1024 * 1024) return c.json({ error: "Файл слишком большой (макс. 5 МБ)" }, 400);
+
+    const ext = file.type.split("/")[1]?.replace("jpeg", "jpg") || "jpg";
+    const path = `${user.id}/avatar.${ext}`;
+    const arrayBuffer = await file.arrayBuffer();
+
+    const { error: uploadError } = await supabaseAdmin().storage
+      .from(AVATAR_BUCKET)
+      .upload(path, arrayBuffer, { contentType: file.type, upsert: true });
+
+    if (uploadError) return c.json({ error: `Ошибка загрузки: ${uploadError.message}` }, 500);
+
+    const { data: signedData, error: signedError } = await supabaseAdmin().storage
+      .from(AVATAR_BUCKET)
+      .createSignedUrl(path, 365 * 24 * 60 * 60);
+
+    if (signedError) return c.json({ error: `Ошибка URL: ${signedError.message}` }, 500);
+
+    const existing: any = await kv.get(`user:${user.id}:profile`) || {};
+    await kv.set(`user:${user.id}:profile`, { ...existing, avatarPath: path });
+
+    console.log("[Avatar] Uploaded for user:", user.id);
+    return c.json({ ok: true, url: signedData.signedUrl });
+  } catch (e: any) {
+    console.log("[Avatar] Upload error:", e.message);
+    return c.json({ error: `Ошибка загрузки аватара: ${e.message}` }, 500);
+  }
+});
+
+// ---- GET AVATAR URL ----
+app.get("/make-server-59141208/profile/avatar", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const profile: any = await kv.get(`user:${user.id}:profile`) || {};
+    if (!profile.avatarPath) return c.json({ url: null });
+
+    const { data, error } = await supabaseAdmin().storage
+      .from(AVATAR_BUCKET)
+      .createSignedUrl(profile.avatarPath, 365 * 24 * 60 * 60);
+
+    if (error) return c.json({ url: null });
+    return c.json({ url: data.signedUrl });
+  } catch (e: any) {
+    console.log("[Avatar] Get error:", e.message);
+    return c.json({ url: null });
   }
 });
 
