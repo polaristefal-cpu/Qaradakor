@@ -302,6 +302,74 @@ app.get("/make-server-59141208/friends/:friendId/watched", async (c) => {
   return c.json(watched);
 });
 
+// ---- FRIEND RECOMMENDATIONS ----
+
+// Send a movie recommendation to a friend
+app.post("/make-server-59141208/friends/recommend", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const { friendId, movieId, note } = await c.req.json();
+    if (!friendId || !movieId) return c.json({ error: "friendId and movieId required" }, 400);
+
+    // Verify they are actually friends
+    const friends: string[] = await kv.get(`user:${user.id}:friends`) || [];
+    if (!friends.includes(friendId)) return c.json({ error: "Not friends" }, 403);
+
+    // Get sender profile for name
+    const senderProfile: any = await kv.get(`user:${user.id}:profile`) || {};
+
+    // Fetch basic movie info from TMDB to store title/poster
+    let movieTitle = `Movie #${movieId}`;
+    let posterPath: string | null = null;
+    try {
+      const resp = await tmdbFetch(`/movie/${movieId}?language=ru-RU`);
+      const mdata = await resp.json();
+      movieTitle = mdata.title || movieTitle;
+      posterPath = mdata.poster_path || null;
+    } catch {}
+
+    // Append to friend's incoming recommendations list
+    const recKey = `user:${friendId}:incoming_recs`;
+    const recs: any[] = await kv.get(recKey) || [];
+    recs.unshift({
+      id: `${user.id}_${movieId}_${Date.now()}`,
+      fromId: user.id,
+      fromName: senderProfile.name || user.email,
+      movieId,
+      movieTitle,
+      posterPath,
+      note: note || "",
+      seen: false,
+      createdAt: new Date().toISOString(),
+    });
+    // Keep last 50 recommendations
+    await kv.set(recKey, recs.slice(0, 50));
+    return c.json({ ok: true });
+  } catch (e: any) {
+    return c.json({ error: `Recommend error: ${e.message}` }, 500);
+  }
+});
+
+// Get incoming recommendations for current user
+app.get("/make-server-59141208/friends/recommendations", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const recs: any[] = await kv.get(`user:${user.id}:incoming_recs`) || [];
+  return c.json(recs);
+});
+
+// Mark a recommendation as seen
+app.post("/make-server-59141208/friends/recommendations/:recId/seen", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const recId = c.req.param("recId");
+  const recs: any[] = await kv.get(`user:${user.id}:incoming_recs`) || [];
+  const updated = recs.map((r: any) => r.id === recId ? { ...r, seen: true } : r);
+  await kv.set(`user:${user.id}:incoming_recs`, updated);
+  return c.json({ ok: true });
+});
+
 // ---- RECOMMENDATIONS (Content-Based Filtering with Weighted Scoring) ----
 app.get("/make-server-59141208/recommendations", async (c) => {
   const user = await getUser(c);

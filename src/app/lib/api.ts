@@ -256,7 +256,13 @@ export async function getMovieBasic(id: number) {
 }
 
 export async function getMovieVideos(id: number) {
-  return request(`/tmdb/movie/${id}/videos?language=ru-RU`);
+  // Fetch English videos first (most trailers are in English)
+  const data = await request(`/tmdb/movie/${id}/videos?language=en-US`);
+  // If no results, fallback to all languages
+  if (!data?.results?.length) {
+    return request(`/tmdb/movie/${id}/videos`);
+  }
+  return data;
 }
 
 export async function getTrending() {
@@ -363,7 +369,45 @@ export async function getFriendWatched(friendId: string) {
   return request(`/friends/${friendId}/watched`);
 }
 
-// Recommendations
+// Friend profile & recommendations
+export async function getFriendProfile(friendId: string) {
+  return request(`/friends/${friendId}/profile`);
+}
+
+export async function sendRecommendation(friendId: string, movieId: number, note?: string) {
+  try {
+    return await request("/friends/recommend", {
+      method: "POST",
+      body: JSON.stringify({ friendId, movieId, note }),
+    });
+  } catch (e: any) {
+    // If route not yet deployed, throw a user-friendly message
+    if (e.message?.includes("404") || e.message?.includes("Маршрут не найден")) {
+      throw new Error("Маршрут рекомендаций ещё не задеплоен. Выполните: supabase functions deploy make-server-59141208");
+    }
+    throw e;
+  }
+}
+
+export async function getFriendRecommendations(): Promise<any[]> {
+  try {
+    const data = await request("/friends/recommendations");
+    return Array.isArray(data) ? data : [];
+  } catch {
+    // Route not yet deployed on Edge Function — return empty list silently
+    return [];
+  }
+}
+
+export async function markRecommendationSeen(recId: string) {
+  try {
+    return await request(`/friends/recommendations/${recId}/seen`, { method: "POST" });
+  } catch {
+    // Silently ignore if route not yet deployed
+    return null;
+  }
+}
+
 export async function getRecommendations() {
   return request("/recommendations");
 }

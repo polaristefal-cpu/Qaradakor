@@ -16,6 +16,7 @@ import { AiChatPage } from "./pages/ai-chat";
 import { ProfilePage } from "./pages/profile";
 import { WatchlistPage } from "./pages/watchlist";
 import { PersonPage } from "./pages/person";
+import { FriendProfilePage } from "./pages/friend-profile";
 import { Loader2 } from "lucide-react";
 
 // ── Shared shell with sidebar ─────────────────────────────────────────────────
@@ -113,6 +114,7 @@ export const router = createBrowserRouter([
       { path: "/watchlist", Component: WatchlistPage },
       { path: "/recommendations", Component: RecommendationsPage },
       { path: "/friends", Component: FriendsPage },
+      { path: "/friends/:id", Component: FriendProfilePage },
       { path: "/ai", Component: AiChatPage },
       { path: "/profile", Component: ProfilePage },
     ],

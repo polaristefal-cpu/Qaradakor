@@ -9,10 +9,11 @@ import {
   Star, Clock, ArrowLeft, Check, Trash2, Loader2,
   Calendar, Users, Film, Bot, Brain, LogIn, UserPlus, Sparkles,
   Bookmark, BookmarkCheck, Quote, ChevronDown, ChevronUp, Pencil,
-  MessageSquare, ThumbsUp, ThumbsDown, Minus,
+  MessageSquare, ThumbsUp, ThumbsDown, Minus, Play,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../lib/auth-context";
+import { TrailerModal } from "../components/trailer-modal";
 
 export function MovieDetailPage() {
   const { id } = useParams();
@@ -33,6 +34,7 @@ export function MovieDetailPage() {
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [reviewExpanded, setReviewExpanded] = useState(false);
   const [savedReviewData, setSavedReviewData] = useState<{ review: string; rating: number; savedAt?: string; sentiment?: any } | null>(null);
+  const [showTrailer, setShowTrailer] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -82,7 +84,6 @@ export function MovieDetailPage() {
       } else {
         setSavedReviewData(null);
       }
-      // If movie was in watchlist, remove it automatically
       if (inWatchlist) {
         await removeFromWatchlist(Number(id));
         setInWatchlist(false);
@@ -163,12 +164,22 @@ export function MovieDetailPage() {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/55 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-r from-background/75 to-transparent" />
+          {/* Trailer button — bottom of banner */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
+            <button
+              onClick={() => setShowTrailer(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border border-primary/40 bg-black/40 text-primary hover:bg-primary hover:text-primary-foreground transition-all shadow-lg hover:shadow-primary/30 backdrop-blur-md"
+            >
+              <Play className="w-4 h-4 fill-current" />
+              Смотреть трейлер
+            </button>
+          </div>
         </div>
       )}
 
       <div
         className="max-w-5xl mx-auto px-4 pb-16 relative z-10"
-        style={{ marginTop: movie.backdrop_path ? "-160px" : "2rem" }}
+        style={{ marginTop: movie.backdrop_path ? "-140px" : "2rem" }}
       >
         {/* Back */}
         <button
@@ -239,7 +250,7 @@ export function MovieDetailPage() {
               </div>
             )}
 
-            {/* Watchlist button — prominent, near genres */}
+            {/* Watchlist button */}
             {session && !watched && (
               <div>
                 <button
@@ -533,21 +544,17 @@ export function MovieDetailPage() {
         {/* ─── Блок рецензии ─────────────────────────── */}
         {savedReviewData && savedReviewData.review.trim().length > 0 && (
           <div className="mt-6">
-            {/* Header */}
             <div className="flex items-center gap-2 mb-3">
               <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Ваша рецензия</h3>
             </div>
 
             <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-              {/* Top accent bar */}
               <div className="h-0.5 bg-gradient-to-r from-primary via-primary/50 to-transparent" />
 
               <div className="p-6 space-y-4">
-                {/* Rating row + sentiment badge */}
                 <div className="flex items-center justify-between flex-wrap gap-3">
                   <div className="flex items-center gap-3">
-                    {/* Mini star rating display */}
                     <div className="flex items-center gap-0.5">
                       {[1,2,3,4,5,6,7,8,9,10].map((n) => (
                         <Star
@@ -563,7 +570,6 @@ export function MovieDetailPage() {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {/* Sentiment badge */}
                     {savedReviewData.sentiment && (
                       <span className={`flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
                         savedReviewData.sentiment.sentiment === "positive"
@@ -581,11 +587,10 @@ export function MovieDetailPage() {
                           : <Minus className="w-3 h-3" />}
                         {savedReviewData.sentiment.sentiment === "positive" ? "Позитивная"
                           : savedReviewData.sentiment.sentiment === "negative" ? "Негативная"
-                          : savedReviewData.sentiment.sentiment === "mixed" ? "Смешанная"
+                          : savedReviewData.sentiment.sentiment === "mixed" ? "См��шанная"
                           : "Нейтральная"}
                       </span>
                     )}
-                    {/* Date */}
                     {savedReviewData.savedAt && (
                       <span className="text-[11px] text-muted-foreground/60">
                         {new Date(savedReviewData.savedAt).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" })}
@@ -594,20 +599,17 @@ export function MovieDetailPage() {
                   </div>
                 </div>
 
-                {/* Review text */}
                 <div className="relative">
                   <Quote className="w-8 h-8 text-primary/10 absolute -top-1 -left-1 shrink-0" />
                   <div className={`relative pl-5 transition-all duration-300 ${!reviewExpanded && savedReviewData.review.length > 280 ? "max-h-[96px] overflow-hidden" : ""}`}>
                     <p className="text-foreground/85 text-sm leading-relaxed whitespace-pre-wrap">
                       {savedReviewData.review}
                     </p>
-                    {/* Fade gradient when collapsed */}
                     {!reviewExpanded && savedReviewData.review.length > 280 && (
                       <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-card to-transparent pointer-events-none" />
                     )}
                   </div>
 
-                  {/* Expand/collapse */}
                   {savedReviewData.review.length > 280 && (
                     <button
                       onClick={() => setReviewExpanded(!reviewExpanded)}
@@ -622,7 +624,6 @@ export function MovieDetailPage() {
                   )}
                 </div>
 
-                {/* Emotion keywords */}
                 {savedReviewData.sentiment?.keywords?.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 pt-1">
                     {savedReviewData.sentiment.keywords.slice(0, 6).map((kw: string, i: number) => (
@@ -633,7 +634,6 @@ export function MovieDetailPage() {
                   </div>
                 )}
 
-                {/* Footer */}
                 <div className="flex items-center justify-between pt-1 border-t border-border/50">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full bg-primary/15 flex items-center justify-center">
@@ -643,7 +643,6 @@ export function MovieDetailPage() {
                   </div>
                   <button
                     onClick={() => {
-                      // Scroll to rating panel
                       document.querySelector("[data-rating-panel]")?.scrollIntoView({ behavior: "smooth", block: "center" });
                     }}
                     className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
@@ -660,6 +659,15 @@ export function MovieDetailPage() {
           This product uses the TMDB API but is not endorsed or certified by TMDB.
         </p>
       </div>
+
+      {/* Trailer modal */}
+      {showTrailer && movie && (
+        <TrailerModal
+          movieId={Number(id)}
+          movieTitle={movie.title}
+          onClose={() => setShowTrailer(false)}
+        />
+      )}
     </div>
   );
 }
