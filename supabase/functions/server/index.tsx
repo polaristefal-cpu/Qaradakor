@@ -33,6 +33,61 @@ const tmdbKey = () => Deno.env.get("TMDB_API_KEY")!;
 const openaiKey = () => Deno.env.get("OPENAI_API_KEY")!;
 const AVATAR_BUCKET = "make-59141208-avatars";
 
+const WAZZUP_CHANNEL_ID = "ac9fd2e0-a8dd-465f-affd-9d5210e2ef0d";
+const wazzupKey = () => Deno.env.get("WAZZUP_API_KEY")!;
+
+// ---- OTP SENDING: WhatsApp (Wazzup) → SMS (Mobizon) fallback ----
+async function sendOtpCode(phone: string, code: string): Promise<{ channel: "whatsapp" | "sms"; error?: string }> {
+  // chatId for Wazzup — phone in international format without +, e.g. 77001234567
+  const chatId = phone;
+
+  // 1. Try WhatsApp via Wazzup
+  try {
+    const wazzupRes = await fetch("https://api.wazzup24.com/v3/message", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${wazzupKey()}`,
+      },
+      body: JSON.stringify({
+        channelId: WAZZUP_CHANNEL_ID,
+        chatType: "whatsapp",
+        chatId,
+        text: `Qaradakor.kz: ваш код подтверждения — *${code}*\n\nДействителен 5 минут.`,
+      }),
+    });
+
+    const wazzupData = await wazzupRes.json().catch(() => ({}));
+    console.log("[OTP] Wazzup response:", wazzupRes.status, JSON.stringify(wazzupData));
+
+    if (wazzupRes.ok && !wazzupData.error) {
+      console.log("[OTP] Sent via WhatsApp ✅");
+      return { channel: "whatsapp" };
+    }
+    console.log("[OTP] Wazzup failed, falling back to SMS:", JSON.stringify(wazzupData));
+  } catch (e: any) {
+    console.log("[OTP] Wazzup exception, falling back to SMS:", e.message);
+  }
+
+  // 2. Fallback — SMS via Mobizon
+  try {
+    const apiKey = Deno.env.get("MOBIZON_API_KEY")!;
+    const text = encodeURIComponent(`Qaradakor.kz: код подтверждения — ${code}. Действителен 5 минут.`);
+    const mobizonUrl = `https://api.mobizon.kz/service/Message/SendSmsMessage?output=json&api=v1&apiKey=${apiKey}&recipient=${phone}&text=${text}`;
+    const resp = await fetch(mobizonUrl);
+    const result = await resp.json();
+    console.log("[OTP] Mobizon SMS response:", JSON.stringify(result));
+    if (result.code !== 0) {
+      return { channel: "sms", error: `Ошибка SMS: ${result.message}` };
+    }
+    console.log("[OTP] Sent via SMS ✅");
+    return { channel: "sms" };
+  } catch (e: any) {
+    console.log("[OTP] Mobizon exception:", e.message);
+    return { channel: "sms", error: `Ошибка SMS: ${e.message}` };
+  }
+}
+
 // Create avatar bucket on startup
 (async () => {
   try {
@@ -152,13 +207,37 @@ app.get("/make-server-59141208/watched", async (c) => {
 app.post("/make-server-59141208/watched", async (c) => {
   const user = await getUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
-  const { movieId, rating, review } = await c.req.json();
+  const { movieId, rating, review, movieTitle, posterPath } = await c.req.json();
   const watched: any[] = await kv.get(`user:${user.id}:watched`) || [];
   const existing = watched.findIndex((w: any) => w.movieId === movieId);
-  const entry = { movieId, rating, review, addedAt: new Date().toISOString() };
+  const entry = { movieId, rating, review, movieTitle, posterPath, addedAt: new Date().toISOString() };
   if (existing >= 0) watched[existing] = entry;
   else watched.push(entry);
   await kv.set(`user:${user.id}:watched`, watched);
+
+  // Sync to global reviews list if review text is present
+  if (review?.trim()) {
+    const profile: any = await kv.get(`user:${user.id}:profile`) || {};
+    const globalReviews: any[] = await kv.get("reviews:global") || [];
+    const reviewId = `${user.id}_${movieId}`;
+    const idx = globalReviews.findIndex((r: any) => r.id === reviewId);
+    const reviewEntry = {
+      id: reviewId,
+      userId: user.id,
+      userName: profile.name || "Аноним",
+      movieId,
+      movieTitle: movieTitle || `Фильм #${movieId}`,
+      posterPath: posterPath || null,
+      rating,
+      review,
+      createdAt: new Date().toISOString(),
+      likes: idx >= 0 ? (globalReviews[idx].likes || 0) : 0,
+    };
+    if (idx >= 0) globalReviews[idx] = reviewEntry;
+    else globalReviews.unshift(reviewEntry);
+    await kv.set("reviews:global", globalReviews.slice(0, 1000));
+  }
+
   return c.json({ ok: true });
 });
 
@@ -300,6 +379,115 @@ app.get("/make-server-59141208/friends/:friendId/watched", async (c) => {
   if (!friends.includes(friendId)) return c.json({ error: "Not friends" }, 403);
   const watched = await kv.get(`user:${friendId}:watched`) || [];
   return c.json(watched);
+});
+
+// Get friend's profile (name, bio) — friends only
+app.get("/make-server-59141208/friends/:friendId/profile", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const friendId = c.req.param("friendId");
+  const friends: string[] = await kv.get(`user:${user.id}:friends`) || [];
+  if (!friends.includes(friendId)) return c.json({ error: "Not friends" }, 403);
+  const profile: any = await kv.get(`user:${friendId}:profile`) || {};
+  return c.json({ id: friendId, name: profile.name || "", bio: profile.bio || "", email: profile.email || "" });
+});
+
+// Get friend's avatar URL — friends only
+app.get("/make-server-59141208/friends/:friendId/avatar", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  const friendId = c.req.param("friendId");
+  const friends: string[] = await kv.get(`user:${user.id}:friends`) || [];
+  if (!friends.includes(friendId)) return c.json({ error: "Not friends" }, 403);
+  try {
+    const profile: any = await kv.get(`user:${friendId}:profile`) || {};
+    if (!profile.avatarPath) return c.json({ url: null });
+    const { data, error } = await supabaseAdmin().storage
+      .from(AVATAR_BUCKET)
+      .createSignedUrl(profile.avatarPath, 60 * 60);
+    if (error) return c.json({ url: null });
+    return c.json({ url: data.signedUrl });
+  } catch (e: any) {
+    return c.json({ url: null });
+  }
+});
+
+// ---- GLOBAL REVIEWS ----
+
+// Top reviews (by rating, then by likes) — public
+app.get("/make-server-59141208/reviews/top", async (c) => {
+  try {
+    const globalReviews: any[] = await kv.get("reviews:global") || [];
+    const sorted = [...globalReviews]
+      .filter((r: any) => r.review?.trim().length >= 20)
+      .sort((a: any, b: any) => {
+        // Primary: rating desc, secondary: likes desc, tertiary: newest
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        if ((b.likes || 0) !== (a.likes || 0)) return (b.likes || 0) - (a.likes || 0);
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+    return c.json(sorted.slice(0, 5));
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
+// Reviews for a specific movie — public
+app.get("/make-server-59141208/reviews/movie/:movieId", async (c) => {
+  try {
+    const movieId = parseInt(c.req.param("movieId"));
+    const globalReviews: any[] = await kv.get("reviews:global") || [];
+    const movieReviews = globalReviews
+      .filter((r: any) => r.movieId === movieId && r.review?.trim())
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return c.json(movieReviews);
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
+// Like a review
+app.post("/make-server-59141208/reviews/:reviewId/like", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const reviewId = c.req.param("reviewId");
+    const globalReviews: any[] = await kv.get("reviews:global") || [];
+    const idx = globalReviews.findIndex((r: any) => r.id === reviewId);
+    if (idx === -1) return c.json({ error: "Review not found" }, 404);
+    // Track who liked to prevent duplicates
+    const likedBy: string[] = globalReviews[idx].likedBy || [];
+    if (likedBy.includes(user.id)) {
+      // Unlike
+      globalReviews[idx].likedBy = likedBy.filter((id: string) => id !== user.id);
+      globalReviews[idx].likes = Math.max(0, (globalReviews[idx].likes || 1) - 1);
+    } else {
+      // Like
+      globalReviews[idx].likedBy = [...likedBy, user.id];
+      globalReviews[idx].likes = (globalReviews[idx].likes || 0) + 1;
+    }
+    await kv.set("reviews:global", globalReviews);
+    return c.json({ ok: true, likes: globalReviews[idx].likes, liked: globalReviews[idx].likedBy.includes(user.id) });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
+// Delete a review (own only)
+app.delete("/make-server-59141208/reviews/:reviewId", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const reviewId = c.req.param("reviewId");
+    const globalReviews: any[] = await kv.get("reviews:global") || [];
+    const review = globalReviews.find((r: any) => r.id === reviewId);
+    if (!review) return c.json({ error: "Not found" }, 404);
+    if (review.userId !== user.id) return c.json({ error: "Forbidden" }, 403);
+    await kv.set("reviews:global", globalReviews.filter((r: any) => r.id !== reviewId));
+    return c.json({ ok: true });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
 });
 
 // ---- FRIEND RECOMMENDATIONS ----
@@ -645,20 +833,17 @@ app.post("/make-server-59141208/auth/2fa-setup-send", async (c) => {
     // Generate & send OTP
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = Date.now() + 5 * 60 * 1000;
-    await kv.set(`otp:${normalized}`, { code, expiresAt, attempts: 0, sentAt: Date.now(), purpose: "setup" });
 
-    const apiKey = Deno.env.get("MOBIZON_API_KEY")!;
-    const text = encodeURIComponent(`Qaradakor.kz: код подтверждения — ${code}. Действителен 5 минут.`);
-    const mobizonUrl = `https://api.mobizon.kz/service/Message/SendSmsMessage?output=json&api=v1&apiKey=${apiKey}&recipient=${normalized}&text=${text}`;
-    const resp = await fetch(mobizonUrl);
-    const result = await resp.json();
-    console.log("[2FA Setup] Mobizon response:", JSON.stringify(result));
-    if (result.code !== 0) {
-      return c.json({ error: `Ошибка отправки SMS: ${result.message}` }, 500);
+    const sendResult = await sendOtpCode(normalized, code);
+    console.log("[2FA Setup] sendOtpCode result:", sendResult);
+    if (sendResult.error) {
+      return c.json({ error: sendResult.error }, 500);
     }
 
+    await kv.set(`otp:${normalized}`, { code, expiresAt, attempts: 0, sentAt: Date.now(), purpose: "setup" });
+
     const masked = `+7 *** *** ${normalized.slice(7, 9)} ${normalized.slice(9)}`;
-    return c.json({ ok: true, masked });
+    return c.json({ ok: true, masked, channel: sendResult.channel });
   } catch (e: any) {
     console.log("[2FA Setup Send] Error:", e.message);
     return c.json({ error: `Ошибка: ${e.message}` }, 500);
@@ -676,7 +861,7 @@ app.post("/make-server-59141208/auth/2fa-setup-confirm", async (c) => {
     if (!phone) return c.json({ error: "Телефон не найден, начните сначала" }, 400);
 
     const stored: any = await kv.get(`otp:${phone}`);
-    if (!stored) return c.json({ error: "Код не найден или истёк. Запросите новый." }, 400);
+    if (!stored) return c.json({ error: "Код не найден или истёк. Запроси��е новый." }, 400);
     if (Date.now() > stored.expiresAt) {
       await kv.del(`otp:${phone}`);
       return c.json({ error: "Код истёк. Запросите новый." }, 400);
@@ -752,26 +937,20 @@ app.post("/make-server-59141208/auth/send-otp", async (c) => {
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = Date.now() + 5 * 60 * 1000; // 5 минут
 
-    // Send via Mobizon FIRST — only save to KV if SMS succeeds
-    const apiKey = Deno.env.get("MOBIZON_API_KEY")!;
-    const text = encodeURIComponent(`Qaradakor.kz: ваш код подтверждения — ${code}. Действителен 5 минут.`);
-    const mobizonUrl = `https://api.mobizon.kz/service/Message/SendSmsMessage?output=json&api=v1&apiKey=${apiKey}&recipient=${phone}&text=${text}`;
+    // Send via WhatsApp first, fallback to SMS
+    const sendResult = await sendOtpCode(phone, code);
+    console.log("[2FA Login] sendOtpCode result:", sendResult);
 
-    const resp = await fetch(mobizonUrl);
-    const result = await resp.json();
-    console.log("[2FA] Mobizon response:", JSON.stringify(result));
-
-    if (result.code !== 0) {
-      console.log("[2FA] Mobizon error:", result.message);
-      return c.json({ error: `Ошибка отправки SMS: ${result.message}` }, 500);
+    if (sendResult.error) {
+      return c.json({ error: sendResult.error }, 500);
     }
 
-    // Save OTP only after successful SMS delivery
+    // Save OTP only after successful delivery
     await kv.set(`otp:login:${phone}`, { code, expiresAt, attempts: 0, sentAt: Date.now(), purpose: "login" });
 
     // Mask phone for response
     const masked = `+7 *** *** ${phone.slice(7, 9)} ${phone.slice(9)}`;
-    return c.json({ ok: true, masked });
+    return c.json({ ok: true, masked, channel: sendResult.channel });
   } catch (e: any) {
     console.log("[2FA] send-otp exception:", e.message);
     return c.json({ error: `Ошибка отправки OTP: ${e.message}` }, 500);
@@ -1131,16 +1310,12 @@ app.post("/make-server-59141208/auth/sms-login-send", async (c) => {
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const expiresAt = Date.now() + 5 * 60 * 1000;
 
-    // Send via Mobizon FIRST
-    const apiKey = Deno.env.get("MOBIZON_API_KEY")!;
-    const text = encodeURIComponent(`Qaradakor.kz: код для входа — ${code}. Действителен 5 минут. Никому не сообщайте.`);
-    const mobizonUrl = `https://api.mobizon.kz/service/Message/SendSmsMessage?output=json&api=v1&apiKey=${apiKey}&recipient=${normalized}&text=${text}`;
-    const resp = await fetch(mobizonUrl);
-    const result = await resp.json();
-    console.log("[SMS Login] Mobizon response:", JSON.stringify(result));
+    // Send via WhatsApp first, fallback to SMS
+    const sendResult = await sendOtpCode(normalized, code);
+    console.log("[SMS Login] sendOtpCode result:", sendResult);
 
-    if (result.code !== 0) {
-      return c.json({ error: `Ошибка отправки SMS: ${result.message}` }, 500);
+    if (sendResult.error) {
+      return c.json({ error: sendResult.error }, 500);
     }
 
     // Save OTP after successful send
@@ -1150,7 +1325,7 @@ app.post("/make-server-59141208/auth/sms-login-send", async (c) => {
     });
 
     const masked = `+7 *** *** ${normalized.slice(7, 9)} ${normalized.slice(9)}`;
-    return c.json({ ok: true, masked });
+    return c.json({ ok: true, masked, channel: sendResult.channel });
   } catch (e: any) {
     console.log("[SMS Login Send] Error:", e.message);
     return c.json({ error: `Ошибка: ${e.message}` }, 500);

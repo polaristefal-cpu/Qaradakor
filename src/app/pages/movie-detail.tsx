@@ -14,6 +14,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../lib/auth-context";
 import { TrailerModal } from "../components/trailer-modal";
+import { MovieReviews } from "../components/movie-reviews";
 
 export function MovieDetailPage() {
   const { id } = useParams();
@@ -77,7 +78,7 @@ export function MovieDetailPage() {
     if (rating === 0) { toast.error("Поставьте оценку"); return; }
     setSaving(true);
     try {
-      await addWatched(Number(id), rating, review);
+      await addWatched(Number(id), rating, review, movie?.title, movie?.poster_path);
       setWatched({ movieId: Number(id), rating, review });
       if (review.trim()) {
         setSavedReviewData({ review, rating, savedAt: new Date().toISOString(), sentiment: sentimentData || null });
@@ -164,16 +165,7 @@ export function MovieDetailPage() {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/55 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-r from-background/75 to-transparent" />
-          {/* Trailer button — bottom of banner */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
-            <button
-              onClick={() => setShowTrailer(true)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border border-primary/40 bg-black/40 text-primary hover:bg-primary hover:text-primary-foreground transition-all shadow-lg hover:shadow-primary/30 backdrop-blur-md"
-            >
-              <Play className="w-4 h-4 fill-current" />
-              Смотреть трейлер
-            </button>
-          </div>
+          {/* Trailer button removed from here — now lives below the poster */}
         </div>
       )}
 
@@ -191,7 +183,7 @@ export function MovieDetailPage() {
 
         <div className="flex flex-col md:flex-row gap-7">
           {/* Poster */}
-          <div className="shrink-0">
+          <div className="shrink-0 flex flex-col items-center gap-3">
             {movie.poster_path ? (
               <img
                 src={`${TMDB_IMG}/w500${movie.poster_path}`}
@@ -203,6 +195,13 @@ export function MovieDetailPage() {
                 <Film className="w-14 h-14 text-muted-foreground/30" />
               </div>
             )}
+            <button
+              onClick={() => setShowTrailer(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border border-primary/40 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all shadow-sm"
+            >
+              <Play className="w-4 h-4 fill-current" />
+              Смотреть трейлер
+            </button>
           </div>
 
           {/* Info */}
@@ -587,7 +586,7 @@ export function MovieDetailPage() {
                           : <Minus className="w-3 h-3" />}
                         {savedReviewData.sentiment.sentiment === "positive" ? "Позитивная"
                           : savedReviewData.sentiment.sentiment === "negative" ? "Негативная"
-                          : savedReviewData.sentiment.sentiment === "mixed" ? "См��шанная"
+                          : savedReviewData.sentiment.sentiment === "mixed" ? "Смшанная"
                           : "Нейтральная"}
                       </span>
                     )}
@@ -658,6 +657,9 @@ export function MovieDetailPage() {
         <p className="text-center text-muted-foreground/40 text-xs mt-10">
           This product uses the TMDB API but is not endorsed or certified by TMDB.
         </p>
+
+        {/* Community Reviews */}
+        <MovieReviews movieId={Number(id)} />
       </div>
 
       {/* Trailer modal */}

@@ -298,10 +298,10 @@ export async function getWatched() {
   return request("/watched");
 }
 
-export async function addWatched(movieId: number, rating: number, review?: string) {
+export async function addWatched(movieId: number, rating: number, review?: string, movieTitle?: string, posterPath?: string | null) {
   return request("/watched", {
     method: "POST",
-    body: JSON.stringify({ movieId, rating, review }),
+    body: JSON.stringify({ movieId, rating, review, movieTitle, posterPath }),
   });
 }
 
@@ -374,6 +374,15 @@ export async function getFriendProfile(friendId: string) {
   return request(`/friends/${friendId}/profile`);
 }
 
+export async function getFriendAvatarUrl(friendId: string): Promise<string | null> {
+  try {
+    const data = await request(`/friends/${friendId}/avatar`);
+    return data.url || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function sendRecommendation(friendId: string, movieId: number, note?: string) {
   try {
     return await request("/friends/recommend", {
@@ -410,6 +419,29 @@ export async function markRecommendationSeen(recId: string) {
 
 export async function getRecommendations() {
   return request("/recommendations");
+}
+
+// Reviews
+export async function getTopReviews(): Promise<any[]> {
+  try {
+    const data = await request("/reviews/top");
+    return Array.isArray(data) ? data : [];
+  } catch { return []; }
+}
+
+export async function getMovieReviews(movieId: number): Promise<any[]> {
+  try {
+    const data = await request(`/reviews/movie/${movieId}`);
+    return Array.isArray(data) ? data : [];
+  } catch { return []; }
+}
+
+export async function likeReview(reviewId: string) {
+  return request(`/reviews/${reviewId}/like`, { method: "POST" });
+}
+
+export async function deleteReview(reviewId: string) {
+  return request(`/reviews/${reviewId}`, { method: "DELETE" });
 }
 
 // AI

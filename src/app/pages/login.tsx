@@ -7,6 +7,15 @@ import {
   Smartphone, ShieldCheck, RefreshCw, ArrowLeft, MessageSquare,
 } from "lucide-react";
 
+// WhatsApp SVG icon
+function WhatsAppIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+    </svg>
+  );
+}
+
 type Step = "credentials" | "checking" | "otp" | "sms-phone" | "sms-otp";
 
 // ── OtpBoxes MUST be outside LoginPage to avoid remount on every render ──────
@@ -58,6 +67,7 @@ export function LoginPage() {
   // Step 2 — 2FA OTP (after email/password)
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [maskedPhone, setMaskedPhone] = useState("");
+  const [otpChannel, setOtpChannel] = useState<"whatsapp" | "sms">("sms");
   const [otpError, setOtpError] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -68,6 +78,7 @@ export function LoginPage() {
   const [smsError, setSmsError] = useState("");
   const [smsLoading, setSmsLoading] = useState(false);
   const [smsMasked, setSmsMasked] = useState("");
+  const [smsChannel, setSmsChannel] = useState<"whatsapp" | "sms">("sms");
   const [smsCooldown, setSmsCooldown] = useState(0);
 
   // SMS Login — OTP input
@@ -109,6 +120,7 @@ export function LoginPage() {
         try {
           const res = await sendOtp();
           setMaskedPhone(res.masked || status.masked || "");
+          setOtpChannel(res.channel || "sms");
           setResendCooldown(60);
         } catch (otpErr: any) {
           const waitMatch = otpErr.message?.match(/(\d+)\s*сек/);
@@ -175,6 +187,7 @@ export function LoginPage() {
     try {
       const res = await sendOtp();
       setMaskedPhone(res.masked || maskedPhone);
+      setOtpChannel(res.channel || "sms");
       setResendCooldown(60);
       setOtp(["", "", "", "", "", ""]);
       setTimeout(() => inputRefs.current[0]?.focus(), 50);
@@ -196,6 +209,7 @@ export function LoginPage() {
     try {
       const res = await smsLoginSend(("7" + smsPhone).trim());
       setSmsMasked(res.masked || "");
+      setSmsChannel(res.channel || "sms");
       setSmsCooldown(60);
       setSmsOtp(["", "", "", "", "", ""]);
       setStep("sms-otp");
@@ -265,6 +279,7 @@ export function LoginPage() {
     try {
       const res = await smsLoginSend(("7" + smsPhone).trim());
       setSmsMasked(res.masked || smsMasked);
+      setSmsChannel(res.channel || "sms");
       setSmsCooldown(60);
       setSmsOtp(["", "", "", "", "", ""]);
       setTimeout(() => smsOtpRefs.current[0]?.focus(), 50);
@@ -359,13 +374,13 @@ export function LoginPage() {
               <div className="flex-1 h-px bg-border" />
             </div>
 
-            {/* SMS Login button */}
+            {/* WhatsApp / SMS Login button */}
             <button
               onClick={() => { setStep("sms-phone"); setSmsError(""); setSmsPhone(""); }}
-              className="w-full flex items-center justify-center gap-2 border border-border hover:border-primary/40 text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted rounded-xl py-2.5 text-sm font-semibold transition-all"
+              className="w-full flex items-center justify-center gap-2 border border-border hover:border-[#25D366]/40 text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted rounded-xl py-2.5 text-sm font-semibold transition-all"
             >
-              <MessageSquare className="w-4 h-4" />
-              Войти по SMS коду
+              <WhatsAppIcon className="w-4 h-4 text-[#25D366]" />
+              Войти по WhatsApp / SMS коду
             </button>
 
             <p className="text-center text-xs text-muted-foreground">
@@ -392,12 +407,16 @@ export function LoginPage() {
         {step === "otp" && (
           <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-5">
             <div className="text-center">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-3">
-                <ShieldCheck className="w-7 h-7 text-primary" />
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 ${otpChannel === "whatsapp" ? "bg-[#25D366]/15 border border-[#25D366]/30" : "bg-primary/10 border border-primary/20"}`}>
+                {otpChannel === "whatsapp"
+                  ? <WhatsAppIcon className="w-7 h-7 text-[#25D366]" />
+                  : <ShieldCheck className="w-7 h-7 text-primary" />}
               </div>
               <h2 className="text-lg font-black text-foreground">Двухфакторная аутентификация</h2>
               <p className="text-muted-foreground text-xs mt-1.5 leading-relaxed">
-                SMS с кодом отправлено на<br />
+                {otpChannel === "whatsapp" ? "Код отправлен в" : "SMS с кодом отправлено на"}{" "}
+                {otpChannel === "whatsapp" && <span className="text-[#25D366] font-bold">WhatsApp</span>}
+                {otpChannel === "whatsapp" ? " на номер" : ""}<br />
                 <span className="text-foreground font-semibold">{maskedPhone}</span>
               </p>
             </div>
@@ -452,10 +471,14 @@ export function LoginPage() {
               </button>
             </div>
 
-            <div className="flex items-start gap-2.5 bg-muted/60 border border-border rounded-xl p-3">
-              <Smartphone className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+            <div className={`flex items-start gap-2.5 rounded-xl p-3 ${otpChannel === "whatsapp" ? "bg-[#25D366]/8 border border-[#25D366]/20" : "bg-muted/60 border border-border"}`}>
+              {otpChannel === "whatsapp"
+                ? <WhatsAppIcon className="w-4 h-4 text-[#25D366] shrink-0 mt-0.5" />
+                : <Smartphone className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />}
               <p className="text-muted-foreground text-[11px] leading-relaxed">
-                Код действителен <strong className="text-foreground">5 минут</strong>. До 3 попыток ввода.
+                {otpChannel === "whatsapp"
+                  ? <>Код отправлен в <strong className="text-[#25D366]">WhatsApp</strong>. Действителен <strong className="text-foreground">5 минут</strong>.</>
+                  : <>Код действителен <strong className="text-foreground">5 минут</strong>. До 3 попыток ввода.</>}
               </p>
             </div>
           </div>
@@ -472,7 +495,7 @@ export function LoginPage() {
                 <ArrowLeft className="w-4 h-4" />
               </button>
               <div>
-                <h2 className="text-lg font-black text-foreground">Вход по SMS</h2>
+                <h2 className="text-lg font-black text-foreground">Вход по WhatsApp / SMS</h2>
                 <p className="text-muted-foreground text-xs">Введите номер привязанного телефона</p>
               </div>
             </div>
@@ -519,8 +542,8 @@ export function LoginPage() {
               >
                 {smsLoading
                   ? <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                  : <MessageSquare className="w-4 h-4" />}
-                {smsLoading ? "Отправляем…" : "Получить код"}
+                  : <WhatsAppIcon className="w-4 h-4 text-primary-foreground" />}
+                {smsLoading ? "Отправляем…" : "Получить код в WhatsApp / SMS"}
               </button>
             </form>
 
@@ -539,12 +562,16 @@ export function LoginPage() {
           <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-5">
             {/* Header */}
             <div className="text-center">
-              <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary/30">
-                <MessageSquare className="w-7 h-7 text-primary-foreground" />
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg ${smsChannel === "whatsapp" ? "bg-[#25D366]/15 border border-[#25D366]/30 shadow-[#25D366]/20" : "bg-primary shadow-primary/30"}`}>
+                {smsChannel === "whatsapp"
+                  ? <WhatsAppIcon className="w-7 h-7 text-[#25D366]" />
+                  : <MessageSquare className="w-7 h-7 text-primary-foreground" />}
               </div>
               <h2 className="text-lg font-black text-foreground">Код отправлен</h2>
               <p className="text-muted-foreground text-xs mt-1.5 leading-relaxed">
-                SMS с кодом для входа отправлено на<br />
+                {smsChannel === "whatsapp"
+                  ? <><span className="text-[#25D366] font-bold">WhatsApp</span> сообщение отправлено на</>
+                  : "SMS с кодом для входа отправлено на"}<br />
                 <span className="text-foreground font-semibold">{smsMasked}</span>
               </p>
             </div>
@@ -603,10 +630,14 @@ export function LoginPage() {
             </div>
 
             {/* Info box */}
-            <div className="flex items-start gap-2.5 bg-muted/60 border border-border rounded-xl p-3">
-              <Smartphone className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+            <div className={`flex items-start gap-2.5 rounded-xl p-3 ${smsChannel === "whatsapp" ? "bg-[#25D366]/8 border border-[#25D366]/20" : "bg-muted/60 border border-border"}`}>
+              {smsChannel === "whatsapp"
+                ? <WhatsAppIcon className="w-4 h-4 text-[#25D366] shrink-0 mt-0.5" />
+                : <Smartphone className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />}
               <p className="text-muted-foreground text-[11px] leading-relaxed">
-                Код действителен <strong className="text-foreground">5 минут</strong>. До 3 попыток ввода.{" "}
+                {smsChannel === "whatsapp"
+                  ? <>Код отправлен в <strong className="text-[#25D366]">WhatsApp</strong>. Действителен <strong className="text-foreground">5 минут</strong>.</>
+                  : <>Код действителен <strong className="text-foreground">5 минут</strong>. До 3 попыток ввода.</>}{" "}
                 <span className="text-primary">Никому не сообщайте код.</span>
               </p>
             </div>

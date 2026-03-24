@@ -40,6 +40,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { MovieCard } from "../components/movie-card";
+import { TopReviewsSection } from "../components/top-reviews-section";
 
 // ─── Home Search Block ─────────────────────────────────────────────────────────
 function HomeSearchBlock() {
@@ -181,13 +182,17 @@ function MovieRow({
           style={{ scrollbarWidth: "none" }}
         >
           {movies.map((m) => (
-            <div key={m.id} className="shrink-0 w-32 sm:w-36">
+            <Link
+              key={m.id}
+              to={`/movie/${m.id}`}
+              className="shrink-0 w-32 sm:w-36 group/item"
+            >
               <MovieCard movie={m} />
-              <p className="mt-1.5 text-xs font-medium text-foreground line-clamp-1 px-0.5">{m.title}</p>
+              <p className="mt-1.5 text-xs font-medium text-foreground line-clamp-1 px-0.5 group-hover/item:text-primary transition-colors">{m.title}</p>
               {m.release_date && (
                 <p className="text-[10px] text-muted-foreground px-0.5">{m.release_date.slice(0, 4)}</p>
               )}
-            </div>
+            </Link>
           ))}
         </div>
       </div>
@@ -195,7 +200,7 @@ function MovieRow({
   );
 }
 
-// ─── Trailer Modal ──────────────────────────────────────────────────────────────
+// ─── Trailer Modal ─────────────────────────────────────────────────────────────
 function TrailerModal({ videoKey, onClose }: { videoKey: string; onClose: () => void }) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -280,7 +285,10 @@ function HeroSection({ movies }: { movies: Movie[] }) {
         <TrailerModal videoKey={trailerKey} onClose={() => setTrailerKey(null)} />
       )}
 
-      <section className="relative h-screen min-h-[600px] overflow-hidden">
+      <section
+        className="relative h-screen min-h-[600px] overflow-hidden cursor-pointer"
+        onClick={() => navigate(`/movie/${movie.id}`)}
+      >
         {/* Backdrop */}
         <div className="absolute inset-0">
           {movie.backdrop_path ? (
@@ -339,14 +347,7 @@ function HeroSection({ movies }: { movies: Movie[] }) {
             {/* Buttons */}
             <div className="flex flex-wrap gap-2.5">
               <button
-                onClick={() => navigate(`/movie/${movie.id}`)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all shadow-md shadow-primary/25"
-              >
-                <Info className="w-4 h-4" />
-                Подробнее
-              </button>
-              <button
-                onClick={handleTrailer}
+                onClick={(e) => { e.stopPropagation(); handleTrailer(); }}
                 disabled={trailerLoading}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-foreground/10 text-foreground font-semibold text-sm border border-foreground/20 hover:bg-foreground/15 transition-all backdrop-blur-sm disabled:opacity-60"
               >
@@ -360,6 +361,7 @@ function HeroSection({ movies }: { movies: Movie[] }) {
               {!session && (
                 <Link
                   to="/register"
+                  onClick={(e) => e.stopPropagation()}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-card text-foreground font-semibold text-sm border border-border hover:border-primary/50 hover:bg-muted transition-all shadow-sm"
                 >
                   <UserPlus className="w-4 h-4" />
@@ -374,7 +376,7 @@ function HeroSection({ movies }: { movies: Movie[] }) {
             {featured.map((_, i) => (
               <button
                 key={i}
-                onClick={() => setIdx(i)}
+                onClick={(e) => { e.stopPropagation(); setIdx(i); }}
                 className={`h-1 rounded-full transition-all duration-300 ${
                   i === idx ? "bg-primary w-7" : "bg-foreground/20 w-3 hover:bg-foreground/40"
                 }`}
@@ -483,7 +485,7 @@ function GuestCTA() {
         {/* Features */}
         <div className="grid grid-cols-2 gap-2.5 shrink-0">
           {[
-            { icon: Star, label: "Система оценок" },
+            { icon: Star, label: "Систем оценок" },
             { icon: Sparkles, label: "AI-рекомендации" },
             { icon: Users2, label: "Друзья" },
             { icon: Bot, label: "AI-чатбот" },
@@ -555,7 +557,7 @@ function Top10Section({ movies }: { movies: Movie[] }) {
   );
 }
 
-// ─── Random Movie Card ──────────────────────────────────────────────────────────
+// ─── Random Movie Card ─────────────────────────────────────────────────────────
 function RandomMovieCard({ movies }: { movies: Movie[] }) {
   const navigate = useNavigate();
   const [movie, setMovie] = useState<Movie | null>(null);
@@ -675,7 +677,7 @@ function HowItWorks() {
   );
 }
 
-// ─── HomePage ─────────────────────────────────────────────────────────────────
+// ── HomePage ────────────────��────────────────────────────────────────────────
 export function HomePage() {
   const { session } = useAuth();
   const [trending, setTrending] = useState<Movie[]>([]);
@@ -718,6 +720,10 @@ export function HomePage() {
       <div className="max-w-7xl mx-auto px-4 mt-10 space-y-12">
         <MovieRow label="В тренде на этой неделе" icon={Zap} iconClass="text-primary" movies={trending.slice(0, 20)} />
         <MovieRow label="Сейчас в кино" icon={Flame} iconClass="text-destructive" movies={nowPlaying.slice(0, 20)} />
+
+        {/* Top Reviews */}
+        <TopReviewsSection />
+
         <MovieRow label="Популярное" icon={TrendingUp} iconClass="text-secondary" movies={popular.slice(0, 20)} />
 
         {/* Guest CTA midway */}

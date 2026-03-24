@@ -17,6 +17,7 @@ import { ProfilePage } from "./pages/profile";
 import { WatchlistPage } from "./pages/watchlist";
 import { PersonPage } from "./pages/person";
 import { FriendProfilePage } from "./pages/friend-profile";
+import { DiplomaDownloadPage } from "./pages/diploma-download";
 import { Loader2 } from "lucide-react";
 
 // ── Shared shell with sidebar ─────────────────────────────────────────────────
@@ -104,6 +105,7 @@ export const router = createBrowserRouter([
       { path: "/search", Component: SearchPage },
       { path: "/movie/:id", Component: MovieDetailPage },
       { path: "/person/:id", Component: PersonPage },
+      { path: "/diploma", Component: DiplomaDownloadPage },
     ],
   },
   // Protected pages

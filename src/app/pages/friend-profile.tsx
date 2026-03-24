@@ -1,18 +1,25 @@
-import { useEffect, useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 import {
-  getFriendWatched, getMovie, searchMovies, sendRecommendation,
+  getFriendWatched, getFriendProfile, getFriendAvatarUrl, getMovie, searchMovies, sendRecommendation,
   TMDB_IMG,
 } from "../lib/api";
 import {
   ArrowLeft, Loader2, Film, Star, Send, Search, X,
-  BookOpen, Clock, Award, ChevronDown, MessageSquare,
+  BookOpen, Clock, ChevronDown, MessageSquare, User,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useNavigate as useNav } from "react-router";
 
-// ── Avatar initials ────────────────────────────────────────────────────────────
-function Avatar({ name, size = "lg" }: { name: string; size?: "sm" | "lg" }) {
+// ── Avatar: shows real photo or initials fallback ──────────────────────────────
+function Avatar({
+  name,
+  avatarUrl,
+  size = "lg",
+}: {
+  name: string;
+  avatarUrl?: string | null;
+  size?: "sm" | "lg";
+}) {
   const initials = name
     .split(" ")
     .slice(0, 2)
@@ -22,11 +29,22 @@ function Avatar({ name, size = "lg" }: { name: string; size?: "sm" | "lg" }) {
     size === "lg"
       ? "w-20 h-20 text-2xl rounded-2xl"
       : "w-10 h-10 text-sm rounded-xl";
+
+  if (avatarUrl) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={name}
+        className={`${base} object-cover border-2 border-primary/30 shrink-0`}
+      />
+    );
+  }
+
   return (
     <div
       className={`${base} bg-gradient-to-br from-primary/30 to-primary/10 border-2 border-primary/30 flex items-center justify-center font-black text-primary shrink-0`}
     >
-      {initials || "?"}
+      {initials || <User className="w-6 h-6" />}
     </div>
   );
 }
@@ -281,7 +299,7 @@ function WatchedRow({ entry, onMovieClick }: { entry: any; onMovieClick: (id: nu
   );
 }
 
-// ── Main page ──────────────────────────────────────────────────────────────────
+// ── Main page ─────────────��────────────────────────────────────────────────────
 export function FriendProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -290,13 +308,29 @@ export function FriendProfilePage() {
   // Friend basic info — passed via navigation state from friends list
   const friendFromState = location.state as { name?: string; email?: string } | null;
   const [friendName, setFriendName] = useState(friendFromState?.name || "Друг");
-  const [friendEmail] = useState(friendFromState?.email || "");
+  const [friendEmail, setFriendEmail] = useState(friendFromState?.email || "");
+  const [friendAvatarUrl, setFriendAvatarUrl] = useState<string | null>(null);
 
   const [watched, setWatched] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showRecommend, setShowRecommend] = useState(false);
   const [sortBy, setSortBy] = useState<"rating" | "recent">("recent");
   const [filterRating, setFilterRating] = useState(0);
+
+  // Load friend profile (name, bio) and avatar in parallel
+  useEffect(() => {
+    if (!id) return;
+    getFriendProfile(id)
+      .then((p: any) => {
+        if (p.name) setFriendName(p.name);
+        if (p.email) setFriendEmail(p.email);
+      })
+      .catch(() => {});
+
+    getFriendAvatarUrl(id)
+      .then((url) => setFriendAvatarUrl(url))
+      .catch(() => {});
+  }, [id]);
 
   useEffect(() => {
     if (!id) return;
@@ -349,7 +383,7 @@ export function FriendProfilePage() {
       {/* Profile header */}
       <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
         <div className="flex items-start gap-4">
-          <Avatar name={friendName} size="lg" />
+          <Avatar name={friendName} avatarUrl={friendAvatarUrl} size="lg" />
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-black text-foreground">{friendName}</h1>
             {friendEmail && (
