@@ -135,12 +135,48 @@ async function getUser(c: any): Promise<{ id: string; email: string } | null> {
   // Session token is passed via x-user-token header (Authorization is reserved for Supabase gateway)
   const token = c.req.header("x-user-token");
   if (!token) return null;
-  const { data, error } = await supabaseAdmin().auth.getUser(token);
-  if (error || !data?.user?.id) {
-    console.log("getUser error:", error?.message);
-    return null;
+
+  // Retry up to 3 times on transient TLS / network errors (peer closed connection, EOF, etc.)
+  const MAX_RETRIES = 3;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const { data, error } = await supabaseAdmin().auth.getUser(token);
+      if (error) {
+        const msg = error.message || "";
+        const isTransient =
+          msg.includes("TLS close_notify") ||
+          msg.includes("peer closed connection") ||
+          msg.includes("connection error") ||
+          msg.includes("unexpected EOF") ||
+          msg.includes("SendRequest");
+        if (isTransient && attempt < MAX_RETRIES) {
+          console.log(`getUser transient error (attempt ${attempt}/${MAX_RETRIES}):`, msg);
+          await new Promise((r) => setTimeout(r, 150 * attempt));
+          continue;
+        }
+        console.log("getUser error:", msg);
+        return null;
+      }
+      if (!data?.user?.id) return null;
+      return { id: data.user.id, email: data.user.email || "" };
+    } catch (e: any) {
+      const msg = e?.message || String(e);
+      const isTransient =
+        msg.includes("TLS close_notify") ||
+        msg.includes("peer closed connection") ||
+        msg.includes("connection error") ||
+        msg.includes("unexpected EOF") ||
+        msg.includes("SendRequest");
+      if (isTransient && attempt < MAX_RETRIES) {
+        console.log(`getUser caught transient error (attempt ${attempt}/${MAX_RETRIES}):`, msg);
+        await new Promise((r) => setTimeout(r, 150 * attempt));
+        continue;
+      }
+      console.log("getUser caught error:", msg);
+      return null;
+    }
   }
-  return { id: data.user.id, email: data.user.email || "" };
+  return null;
 }
 
 // Health

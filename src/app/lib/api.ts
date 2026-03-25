@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { projectId, publicAnonKey } from "/utils/supabase/info";
+import { getTmdbLang } from "./tmdb-lang";
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-59141208`;
 
@@ -244,15 +245,15 @@ export async function smsLoginVerify(phone: string, code: string): Promise<{
 }
 // TMDB
 export async function searchMovies(query: string, page = 1) {
-  return request(`/tmdb/search/movie?query=${encodeURIComponent(query)}&language=ru-RU&page=${page}`);
+  return request(`/tmdb/search/movie?query=${encodeURIComponent(query)}&language=${getTmdbLang()}&page=${page}`);
 }
 
 export async function getMovie(id: number) {
-  return request(`/tmdb/movie/${id}?language=ru-RU&append_to_response=credits`);
+  return request(`/tmdb/movie/${id}?language=${getTmdbLang()}&append_to_response=credits`);
 }
 
 export async function getMovieBasic(id: number) {
-  return request(`/tmdb/movie/${id}?language=ru-RU`);
+  return request(`/tmdb/movie/${id}?language=${getTmdbLang()}`);
 }
 
 export async function getMovieVideos(id: number) {
@@ -266,31 +267,31 @@ export async function getMovieVideos(id: number) {
 }
 
 export async function getTrending() {
-  return request(`/tmdb/trending/movie/week?language=ru-RU`);
+  return request(`/tmdb/trending/movie/week?language=${getTmdbLang()}`);
 }
 
 export async function getPopular(page = 1) {
-  return request(`/tmdb/movie/popular?language=ru-RU&page=${page}`);
+  return request(`/tmdb/movie/popular?language=${getTmdbLang()}&page=${page}`);
 }
 
 export async function getTopRated(page = 1) {
-  return request(`/tmdb/movie/top_rated?language=ru-RU&page=${page}`);
+  return request(`/tmdb/movie/top_rated?language=${getTmdbLang()}&page=${page}`);
 }
 
 export async function getUpcoming(page = 1) {
-  return request(`/tmdb/movie/upcoming?language=ru-RU&page=${page}`);
+  return request(`/tmdb/movie/upcoming?language=${getTmdbLang()}&page=${page}`);
 }
 
 export async function getNowPlaying(page = 1) {
-  return request(`/tmdb/movie/now_playing?language=ru-RU&page=${page}`);
+  return request(`/tmdb/movie/now_playing?language=${getTmdbLang()}&page=${page}`);
 }
 
 export async function getGenres() {
-  return request(`/tmdb/genre/movie/list?language=ru-RU`);
+  return request(`/tmdb/genre/movie/list?language=${getTmdbLang()}`);
 }
 
 export async function getMoviesByGenre(genreId: number, page = 1) {
-  return request(`/tmdb/discover/movie?with_genres=${genreId}&language=ru-RU&sort_by=popularity.desc&page=${page}`);
+  return request(`/tmdb/discover/movie?with_genres=${genreId}&language=${getTmdbLang()}&sort_by=popularity.desc&page=${page}`);
 }
 
 // Watched
@@ -392,7 +393,7 @@ export async function sendRecommendation(friendId: string, movieId: number, note
   } catch (e: any) {
     // If route not yet deployed, throw a user-friendly message
     if (e.message?.includes("404") || e.message?.includes("Маршрут не найден")) {
-      throw new Error("Маршрут рекомендаций ещё не задеплоен. Выполните: supabase functions deploy make-server-59141208");
+      throw new Error("Маршрут рекомедаций ещё не задеплоен. Выполните: supabase functions deploy make-server-59141208");
     }
     throw e;
   }
@@ -417,11 +418,21 @@ export async function markRecommendationSeen(recId: string) {
   }
 }
 
-export async function getRecommendations() {
-  return request("/recommendations");
+export async function getRecommendations(params?: {
+  exclude?: number[];
+  page?: number;
+  seed?: number;
+}) {
+  const query = new URLSearchParams();
+  if (params?.exclude?.length) {
+    query.set("exclude", params.exclude.join(","));
+  }
+  if (params?.page) query.set("page", String(params.page));
+  if (params?.seed) query.set("seed", String(params.seed));
+  const qs = query.toString();
+  return request(`/recommendations${qs ? `?${qs}` : ""}`);
 }
 
-// Reviews
 export async function getTopReviews(): Promise<any[]> {
   try {
     const data = await request("/reviews/top");
@@ -470,13 +481,13 @@ export const TMDB_IMG = "https://image.tmdb.org/t/p";
 
 // People / Persons
 export async function searchPeople(query: string) {
-  return request(`/tmdb/search/person?query=${encodeURIComponent(query)}&language=ru-RU`);
+  return request(`/tmdb/search/person?query=${encodeURIComponent(query)}&language=${getTmdbLang()}`);
 }
 
 export async function getPersonDetails(personId: number) {
-  return request(`/tmdb/person/${personId}?language=ru-RU`);
+  return request(`/tmdb/person/${personId}?language=${getTmdbLang()}`);
 }
 
 export async function getPersonMovies(personId: number) {
-  return request(`/tmdb/person/${personId}/movie_credits?language=ru-RU`);
+  return request(`/tmdb/person/${personId}/movie_credits?language=${getTmdbLang()}`);
 }

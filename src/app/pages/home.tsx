@@ -11,6 +11,7 @@ import {
   TMDB_IMG,
 } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
+import { useLang } from "../lib/lang-context";
 import {
   Zap,
   Award,
@@ -46,6 +47,7 @@ import { TopReviewsSection } from "../components/top-reviews-section";
 function HomeSearchBlock() {
   const [query, setQuery] = useState("");
   const navigate = useNavigate();
+  const { t } = useLang();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +66,7 @@ function HomeSearchBlock() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Введите название фильма или сериала..."
+              placeholder={t("searchPlaceholder")}
               className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground text-sm outline-none"
             />
             {query && (
@@ -80,7 +82,7 @@ function HomeSearchBlock() {
               type="submit"
               className="px-5 py-1.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all shrink-0"
             >
-              Найти
+              {t("searchBtn")}
             </button>
           </div>
         </form>
@@ -100,20 +102,36 @@ interface Movie {
   genre_ids?: number[];
 }
 
-// Genre map
+// Genre map — keys for translation
+const GENRE_MAP = [
+  { id: 28,    tKey: "genreAction" as const },
+  { id: 12,    tKey: "genreAdventure" as const },
+  { id: 16,    tKey: "genreAnimation" as const },
+  { id: 35,    tKey: "genreComedy" as const },
+  { id: 80,    tKey: "genreCrime" as const },
+  { id: 18,    tKey: "genreDrama" as const },
+  { id: 14,    tKey: "genreFantasy" as const },
+  { id: 27,    tKey: "genreHorror" as const },
+  { id: 10749, tKey: "genreRomance" as const },
+  { id: 878,   tKey: "genreSciFi" as const },
+  { id: 53,    tKey: "genreThriller" as const },
+  { id: 10752, tKey: "genreWar" as const },
+];
+
+// Keep the old GENRES for TMDB genre matching (hero section uses genre_ids)
 const GENRES = [
-  { id: 28,    name: "Боевик" },
-  { id: 12,    name: "Приключения" },
-  { id: 16,    name: "Анимация" },
-  { id: 35,    name: "Комедия" },
-  { id: 80,    name: "Криминал" },
-  { id: 18,    name: "Драма" },
-  { id: 14,    name: "Фэнтези" },
-  { id: 27,    name: "Ужасы" },
-  { id: 10749, name: "Мелодрама" },
-  { id: 878,   name: "Фантастика" },
-  { id: 53,    name: "Триллер" },
-  { id: 10752, name: "Война" },
+  { id: 28,    name: "Action" },
+  { id: 12,    name: "Adventure" },
+  { id: 16,    name: "Animation" },
+  { id: 35,    name: "Comedy" },
+  { id: 80,    name: "Crime" },
+  { id: 18,    name: "Drama" },
+  { id: 14,    name: "Fantasy" },
+  { id: 27,    name: "Horror" },
+  { id: 10749, name: "Romance" },
+  { id: 878,   name: "Sci-Fi" },
+  { id: 53,    name: "Thriller" },
+  { id: 10752, name: "War" },
 ];
 
 // ─── Poster Card ──────────────────────────────────────────────────────────────
@@ -182,9 +200,8 @@ function MovieRow({
           style={{ scrollbarWidth: "none" }}
         >
           {movies.map((m) => (
-            <Link
+            <div
               key={m.id}
-              to={`/movie/${m.id}`}
               className="shrink-0 w-32 sm:w-36 group/item"
             >
               <MovieCard movie={m} />
@@ -192,7 +209,7 @@ function MovieRow({
               {m.release_date && (
                 <p className="text-[10px] text-muted-foreground px-0.5">{m.release_date.slice(0, 4)}</p>
               )}
-            </Link>
+            </div>
           ))}
         </div>
       </div>
@@ -240,16 +257,29 @@ function TrailerModal({ videoKey, onClose }: { videoKey: string; onClose: () => 
 function HeroSection({ movies }: { movies: Movie[] }) {
   const { session } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLang();
   const [idx, setIdx] = useState(0);
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [trailerLoading, setTrailerLoading] = useState(false);
+  const [fadeIn, setFadeIn] = useState(true);
+  
+  // Touch handling for mobile swipe
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  
   const featured = movies.slice(0, 6);
   const movie = featured[idx];
 
   useEffect(() => {
     if (featured.length <= 1) return;
-    const t = setInterval(() => setIdx((i) => (i + 1) % featured.length), 7000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => {
+      setFadeIn(false);
+      setTimeout(() => {
+        setIdx((i) => (i + 1) % featured.length);
+        setFadeIn(true);
+      }, 300);
+    }, 7000);
+    return () => clearInterval(timer);
   }, [featured.length]);
 
   const handleTrailer = async () => {
@@ -258,18 +288,63 @@ function HeroSection({ movies }: { movies: Movie[] }) {
     try {
       const data = await getMovieVideos(movie.id);
       const videos = data.results || [];
-      // Prefer official YouTube trailer
       const trailer =
         videos.find((v: any) => v.type === "Trailer" && v.site === "YouTube" && v.official) ||
         videos.find((v: any) => v.type === "Trailer" && v.site === "YouTube") ||
         videos.find((v: any) => v.site === "YouTube");
       if (trailer) setTrailerKey(trailer.key);
-      else alert("Трейлер не найден");
+      else alert(t("trailerNotFound"));
     } catch {
-      alert("Не удалось загрузить трейлер");
+      alert(t("trailerLoadError"));
     } finally {
       setTrailerLoading(false);
     }
+  };
+  
+  // Touch swipe handlers
+  const minSwipeDistance = 50;
+  
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+  
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+  
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+    
+    if (isLeftSwipe) {
+      // Swipe left - next slide
+      changeSlideTo((idx + 1) % featured.length);
+    }
+    if (isRightSwipe) {
+      // Swipe right - previous slide
+      changeSlideTo((idx - 1 + featured.length) % featured.length);
+    }
+  };
+  
+  const changeSlideTo = (newIdx: number) => {
+    setFadeIn(false);
+    setTimeout(() => {
+      setIdx(newIdx);
+      setFadeIn(true);
+    }, 300);
+  };
+  
+  const goNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    changeSlideTo((idx + 1) % featured.length);
+  };
+  
+  const goPrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    changeSlideTo((idx - 1 + featured.length) % featured.length);
   };
 
   if (!movie) return null;
@@ -286,25 +361,58 @@ function HeroSection({ movies }: { movies: Movie[] }) {
       )}
 
       <section
-        className="relative h-screen min-h-[600px] overflow-hidden cursor-pointer"
+        className="relative h-screen min-h-[600px] overflow-hidden cursor-pointer group"
         onClick={() => navigate(`/movie/${movie.id}`)}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
       >
-        {/* Backdrop */}
+        {/* Backdrop - Desktop: horizontal, Mobile: vertical */}
         <div className="absolute inset-0">
+          {/* Desktop - horizontal backdrop */}
           {movie.backdrop_path ? (
             <img
-              key={movie.id}
+              key={`${movie.id}-${idx}`}
               src={`${TMDB_IMG}/w1280${movie.backdrop_path}`}
               alt=""
-              className="w-full h-full object-cover object-center"
+              className={`hidden md:block w-full h-full object-cover object-center transition-opacity duration-300 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}
             />
           ) : (
-            <div className="w-full h-full bg-muted" />
+            <div className="hidden md:block w-full h-full bg-muted" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/60 to-background/10" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-black/20" />
+          
+          {/* Mobile - vertical poster */}
+          {movie.poster_path ? (
+            <img
+              key={`${movie.id}-${idx}-mobile`}
+              src={`${TMDB_IMG}/w780${movie.poster_path}`}
+              alt=""
+              className={`md:hidden w-full h-full object-cover object-center transition-opacity duration-300 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}
+            />
+          ) : movie.backdrop_path ? (
+            <img
+              key={`${movie.id}-${idx}-fallback`}
+              src={`${TMDB_IMG}/w1280${movie.backdrop_path}`}
+              alt=""
+              className={`md:hidden w-full h-full object-cover object-center transition-opacity duration-300 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}
+            />
+          ) : (
+            <div className="md:hidden w-full h-full bg-muted" />
+          )}
+          
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-transparent to-black/30" />
         </div>
-
+        
+        {/* Navigation arrows - Desktop only */}
+        {featured.length > 1 && (
+          <>
+            
+            
+          </>
+        )}
+        
         {/* Content */}
         <div className="relative z-10 h-full max-w-7xl mx-auto px-4 flex flex-col justify-end pb-10">
           <div className="max-w-lg">
@@ -316,7 +424,7 @@ function HeroSection({ movies }: { movies: Movie[] }) {
                 </span>
               ))}
               {movie.release_date && (
-                <span className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-foreground/8 text-muted-foreground border border-border flex items-center gap-1">
+                <span className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-white/10 text-white/90 border border-white/20 flex items-center gap-1">
                   <Calendar className="w-2.5 h-2.5" />
                   {movie.release_date.slice(0, 4)}
                 </span>
@@ -324,7 +432,7 @@ function HeroSection({ movies }: { movies: Movie[] }) {
             </div>
 
             {/* Title */}
-            <h1 className="text-3xl md:text-[2.6rem] font-black text-foreground leading-[1.15] tracking-tight mb-3">
+            <h1 className="text-3xl md:text-[2.6rem] font-black text-white leading-[1.15] tracking-tight mb-3">
               {movie.title}
             </h1>
 
@@ -332,14 +440,14 @@ function HeroSection({ movies }: { movies: Movie[] }) {
             {movie.vote_average > 0 && (
               <div className="flex items-center gap-1.5 mb-3">
                 <Star className="w-4.5 h-4.5 text-primary fill-primary" />
-                <span className="font-bold text-foreground">{movie.vote_average.toFixed(1)}</span>
-                <span className="text-muted-foreground text-sm">/ 10</span>
+                <span className="font-bold text-white">{movie.vote_average.toFixed(1)}</span>
+                <span className="text-white/70 text-sm">/ 10</span>
               </div>
             )}
 
             {/* Overview */}
             {movie.overview && (
-              <p className="text-muted-foreground text-sm leading-relaxed line-clamp-3 mb-5">
+              <p className="text-white/80 text-sm leading-relaxed line-clamp-3 mb-5">
                 {movie.overview}
               </p>
             )}
@@ -349,23 +457,23 @@ function HeroSection({ movies }: { movies: Movie[] }) {
               <button
                 onClick={(e) => { e.stopPropagation(); handleTrailer(); }}
                 disabled={trailerLoading}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-foreground/10 text-foreground font-semibold text-sm border border-foreground/20 hover:bg-foreground/15 transition-all backdrop-blur-sm disabled:opacity-60"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/15 text-white font-semibold text-sm border border-white/25 hover:bg-white/20 transition-all backdrop-blur-sm disabled:opacity-60"
               >
                 {trailerLoading ? (
-                  <div className="w-4 h-4 border-2 border-foreground/40 border-t-foreground rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                 ) : (
-                  <Play className="w-4 h-4 fill-foreground" />
+                  <Play className="w-4 h-4 fill-white" />
                 )}
-                Трейлер
+                {t("trailerBtn")}
               </button>
               {!session && (
                 <Link
                   to="/register"
                   onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-card text-foreground font-semibold text-sm border border-border hover:border-primary/50 hover:bg-muted transition-all shadow-sm"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm border border-primary hover:bg-primary/90 transition-all shadow-md"
                 >
                   <UserPlus className="w-4 h-4" />
-                  Регистрация
+                  {t("signUp")}
                 </Link>
               )}
             </div>
@@ -378,7 +486,7 @@ function HeroSection({ movies }: { movies: Movie[] }) {
                 key={i}
                 onClick={(e) => { e.stopPropagation(); setIdx(i); }}
                 className={`h-1 rounded-full transition-all duration-300 ${
-                  i === idx ? "bg-primary w-7" : "bg-foreground/20 w-3 hover:bg-foreground/40"
+                  i === idx ? "bg-primary w-7" : "bg-white/30 w-3 hover:bg-white/50"
                 }`}
               />
             ))}
@@ -394,6 +502,7 @@ function GenreSection() {
   const [active, setActive] = useState<number | null>(null);
   const [genreMovies, setGenreMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
+  const { t } = useLang();
 
   const pick = async (id: number) => {
     if (active === id) { setActive(null); setGenreMovies([]); return; }
@@ -408,11 +517,11 @@ function GenreSection() {
 
   return (
     <section>
-      <SectionHeader icon={Clapperboard} label="По жанру" />
+      <SectionHeader icon={Clapperboard} label={t("byGenreSection")} />
 
       {/* Genre pills */}
       <div className="flex flex-wrap gap-2 mb-6">
-        {GENRES.map((g) => (
+        {GENRE_MAP.map((g) => (
           <button
             key={g.id}
             onClick={() => pick(g.id)}
@@ -422,7 +531,7 @@ function GenreSection() {
                 : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground hover:bg-muted"
             }`}
           >
-            {g.name}
+            {t(g.tKey)}
           </button>
         ))}
       </div>
@@ -446,6 +555,7 @@ function GenreSection() {
 
 // ─── Guest CTA ─────────────────────────────────────────────────────────────────
 function GuestCTA() {
+  const { t } = useLang();
   return (
     <div className="rounded-2xl overflow-hidden border border-border relative bg-white">
       <div className="relative z-10 p-7 md:p-10 flex flex-col md:flex-row items-start md:items-center gap-6">
@@ -455,11 +565,10 @@ function GuestCTA() {
             <span className="text-primary text-xs font-bold uppercase tracking-widest">qaradakor.kz</span>
           </div>
           <h2 className="text-xl md:text-2xl font-black mb-2 leading-tight" style={{ color: "#0A0A0A" }}>
-            Ваша персональная кинобиблиотека
+            {t("ctaTitle")}
           </h2>
           <p className="text-sm leading-relaxed mb-5" style={{ color: "#6B6B6B" }}>
-            Отслеживайте просмотренные фильмы, ставьте оценки,
-            получайте AI-рекомендации и делитесь коллекцией с друзьями.
+            {t("ctaDesc")}
           </p>
           <div className="flex flex-wrap gap-2.5">
             <Link
@@ -467,7 +576,7 @@ function GuestCTA() {
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all shadow-md"
             >
               <UserPlus className="w-4 h-4" />
-              Создать аккаунт
+              {t("createAccount")}
             </Link>
             <Link
               to="/login"
@@ -477,7 +586,7 @@ function GuestCTA() {
               onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
             >
               <LogIn className="w-4 h-4" />
-              Войти
+              {t("signIn")}
             </Link>
           </div>
         </div>
@@ -485,18 +594,18 @@ function GuestCTA() {
         {/* Features */}
         <div className="grid grid-cols-2 gap-2.5 shrink-0">
           {[
-            { icon: Star, label: "Систем оценок" },
-            { icon: Sparkles, label: "AI-рекомендации" },
-            { icon: Users2, label: "Друзья" },
-            { icon: Bot, label: "AI-чатбот" },
-          ].map(({ icon: Icon, label }) => (
+            { icon: Star, labelKey: "featureRatings" as const },
+            { icon: Sparkles, labelKey: "featureAI" as const },
+            { icon: Users2, labelKey: "featureFriends" as const },
+            { icon: Bot, labelKey: "featureBot" as const },
+          ].map(({ icon: Icon, labelKey }) => (
             <div
-              key={label}
+              key={labelKey}
               className="flex items-center gap-2 rounded-xl px-3 py-2"
               style={{ backgroundColor: "#F5F5F5", border: "1px solid #E5E5E5" }}
             >
               <Icon className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span className="text-xs font-medium" style={{ color: "#0A0A0A" }}>{label}</span>
+              <span className="text-xs font-medium" style={{ color: "#0A0A0A" }}>{t(labelKey)}</span>
             </div>
           ))}
         </div>
@@ -508,12 +617,13 @@ function GuestCTA() {
 // ─── Top-10 Numbered List ──────────────────────────────────────────────────────
 function Top10Section({ movies }: { movies: Movie[] }) {
   const navigate = useNavigate();
+  const { t } = useLang();
   const top = movies.slice(0, 10);
   if (!top.length) return null;
 
   return (
     <section>
-      <SectionHeader icon={Hash} label="Топ-10 недели" iconClass="text-primary" />
+      <SectionHeader icon={Hash} label={t("top10Section")} iconClass="text-primary" />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         {top.map((m, i) => (
           <button
@@ -521,7 +631,7 @@ function Top10Section({ movies }: { movies: Movie[] }) {
             onClick={() => navigate(`/movie/${m.id}`)}
             className="flex items-center gap-3 bg-card border border-border rounded-xl p-3 hover:border-primary/40 hover:bg-muted transition-all text-left group"
           >
-            <span className="text-2xl font-black text-primary/30 w-8 text-center shrink-0 group-hover:text-primary/60 transition-colors">
+            <span className="text-2xl font-black text-primary/60 w-8 text-center shrink-0 group-hover:text-primary transition-colors">
               {i + 1}
             </span>
             {m.poster_path ? (
@@ -560,6 +670,7 @@ function Top10Section({ movies }: { movies: Movie[] }) {
 // ─── Random Movie Card ─────────────────────────────────────────────────────────
 function RandomMovieCard({ movies }: { movies: Movie[] }) {
   const navigate = useNavigate();
+  const { t } = useLang();
   const [movie, setMovie] = useState<Movie | null>(null);
 
   const pickRandom = () => {
@@ -574,7 +685,7 @@ function RandomMovieCard({ movies }: { movies: Movie[] }) {
 
   return (
     <section>
-      <SectionHeader icon={Shuffle} label="Случайный фильм" iconClass="text-primary" />
+      <SectionHeader icon={Shuffle} label={t("randomMovieSection")} iconClass="text-primary" />
       <div className="flex flex-col sm:flex-row gap-4 bg-card border border-border rounded-2xl p-5 overflow-hidden">
         {movie.backdrop_path ? (
           <img
@@ -613,14 +724,14 @@ function RandomMovieCard({ movies }: { movies: Movie[] }) {
               className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all"
             >
               <Info className="w-3.5 h-3.5" />
-              Подробнее
+              {t("details")}
             </button>
             <button
               onClick={pickRandom}
               className="flex items-center gap-1.5 px-4 py-2 bg-foreground/10 text-foreground rounded-xl text-sm font-medium border border-border hover:bg-foreground/15 transition-all"
             >
               <Shuffle className="w-3.5 h-3.5" />
-              Ещё
+              {t("another")}
             </button>
           </div>
         </div>
@@ -631,20 +742,21 @@ function RandomMovieCard({ movies }: { movies: Movie[] }) {
 
 // ─── Platform Stats ─────────────────────────────────────────────────────────────
 function PlatformStats() {
+  const { t } = useLang();
   const stats = [
-    { icon: Film, value: "700K+", label: "Фильмов в базе" },
-    { icon: Star, value: "∞", label: "Оценок и отзывов" },
-    { icon: Users2, value: "Бесплатно", label: "Для всех" },
-    { icon: Bot, value: "AI", label: "Рекомендации" },
+    { icon: Film, value: "700K+", labelKey: "statsMovies" as const },
+    { icon: Star, value: "∞", labelKey: "statsRatings" as const },
+    { icon: Users2, value: t("statsFree"), labelKey: "statsFree" as const },
+    { icon: Bot, value: "AI", labelKey: "statsAI" as const },
   ];
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       {stats.map((s) => (
-        <div key={s.label} className="bg-card border border-border rounded-xl p-4 text-center hover:border-primary/30 transition-colors">
+        <div key={s.labelKey} className="bg-card border border-border rounded-xl p-4 text-center hover:border-primary/30 transition-colors">
           <s.icon className="w-5 h-5 text-primary mx-auto mb-2" />
           <p className="text-xl font-black text-foreground">{s.value}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{s.label}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{t(s.labelKey)}</p>
         </div>
       ))}
     </div>
@@ -653,23 +765,24 @@ function PlatformStats() {
 
 // ─── How It Works (guest) ───────────────────────────────────────────────────────
 function HowItWorks() {
+  const { t } = useLang();
   const steps = [
-    { icon: UserPlus, title: "Создайте аккаунт", desc: "Регистрация за 30 секунд через email" },
-    { icon: Heart, title: "Оценивайте фильмы", desc: "Ставьте оценки и пишите отзывы" },
-    { icon: Sparkles, title: "Получайте рекомендации", desc: "AI подберёт фильмы по вашим вкусам" },
-    { icon: Users2, title: "Делитесь с друзьями", desc: "Смотрите библиотеки друг друга" },
+    { icon: UserPlus, titleKey: "step1Title" as const, descKey: "step1Desc" as const },
+    { icon: Heart, titleKey: "step2Title" as const, descKey: "step2Desc" as const },
+    { icon: Sparkles, titleKey: "step3Title" as const, descKey: "step3Desc" as const },
+    { icon: Users2, titleKey: "step4Title" as const, descKey: "step4Desc" as const },
   ];
 
   return (
     <section>
-      <SectionHeader icon={Info} label="Как это работает" iconClass="text-primary" />
+      <SectionHeader icon={Info} label={t("howItWorksSection")} iconClass="text-primary" />
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
         {steps.map((s, i) => (
-          <div key={s.title} className="bg-card border border-border rounded-xl p-5 relative group hover:border-primary/30 transition-colors">
+          <div key={s.titleKey} className="bg-card border border-border rounded-xl p-5 relative group hover:border-primary/30 transition-colors">
             <span className="absolute top-3 right-3 text-xs font-bold text-primary/30">{i + 1}</span>
             <s.icon className="w-5 h-5 text-primary mb-3" />
-            <h3 className="text-sm font-bold text-foreground mb-1">{s.title}</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">{s.desc}</p>
+            <h3 className="text-sm font-bold text-foreground mb-1">{t(s.titleKey)}</h3>
+            <p className="text-xs text-muted-foreground leading-relaxed">{t(s.descKey)}</p>
           </div>
         ))}
       </div>
@@ -677,9 +790,10 @@ function HowItWorks() {
   );
 }
 
-// ── HomePage ────────────────��────────────────────────────────────────────────
+// ── HomePage ──────────────────────────────────────────────────────────────────
 export function HomePage() {
   const { session } = useAuth();
+  const { t, tmdbLang } = useLang();
   const [trending, setTrending] = useState<Movie[]>([]);
   const [popular, setPopular] = useState<Movie[]>([]);
   const [topRated, setTopRated] = useState<Movie[]>([]);
@@ -688,23 +802,24 @@ export function HomePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     Promise.all([getTrending(), getPopular(), getTopRated(), getUpcoming(), getNowPlaying()])
-      .then(([t, p, tr, u, np]) => {
-        setTrending(t.results || []);
+      .then(([tr, p, tR, u, np]) => {
+        setTrending(tr.results || []);
         setPopular(p.results || []);
-        setTopRated(tr.results || []);
+        setTopRated(tR.results || []);
         setUpcoming(u.results || []);
         setNowPlaying(np.results || []);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [tmdbLang]); // re-fetch when language changes
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-80 gap-3">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        <p className="text-muted-foreground text-sm">Загружаем каталог...</p>
+        <p className="text-muted-foreground text-sm">{t("loadingCatalog")}</p>
       </div>
     );
   }
@@ -718,13 +833,13 @@ export function HomePage() {
       <HomeSearchBlock />
 
       <div className="max-w-7xl mx-auto px-4 mt-10 space-y-12">
-        <MovieRow label="В тренде на этой неделе" icon={Zap} iconClass="text-primary" movies={trending.slice(0, 20)} />
-        <MovieRow label="Сейчас в кино" icon={Flame} iconClass="text-destructive" movies={nowPlaying.slice(0, 20)} />
+        <MovieRow label={t("trendingSection")} icon={Zap} iconClass="text-primary" movies={trending.slice(0, 20)} />
+        <MovieRow label={t("nowPlayingSection")} icon={Flame} iconClass="text-destructive" movies={nowPlaying.slice(0, 20)} />
 
         {/* Top Reviews */}
         <TopReviewsSection />
 
-        <MovieRow label="Популярное" icon={TrendingUp} iconClass="text-secondary" movies={popular.slice(0, 20)} />
+        <MovieRow label={t("popularSection")} icon={TrendingUp} iconClass="text-secondary" movies={popular.slice(0, 20)} />
 
         {/* Guest CTA midway */}
         {!session && <GuestCTA />}
@@ -732,7 +847,7 @@ export function HomePage() {
         {/* Platform Stats */}
         <PlatformStats />
 
-        <MovieRow label="Высокий рейтинг" icon={Award} iconClass="text-primary" movies={topRated.slice(0, 20)} />
+        <MovieRow label={t("topRatedSection")} icon={Award} iconClass="text-primary" movies={topRated.slice(0, 20)} />
 
         {/* Top-10 */}
         <Top10Section movies={topRated} />
@@ -740,7 +855,7 @@ export function HomePage() {
         {/* Random Movie */}
         <RandomMovieCard movies={[...popular, ...topRated, ...trending]} />
 
-        <MovieRow label="Скоро в кино" icon={Clock} iconClass="text-secondary" movies={upcoming.slice(0, 20)} />
+        <MovieRow label={t("upcomingSection")} icon={Clock} iconClass="text-secondary" movies={upcoming.slice(0, 20)} />
 
         {/* Genre browser */}
         <GenreSection />
@@ -755,23 +870,20 @@ export function HomePage() {
               <Sparkles className="w-5.5 h-5.5 text-primary" />
             </div>
             <div className="flex-1 text-center sm:text-left">
-              <p className="font-semibold text-foreground text-sm">Хотите AI-рекомендации?</p>
+              <p className="font-semibold text-foreground text-sm">{t("ctaTitle")}</p>
               <p className="text-muted-foreground text-xs mt-0.5">
-                Войдите, чтобы получить персональный подбор фильмов на основе ваших вкусов
+                {t("ctaDesc")}
               </p>
             </div>
             <Link
-              to="/login"
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm shrink-0"
+              to="/register"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all shadow-sm shrink-0"
             >
-              <LogIn className="w-4 h-4" />
-              Войти
+              <UserPlus className="w-4 h-4" />
+              {t("createAccount")}
             </Link>
           </div>
         )}
-
-        {/* TMDB credit */}
-        
       </div>
     </div>
   );

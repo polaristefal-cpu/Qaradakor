@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { aiChat, TMDB_IMG } from "../lib/api";
 import { Bot, Send, Loader2, User, Film, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router";
+import { useLang } from "../lib/lang-context";
 import ReactMarkdown from "react-markdown";
 
 interface Message {
@@ -9,15 +10,6 @@ interface Message {
   content: string;
   movies?: any[];
 }
-
-const SUGGESTIONS = [
-  "Посоветуй что-нибудь для вечера с друзьями",
-  "Хочу что-то мрачное и психологическое",
-  "Какие фильмы похожи на Интерстеллар?",
-  "Лучшие фильмы Дени Вильнёва",
-  "Что посмотреть, чтобы поднять настроение?",
-  "Порекомендуй хорроры, от которых реально страшно",
-];
 
 // Markdown renderer components for AI messages
 const markdownComponents: React.ComponentProps<typeof ReactMarkdown>["components"] = {
@@ -82,14 +74,24 @@ export function AiChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { t } = useLang();
+
+  const SUGGESTIONS = [
+    t("aiSuggestion1"),
+    t("aiSuggestion2"),
+    t("aiSuggestion3"),
+    t("aiSuggestion4"),
+    t("aiSuggestion5"),
+    t("aiSuggestion6"),
+  ];
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const sendMessage = async (text?: string) => {
+  const handleSend = async (text?: string) => {
     const msg = text || input.trim();
     if (!msg || loading) return;
     setInput("");
@@ -114,42 +116,45 @@ export function AiChatPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-5 flex flex-col h-[calc(100vh-3.5rem)]">
+    <div className="flex flex-col h-[calc(100vh-56px)] md:h-screen max-w-3xl mx-auto">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-4 shrink-0 pb-4 border-b border-border">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-sm">
-          <Bot className="w-4.5 h-4.5 text-primary-foreground" />
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-sm font-bold text-foreground">Qaradakor AI</h1>
-            <span className="text-[10px] font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded-full border border-primary/20">
-              GPT-5.4 mini
-            </span>
+      <div className="flex items-center justify-between px-4 py-4 border-b border-border bg-background/80 backdrop-blur-sm shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <Bot className="w-4.5 h-4.5 text-primary" />
           </div>
-          <p className="text-muted-foreground text-xs">Кино-ассистент, знающий вашу библиотеку</p>
+          <div>
+            <h1 className="text-base font-black text-foreground">{t("aiChatTitle")}</h1>
+            <p className="text-xs text-muted-foreground">{t("aiChatSubtitle")}</p>
+          </div>
         </div>
+        {messages.length > 0 && (
+          <button
+            onClick={() => setMessages([])}
+            className="text-xs text-muted-foreground hover:text-foreground border border-border px-3 py-1.5 rounded-lg hover:border-primary/30 transition-all"
+          >
+            {t("aiNewChat")}
+          </button>
+        )}
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto space-y-4 pb-2 min-h-0 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full gap-5 py-8">
-            <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-              <Sparkles className="w-7 h-7 text-primary" />
+          <div className="flex flex-col items-center justify-center h-full gap-6 text-center py-10">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <Sparkles className="w-8 h-8 text-primary" />
             </div>
-            <div className="text-center">
-              <h2 className="text-foreground font-bold text-lg mb-1">Спросите что угодно о кино</h2>
-              <p className="text-muted-foreground text-sm max-w-sm">
-                Я знаю вашу библиотеку и вкусы. Опишите настроение — подберу идеальный фильм.
-              </p>
+            <div>
+              <h2 className="text-lg font-black text-foreground mb-1">{t("aiChatTitle")}</h2>
+              <p className="text-muted-foreground text-sm">{t("aiChatSubtitle")}</p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-md w-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s}
-                  onClick={() => sendMessage(s)}
-                  className="text-left text-xs text-muted-foreground hover:text-foreground bg-card hover:bg-muted rounded-xl px-3.5 py-2.5 transition-all border border-border hover:border-primary/30"
+                  onClick={() => { setInput(s); handleSend(s); }}
+                  className="text-left text-sm bg-muted border border-border hover:border-primary/30 hover:bg-accent rounded-xl px-4 py-3 text-muted-foreground hover:text-foreground transition-all"
                 >
                   {s}
                 </button>
@@ -159,105 +164,77 @@ export function AiChatPage() {
         )}
 
         {messages.map((msg, i) => (
-          <div key={i} className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : ""}`}>
-            {msg.role === "assistant" && (
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shrink-0 mt-0.5">
-                <Bot className="w-3.5 h-3.5 text-primary-foreground" />
+          <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${msg.role === "user" ? "bg-primary" : "bg-primary/10 border border-primary/20"}`}>
+              {msg.role === "user"
+                ? <User className="w-4 h-4 text-primary-foreground" />
+                : <Bot className="w-4 h-4 text-primary" />}
+            </div>
+            <div className={`flex-1 max-w-[85%] ${msg.role === "user" ? "flex flex-col items-end" : ""}`}>
+              <div className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted border border-border text-foreground"}`}>
+                {msg.role === "assistant"
+                  ? <ReactMarkdown components={markdownComponents}>{msg.content}</ReactMarkdown>
+                  : msg.content}
               </div>
-            )}
-
-            <div className="max-w-[82%]">
-              <div
-                className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground rounded-br-md"
-                    : "bg-card text-foreground rounded-bl-md border border-border shadow-sm"
-                }`}
-              >
-                {msg.role === "user" ? (
-                  <span>{msg.content}</span>
-                ) : (
-                  <ReactMarkdown components={markdownComponents}>
-                    {msg.content}
-                  </ReactMarkdown>
-                )}
-              </div>
-
-              {/* Movie cards */}
               {msg.movies && msg.movies.length > 0 && (
-                <div className="mt-3 flex gap-2.5 overflow-x-auto pb-1 scrollbar-hide">
-                  {msg.movies.map((m: any) => (
-                    <div
-                      key={m.id}
-                      onClick={() => navigate(`/movie/${m.id}`)}
-                      className="shrink-0 w-24 cursor-pointer group"
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                  {msg.movies.map((movie: any) => (
+                    <button
+                      key={movie.id}
+                      onClick={() => navigate(`/movie/${movie.id}`)}
+                      className="shrink-0 w-20 group"
                     >
-                      {m.poster_path ? (
+                      {movie.poster_path ? (
                         <img
-                          src={`${TMDB_IMG}/w185${m.poster_path}`}
-                          alt={m.title}
-                          className="w-24 h-[144px] object-cover rounded-xl border border-border group-hover:border-primary/50 group-hover:shadow-lg transition-all"
+                          src={`${TMDB_IMG}/w185${movie.poster_path}`}
+                          alt={movie.title}
+                          className="w-20 h-28 object-cover rounded-xl border border-border group-hover:border-primary/40 transition-colors"
                         />
                       ) : (
-                        <div className="w-24 h-[144px] bg-muted border border-border rounded-xl flex items-center justify-center">
+                        <div className="w-20 h-28 rounded-xl bg-muted border border-border flex items-center justify-center">
                           <Film className="w-6 h-6 text-muted-foreground/30" />
                         </div>
                       )}
-                      <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2 group-hover:text-foreground transition-colors leading-tight">
-                        {m.title}
-                      </p>
-                    </div>
+                      <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2 text-left leading-tight">{movie.title}</p>
+                    </button>
                   ))}
                 </div>
               )}
             </div>
-
-            {msg.role === "user" && (
-              <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center shrink-0 mt-0.5">
-                <User className="w-3.5 h-3.5 text-primary" />
-              </div>
-            )}
           </div>
         ))}
 
         {loading && (
-          <div className="flex gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shrink-0">
-              <Bot className="w-3.5 h-3.5 text-primary-foreground" />
+          <div className="flex gap-3">
+            <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+              <Bot className="w-4 h-4 text-primary" />
             </div>
-            <div className="bg-card rounded-2xl rounded-bl-md px-4 py-2.5 border border-border shadow-sm">
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Думаю...
-              </div>
+            <div className="bg-muted border border-border rounded-2xl px-4 py-3 flex items-center gap-2">
+              <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+              <span className="text-sm text-muted-foreground">{t("aiThinking")}</span>
             </div>
           </div>
         )}
-        <div ref={chatEndRef} />
+        <div ref={bottomRef} />
       </div>
 
       {/* Input */}
-      <div className="shrink-0 pt-3 border-t border-border">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            sendMessage();
-          }}
-          className="flex gap-2.5"
-        >
+      <div className="px-4 py-4 border-t border-border bg-background/80 backdrop-blur-sm shrink-0">
+        <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2">
           <input
+            type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Опишите, что хотите посмотреть..."
-            className="flex-1 bg-card border border-border rounded-xl px-4 py-2.5 text-foreground placeholder:text-muted-foreground/50 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all"
+            placeholder={t("aiInputPlaceholder")}
+            className="flex-1 bg-muted border border-border rounded-xl px-4 py-2.5 text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition"
             disabled={loading}
           />
           <button
             type="submit"
-            disabled={!input.trim() || loading}
-            className="bg-primary hover:bg-primary/90 disabled:opacity-40 text-primary-foreground rounded-xl px-4 py-2.5 transition-all shadow-sm"
+            disabled={loading || !input.trim()}
+            className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 disabled:opacity-40 transition-all shadow-sm shrink-0"
           >
-            <Send className="w-4.5 h-4.5" />
+            <Send className="w-4 h-4" />
           </button>
         </form>
       </div>

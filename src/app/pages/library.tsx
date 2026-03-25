@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { getWatched, getMovie, TMDB_IMG } from "../lib/api";
 import { useNavigate, Link } from "react-router";
 import {
@@ -6,6 +6,7 @@ import {
   Grid3X3, List, SortAsc,
 } from "lucide-react";
 import { useAuth } from "../lib/auth-context";
+import { useLang } from "../lib/lang-context";
 
 interface WatchedMovie {
   id: number; title: string; original_title: string;
@@ -18,6 +19,7 @@ interface WatchedMovie {
 export function LibraryPage() {
   const { session } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLang();
   const [movies, setMovies] = useState<WatchedMovie[]>([]);
   const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState<"date" | "rating" | "title" | "year">("date");
@@ -66,7 +68,7 @@ export function LibraryPage() {
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-3">
         <Loader2 className="w-9 h-9 text-primary animate-spin" />
-        <p className="text-muted-foreground text-sm">Загрузка библиотеки...</p>
+        <p className="text-muted-foreground text-sm">{t("loading")}</p>
       </div>
     );
   }
@@ -80,9 +82,9 @@ export function LibraryPage() {
             <LibIcon className="w-5.5 h-5.5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-foreground">Моя библиотека</h1>
+            <h1 className="text-2xl font-black text-foreground">{t("libraryTitle")}</h1>
             <p className="text-muted-foreground text-sm">
-              {movies.length} {movies.length === 1 ? "фильм" : movies.length < 5 ? "фильма" : "фильмов"}
+              {movies.length} {t("moviesCount")}
             </p>
           </div>
         </div>
@@ -92,10 +94,10 @@ export function LibraryPage() {
       {movies.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           {[
-            { label: "Фильмов", value: movies.length, icon: Film, color: "text-foreground" },
-            { label: "Средняя оценка", value: avgRating, icon: Star, color: "text-primary" },
-            { label: "Время просмотра", value: `${Math.floor(totalRuntime / 60)}ч`, icon: Clock, color: "text-secondary" },
-            { label: "С отзывами", value: movies.filter(m => m._review).length, icon: SortAsc, color: "text-foreground" },
+            { label: t("moviesCount"), value: movies.length, icon: Film, color: "text-foreground" },
+            { label: t("avgRating"), value: avgRating, icon: Star, color: "text-primary" },
+            { label: t("watched"), value: `${Math.floor(totalRuntime / 60)}ч`, icon: Clock, color: "text-secondary" },
+            { label: t("myReview"), value: movies.filter(m => m._review).length, icon: SortAsc, color: "text-foreground" },
           ].map(({ label, value, icon: Icon, color }) => (
             <div key={label} className="bg-card border border-border rounded-xl px-4 py-3 shadow-sm">
               <p className="text-muted-foreground text-[11px] font-bold uppercase tracking-widest mb-1">{label}</p>
@@ -116,126 +118,147 @@ export function LibraryPage() {
             <input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Поиск в библиотеке..."
+              placeholder={t("filterPlaceholder")}
               className="w-full bg-card border border-border rounded-xl pl-9 pr-3 py-2 text-foreground placeholder:text-muted-foreground/50 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition"
             />
           </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={ratingFilter ?? ""}
-              onChange={(e) => setRatingFilter(e.target.value ? Number(e.target.value) : null)}
-              className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition"
-            >
-              <option value="">Все оценки</option>
-              {[10,9,8,7,6,5,4,3,2,1].map(n => <option key={n} value={n}>{n} ★</option>)}
-            </select>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as any)}
-              className="bg-card border border-border rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition"
-            >
-              <option value="date">По дате</option>
-              <option value="rating">По оценке</option>
-              <option value="title">По названию</option>
-              <option value="year">По году</option>
-            </select>
-            <div className="flex bg-card border border-border rounded-xl overflow-hidden">
-              <button onClick={() => setView("grid")} className={`p-2 transition ${view === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-                <Grid3X3 className="w-4 h-4" />
+
+          {/* Sort */}
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as any)}
+            className="bg-card border border-border rounded-xl px-3 py-2 text-foreground text-sm focus:outline-none focus:border-primary transition cursor-pointer"
+          >
+            <option value="date">{t("sortByDate")}</option>
+            <option value="rating">{t("sortByRating")}</option>
+            <option value="title">{t("sortByTitle")}</option>
+            <option value="year">{t("sortByYear")}</option>
+          </select>
+
+          {/* Rating filter */}
+          <div className="flex gap-1.5 flex-wrap">
+            {[10,9,8,7,6,5].map(r => (
+              <button
+                key={r}
+                onClick={() => setRatingFilter(ratingFilter === r ? null : r)}
+                className={`w-8 h-8 rounded-lg text-xs font-bold border transition-all ${ratingFilter === r ? "bg-primary text-primary-foreground border-primary shadow-sm" : "bg-card border-border text-muted-foreground hover:border-primary/40"}`}
+              >
+                {r}
               </button>
-              <button onClick={() => setView("list")} className={`p-2 transition border-l border-border ${view === "list" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-                <List className="w-4 h-4" />
+            ))}
+            {ratingFilter !== null && (
+              <button onClick={() => setRatingFilter(null)} className="px-2 h-8 rounded-lg text-xs text-muted-foreground hover:text-foreground border border-border hover:border-primary/30 transition-all">
+                {t("clearFilter")}
               </button>
-            </div>
+            )}
+          </div>
+
+          {/* View toggle */}
+          <div className="flex gap-1 ml-auto">
+            <button onClick={() => setView("grid")} className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all ${view === "grid" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:border-primary/30"}`}>
+              <Grid3X3 className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={() => setView("list")} className={`w-8 h-8 rounded-lg border flex items-center justify-center transition-all ${view === "list" ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:border-primary/30"}`}>
+              <List className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       )}
 
-      {/* Content */}
-      {movies.length === 0 ? (
-        <div className="text-center py-24">
-          <div className="w-20 h-20 rounded-2xl bg-muted border border-border inline-flex items-center justify-center mb-5">
-            <Film className="w-10 h-10 text-muted-foreground/30" />
+      {/* Empty state */}
+      {movies.length === 0 && !loading && (
+        <div className="flex flex-col items-center justify-center py-24 gap-5 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-muted border border-border flex items-center justify-center">
+            <Film className="w-8 h-8 text-muted-foreground/30" />
           </div>
-          <p className="text-foreground font-bold text-lg">Библиотека пуста</p>
-          <p className="text-muted-foreground text-sm mt-2 max-w-sm mx-auto">
-            Начните добавлять фильмы — найдите их через поиск и отметьте как просмотренные.
-          </p>
-          <Link to="/search" className="inline-flex items-center gap-2 mt-5 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/90 transition shadow-sm">
-            <Search className="w-4 h-4" /> Найти фильмы
+          <div>
+            <h2 className="text-lg font-bold text-foreground mb-1">{session ? t("noLibrary") : t("noLibraryGuest")}</h2>
+            <p className="text-muted-foreground text-sm">{t("noLibraryDesc")}</p>
+          </div>
+          <Link to="/" className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm">
+            {t("navHome")}
           </Link>
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-muted-foreground">Ничего не найдено</p>
+      )}
+
+      {/* No filter results */}
+      {filtered.length === 0 && movies.length > 0 && (
+        <div className="text-center py-16 text-muted-foreground">
+          <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
+          <p>{t("noFilterResults")}</p>
         </div>
-      ) : view === "grid" ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-          {filtered.map((m) => (
-            <div
-              key={m.id}
-              onClick={() => navigate(`/movie/${m.id}`)}
-              className="group cursor-pointer relative rounded-xl overflow-hidden bg-card border border-border shadow-sm hover:border-primary/40 hover:shadow-lg hover:scale-[1.03] transition-all duration-300"
-            >
-              {m.poster_path ? (
-                <img src={`${TMDB_IMG}/w342${m.poster_path}`} alt={m.title} className="w-full aspect-[2/3] object-cover" loading="lazy" />
-              ) : (
-                <div className="w-full aspect-[2/3] bg-muted flex items-center justify-center">
-                  <Film className="w-8 h-8 text-muted-foreground/20" />
-                </div>
-              )}
-              {m._rating > 0 && (
-                <div className="absolute top-2 right-2 bg-primary/95 backdrop-blur-sm rounded-md px-1.5 py-0.5 flex items-center gap-1">
-                  <Star className="w-2.5 h-2.5 text-primary-foreground fill-primary-foreground" />
-                  <span className="text-primary-foreground text-[10px] font-black">{m._rating}</span>
-                </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="absolute bottom-0 left-0 right-0 p-3">
-                  <p className="text-white text-xs font-semibold line-clamp-2">{m.title}</p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    {m.release_date && <span className="text-white/50 text-[10px]">{m.release_date.slice(0, 4)}</span>}
-                    {m.genres?.length > 0 && <span className="text-white/50 text-[10px]">{m.genres[0].name}</span>}
+      )}
+
+      {/* Content */}
+      {filtered.length > 0 && (
+        view === "grid" ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+            {filtered.map((m) => (
+              <div
+                key={m.id}
+                onClick={() => navigate(`/movie/${m.id}`)}
+                className="group cursor-pointer relative rounded-xl overflow-hidden bg-card border border-border shadow-sm hover:border-primary/40 hover:shadow-lg hover:scale-[1.03] transition-all duration-300"
+              >
+                {m.poster_path ? (
+                  <img src={`${TMDB_IMG}/w342${m.poster_path}`} alt={m.title} className="w-full aspect-[2/3] object-cover" loading="lazy" />
+                ) : (
+                  <div className="w-full aspect-[2/3] bg-muted flex items-center justify-center">
+                    <Film className="w-8 h-8 text-muted-foreground/20" />
                   </div>
-                  {m._review && <p className="text-white/50 text-[10px] mt-1 line-clamp-1 italic">«{m._review}»</p>}
+                )}
+                {m._rating > 0 && (
+                  <div className="absolute top-2 right-2 bg-primary/95 backdrop-blur-sm rounded-md px-1.5 py-0.5 flex items-center gap-1">
+                    <Star className="w-2.5 h-2.5 text-primary-foreground fill-primary-foreground" />
+                    <span className="text-primary-foreground text-[10px] font-black">{m._rating}</span>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="absolute bottom-0 left-0 right-0 p-3">
+                    <p className="text-white text-xs font-semibold line-clamp-2">{m.title}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      {m.release_date && <span className="text-white/50 text-[10px]">{m.release_date.slice(0, 4)}</span>}
+                      {m.genres?.length > 0 && <span className="text-white/50 text-[10px]">{m.genres[0].name}</span>}
+                    </div>
+                    {m._review && <p className="text-white/50 text-[10px] mt-1 line-clamp-1 italic">«{m._review}»</p>}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-1.5">
-          {filtered.map((m) => (
-            <div
-              key={m.id}
-              onClick={() => navigate(`/movie/${m.id}`)}
-              className="flex items-center gap-4 bg-card border border-border rounded-xl p-3 hover:border-primary/30 hover:shadow-sm cursor-pointer transition-all group"
-            >
-              {m.poster_path ? (
-                <img src={`${TMDB_IMG}/w92${m.poster_path}`} alt={m.title} className="w-10 h-15 rounded-lg object-cover shrink-0" loading="lazy" />
-              ) : (
-                <div className="w-10 h-15 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                  <Film className="w-5 h-5 text-muted-foreground/30" />
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {filtered.map((m) => (
+              <div
+                key={m.id}
+                onClick={() => navigate(`/movie/${m.id}`)}
+                className="flex items-center gap-4 bg-card border border-border rounded-xl p-3 hover:border-primary/30 hover:shadow-sm cursor-pointer transition-all group"
+              >
+                {m.poster_path ? (
+                  <img src={`${TMDB_IMG}/w92${m.poster_path}`} alt={m.title} className="w-10 h-15 rounded-lg object-cover shrink-0" loading="lazy" />
+                ) : (
+                  <div className="w-10 h-15 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                    <Film className="w-5 h-5 text-muted-foreground/30" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-foreground font-semibold text-sm truncate group-hover:text-primary transition-colors">{m.title}</p>
+                  <div className="flex items-center gap-2.5 mt-0.5 text-xs text-muted-foreground">
+                    {m.release_date && <span>{m.release_date.slice(0, 4)}</span>}
+                    {m.genres?.length > 0 && <span>{m.genres.slice(0, 2).map(g => g.name).join(", ")}</span>}
+                    {m.runtime > 0 && <span>{m.runtime} мин</span>}
+                  </div>
+                  {m._review && <p className="text-muted-foreground text-xs mt-0.5 line-clamp-1 italic">«{m._review}»</p>}
                 </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-foreground font-semibold text-sm truncate group-hover:text-primary transition-colors">{m.title}</p>
-                <div className="flex items-center gap-2.5 mt-0.5 text-xs text-muted-foreground">
-                  {m.release_date && <span>{m.release_date.slice(0, 4)}</span>}
-                  {m.genres?.length > 0 && <span>{m.genres.slice(0, 2).map(g => g.name).join(", ")}</span>}
-                  {m.runtime > 0 && <span>{m.runtime} мин</span>}
-                </div>
-                {m._review && <p className="text-muted-foreground text-xs mt-0.5 line-clamp-1 italic">«{m._review}»</p>}
+                {m._rating > 0 && (
+                  <div className="flex items-center gap-1 bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-lg shrink-0">
+                    <Star className="w-3 h-3 text-primary fill-primary" />
+                    <span className="text-primary text-sm font-black">{m._rating}</span>
+                  </div>
+                )}
               </div>
-              {m._rating > 0 && (
-                <div className="flex items-center gap-1 bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-lg shrink-0">
-                  <Star className="w-3 h-3 text-primary fill-primary" />
-                  <span className="text-primary text-sm font-black">{m._rating}</span>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )
       )}
     </div>
   );

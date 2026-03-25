@@ -4,18 +4,87 @@ import { useAuth } from "../lib/auth-context";
 import { logout, getProfile } from "../lib/api";
 import { useSidebar } from "../lib/sidebar-context";
 import { ThemeToggle } from "./theme-toggle";
+import { useLang } from "../lib/lang-context";
+import { Lang } from "../lib/translations";
 import {
   Clapperboard, Search, Users, Sparkles, Library,
   LogOut, LogIn, Bot, UserPlus, User, Bookmark,
-  ChevronLeft, ChevronRight, Home,
+  ChevronLeft, ChevronRight, Home, Globe,
 } from "lucide-react";
 import { useUserData } from "../lib/user-data-context";
+
+// ── Language Switcher ────────────────────────────────────────────────────────
+const LANGS: { code: Lang; label: string; flag: string }[] = [
+  { code: "ru", label: "Рус", flag: "🇷🇺" },
+  { code: "en", label: "Eng", flag: "🇬🇧" },
+  { code: "kz", label: "Қаз", flag: "🇰🇿" },
+];
+
+function LangSwitcher({ collapsed }: { collapsed: boolean }) {
+  const { lang, setLang, t } = useLang();
+  const [open, setOpen] = useState(false);
+
+  if (collapsed) {
+    return (
+      <div className="relative flex justify-center">
+        <button
+          onClick={() => setOpen(!open)}
+          title={t("language")}
+          className="w-10 h-10 mx-auto rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all group relative"
+        >
+          <Globe className="w-4.5 h-4.5" />
+          <span className="pointer-events-none absolute right-full mr-2.5 top-1/2 -translate-y-1/2 whitespace-nowrap bg-popover border border-border text-foreground text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50">
+            {t("language")}
+          </span>
+        </button>
+        {open && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+            <div className="absolute bottom-full mb-2 right-full mr-1 bg-popover border border-border rounded-xl shadow-xl z-50 overflow-hidden min-w-[100px]">
+              {LANGS.map((l) => (
+                <button
+                  key={l.code}
+                  onClick={() => { setLang(l.code); setOpen(false); }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${lang === l.code ? "bg-primary/10 text-primary font-bold" : "text-foreground hover:bg-muted"}`}
+                >
+                  <span>{l.flag}</span>
+                  <span>{l.label}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-3 py-2 relative">
+      <div className="flex items-center gap-2">
+        <Globe className="w-4 h-4 text-muted-foreground shrink-0" />
+        <span className="text-sm font-semibold text-muted-foreground flex-1">{t("language")}</span>
+        <div className="flex gap-0.5">
+          {LANGS.map((l) => (
+            <button
+              key={l.code}
+              onClick={() => setLang(l.code)}
+              className={`px-2 py-0.5 rounded-lg text-xs font-bold transition-all ${lang === l.code ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-muted"}`}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function Sidebar() {
   const { session } = useAuth();
   const { collapsed, toggle } = useSidebar();
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useLang();
   const [profile, setProfile] = useState<{ name?: string; email?: string } | null>(null);
 
   // Watchlist count badge
@@ -41,7 +110,7 @@ export function Sidebar() {
   const displayName =
     profile?.name?.trim() ||
     session?.user?.email?.split("@")[0] ||
-    "Профиль";
+    t("myProfile");
 
   const initials = displayName
     .split(" ")
@@ -51,33 +120,30 @@ export function Sidebar() {
     .toUpperCase();
 
   const publicLinks = [
-    { to: "/", icon: Home, label: "Главная" },
+    { to: "/", icon: Home, label: t("navHome") },
   ];
 
   const authLinks = [
-    { to: "/library", icon: Library, label: "Библиотека" },
-    { to: "/watchlist", icon: Bookmark, label: "Вотчлист", badge: watchlistCount },
-    { to: "/recommendations", icon: Sparkles, label: "Рекомендации" },
-    { to: "/ai", icon: Bot, label: "AI-чат" },
-    { to: "/friends", icon: Users, label: "Друзья" },
+    { to: "/library", icon: Library, label: t("navLibrary") },
+    { to: "/watchlist", icon: Bookmark, label: t("navWatchlist"), badge: watchlistCount },
+    { to: "/recommendations", icon: Sparkles, label: t("navRecommendations") },
+    { to: "/ai", icon: Bot, label: t("navAiChat") },
+    { to: "/friends", icon: Users, label: t("navFriends") },
   ];
 
-  // ── Mobile bottom nav items ────────────────────────────────────────────────
-  // Auth: Home, Library, Watchlist, AI, Profile
-  // Guest: Home, Search, Login, Register
   const mobileAuthNav = [
-    { to: "/", icon: Home, label: "Главная", badge: 0 },
-    { to: "/library", icon: Library, label: "Библиотека", badge: 0 },
-    { to: "/watchlist", icon: Bookmark, label: "Вотчлист", badge: watchlistCount },
-    { to: "/ai", icon: Bot, label: "AI-чат", badge: 0 },
-    { to: "/profile", icon: User, label: "Профиль", badge: 0 },
+    { to: "/", icon: Home, label: t("navHome"), badge: 0 },
+    { to: "/library", icon: Library, label: t("navLibrary"), badge: 0 },
+    { to: "/watchlist", icon: Bookmark, label: t("navWatchlist"), badge: watchlistCount },
+    { to: "/ai", icon: Bot, label: t("navAiChat"), badge: 0 },
+    { to: "/profile", icon: User, label: t("profileTitle"), badge: 0 },
   ];
 
   const mobileGuestNav = [
-    { to: "/", icon: Home, label: "Главная" },
-    { to: "/search", icon: Search, label: "Поиск" },
-    { to: "/login", icon: LogIn, label: "Войти" },
-    { to: "/register", icon: UserPlus, label: "Регистрация" },
+    { to: "/", icon: Home, label: t("navHome") },
+    { to: "/search", icon: Search, label: t("navSearch") },
+    { to: "/login", icon: LogIn, label: t("signIn") },
+    { to: "/register", icon: UserPlus, label: t("signUp") },
   ];
 
   const mobileNav = session ? mobileAuthNav : mobileGuestNav;
@@ -158,12 +224,10 @@ export function Sidebar() {
 
         {/* ── Navigation ── */}
         <nav className={`flex-1 overflow-y-auto overflow-x-hidden space-y-0.5 ${collapsed ? "px-2" : "px-3"}`}>
-          <SectionLabel>Навигация</SectionLabel>
           {publicLinks.map(l => (
             <NavItem key={l.to} {...l} />
           ))}
 
-          <SectionLabel>Моё</SectionLabel>
           {authLinks.map(l => (
             <NavItem key={l.to} {...l} />
           ))}
@@ -172,9 +236,12 @@ export function Sidebar() {
         {/* ── Bottom section ── */}
         <div className={`border-t border-border pt-3 pb-4 space-y-1 ${collapsed ? "px-2" : "px-3"}`}>
 
+          {/* Language switcher */}
+          <LangSwitcher collapsed={collapsed} />
+
           {/* Theme toggle */}
           <div className={`flex items-center ${collapsed ? "justify-center py-2" : "px-3 py-2"}`}>
-            {!collapsed && <span className="text-sm font-semibold text-muted-foreground flex-1">Тема</span>}
+            {!collapsed && <span className="text-sm font-semibold text-muted-foreground flex-1">{t("themeLabel")}</span>}
             <ThemeToggle />
           </div>
 
@@ -183,7 +250,7 @@ export function Sidebar() {
               {/* Profile link */}
               <Link
                 to="/profile"
-                title={collapsed ? "Мой профиль" : undefined}
+                title={collapsed ? t("myProfile") : undefined}
                 className={`relative flex items-center gap-3 rounded-xl transition-all hover:bg-muted group
                   ${collapsed ? "justify-center w-10 h-10 mx-auto" : "px-3 py-2.5"}`}
               >
@@ -206,15 +273,15 @@ export function Sidebar() {
               {/* Logout */}
               <button
                 onClick={handleLogout}
-                title={collapsed ? "Выйти" : undefined}
+                title={collapsed ? t("logout") : undefined}
                 className={`relative flex items-center gap-3 rounded-xl transition-all text-destructive hover:bg-destructive/10 group w-full
                   ${collapsed ? "justify-center w-10 h-10 mx-auto" : "px-3 py-2"}`}
               >
                 <LogOut className={`shrink-0 ${collapsed ? "w-4.5 h-4.5" : "w-4 h-4"}`} />
-                {!collapsed && <span className="text-sm font-semibold">Выйти</span>}
+                {!collapsed && <span className="text-sm font-semibold">{t("logout")}</span>}
                 {collapsed && (
                   <span className="pointer-events-none absolute right-full mr-2.5 top-1/2 -translate-y-1/2 whitespace-nowrap bg-popover border border-border text-foreground text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                    Выйти
+                    {t("logout")}
                   </span>
                 )}
               </button>
@@ -223,29 +290,29 @@ export function Sidebar() {
             <>
               <Link
                 to="/login"
-                title={collapsed ? "Войти" : undefined}
+                title={collapsed ? t("signIn") : undefined}
                 className={`relative flex items-center gap-3 rounded-xl transition-all text-muted-foreground hover:text-foreground hover:bg-muted group
                   ${collapsed ? "justify-center w-10 h-10 mx-auto" : "px-3 py-2.5"}`}
               >
                 <LogIn className={`shrink-0 ${collapsed ? "w-5 h-5" : "w-4 h-4"}`} />
-                {!collapsed && <span className="text-sm font-semibold">Войти</span>}
+                {!collapsed && <span className="text-sm font-semibold">{t("signIn")}</span>}
                 {collapsed && (
                   <span className="pointer-events-none absolute right-full mr-2.5 top-1/2 -translate-y-1/2 whitespace-nowrap bg-popover border border-border text-foreground text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                    Войти
+                    {t("signIn")}
                   </span>
                 )}
               </Link>
               <Link
                 to="/register"
-                title={collapsed ? "Регистрация" : undefined}
+                title={collapsed ? t("signUp") : undefined}
                 className={`relative flex items-center gap-3 rounded-xl transition-all bg-primary text-primary-foreground hover:bg-primary/90 group shadow-sm
                   ${collapsed ? "justify-center w-10 h-10 mx-auto" : "px-3 py-2.5"}`}
               >
                 <UserPlus className={`shrink-0 ${collapsed ? "w-5 h-5" : "w-4 h-4"}`} />
-                {!collapsed && <span className="text-sm font-semibold">Регистрация</span>}
+                {!collapsed && <span className="text-sm font-semibold">{t("signUp")}</span>}
                 {collapsed && (
                   <span className="pointer-events-none absolute right-full mr-2.5 top-1/2 -translate-y-1/2 whitespace-nowrap bg-popover border border-border text-foreground text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                    Регистрация
+                    {t("signUp")}
                   </span>
                 )}
               </Link>
@@ -272,7 +339,7 @@ export function Sidebar() {
         <button
           onClick={toggle}
           className="absolute -left-3.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-card border border-border shadow-md flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/40 transition-all z-50"
-          title={collapsed ? "Развернуть" : "Свернуть"}
+          title={collapsed ? t("expandBar") : t("collapseBar")}
         >
           {collapsed
             ? <ChevronLeft className="w-3.5 h-3.5" />
@@ -297,6 +364,8 @@ export function Sidebar() {
         </Link>
 
         <div className="flex items-center gap-1.5">
+          {/* Mobile lang switcher */}
+          <MobileLangPicker />
           <ThemeToggle />
           {session && (
             <Link
@@ -314,7 +383,6 @@ export function Sidebar() {
         className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-border"
         style={{ background: "var(--nav-bg)", backdropFilter: "blur(14px)" }}
       >
-        {/* Safe area for devices with home indicator */}
         <div className="flex items-center justify-around px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           {mobileNav.map((item) => {
             const active = isActive(item.to);
@@ -332,7 +400,6 @@ export function Sidebar() {
                   <Icon className={`w-5 h-5 transition-colors duration-200 ${
                     active ? "text-primary" : "text-muted-foreground"
                   }`} />
-                  {/* Badge */}
                   {badge !== undefined && badge > 0 && (
                     <span className="absolute top-1 right-1 w-4 h-4 bg-primary text-primary-foreground text-[9px] font-black rounded-full flex items-center justify-center">
                       {badge > 99 ? "99+" : badge}
@@ -350,5 +417,40 @@ export function Sidebar() {
         </div>
       </nav>
     </>
+  );
+}
+
+// ── Mobile lang picker (compact) ─────────────────────────────────────────────
+function MobileLangPicker() {
+  const { lang, setLang } = useLang();
+  const [open, setOpen] = useState(false);
+  const current = LANGS.find(l => l.code === lang);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted text-muted-foreground hover:text-foreground text-xs font-bold transition-all"
+      >
+        <span>{current?.flag}</span>
+        <span>{current?.label}</span>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute top-full mt-1 right-0 bg-popover border border-border rounded-xl shadow-xl z-50 overflow-hidden min-w-[90px]">
+            {LANGS.map(l => (
+              <button
+                key={l.code}
+                onClick={() => { setLang(l.code); setOpen(false); }}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors ${lang === l.code ? "bg-primary/10 text-primary font-bold" : "text-foreground hover:bg-muted"}`}
+              >
+                <span>{l.flag}</span>
+                <span>{l.label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }

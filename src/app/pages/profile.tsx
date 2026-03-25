@@ -143,7 +143,7 @@ export function ProfilePage() {
       const res = await updateProfile({ name: nameVal.trim(), bio: bioVal.trim(), favoriteGenres: genresVal });
       setProfile((prev: any) => ({ ...prev, ...res.profile }));
       setEditing(false);
-      toast.success("Профиль обно��лён");
+      toast.success("Профиль обнолён");
     } catch {
       toast.error("Не удалось обновить профиль");
     } finally {
@@ -200,7 +200,7 @@ export function ProfilePage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
 
       {/* ── Profile Card ── */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">

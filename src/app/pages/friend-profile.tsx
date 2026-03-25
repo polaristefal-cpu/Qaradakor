@@ -1,7 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 import {
-  getFriendWatched, getFriendProfile, getFriendAvatarUrl, getMovie, searchMovies, sendRecommendation,
+  getFriendProfile,
+  getFriendWatched,
+  getMovie,
+  searchMovies,
+  sendRecommendation,
+  getFriendAvatarUrl,
   TMDB_IMG,
 } from "../lib/api";
 import {
@@ -9,6 +14,8 @@ import {
   BookOpen, Clock, ChevronDown, MessageSquare, User,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useLang } from "../lib/lang-context";
+import { BackButton } from "../components/back-button";
 
 // ── Avatar: shows real photo or initials fallback ──────────────────────────────
 function Avatar({
@@ -234,72 +241,109 @@ function RecommendModal({
 }
 
 // ── Watched movie row ──────────────────────────────────────────────────────────
-function WatchedRow({ entry, onMovieClick }: { entry: any; onMovieClick: (id: number) => void }) {
-  const [expanded, setExpanded] = useState(false);
+function WatchedMovieCard({ entry, onMovieClick }: { entry: any; onMovieClick: (id: number) => void }) {
+  const [showReview, setShowReview] = useState(false);
   const hasReview = !!entry._review?.trim();
 
   return (
-    <div className="bg-card border border-border rounded-xl overflow-hidden hover:border-primary/20 transition-all">
-      <div className="flex items-center gap-3 p-3">
+    <>
+      <div
+        onClick={() => onMovieClick(entry._movieId || entry.id)}
+        className="group cursor-pointer relative rounded-xl overflow-hidden bg-card border border-border shadow-sm transition-all duration-300 hover:scale-[1.04] hover:shadow-lg hover:border-primary/40"
+      >
         {/* Poster */}
-        <button onClick={() => onMovieClick(entry._movieId || entry.id)} className="shrink-0">
-          {entry.poster_path ? (
-            <img
-              src={`${TMDB_IMG}/w92${entry.poster_path}`}
-              alt={entry.title}
-              className="w-10 h-[60px] object-cover rounded-lg hover:opacity-80 transition"
-            />
-          ) : (
-            <div className="w-10 h-[60px] bg-muted rounded-lg flex items-center justify-center">
-              <Film className="w-4 h-4 text-muted-foreground/30" />
-            </div>
-          )}
-        </button>
+        {entry.poster_path ? (
+          <img
+            src={`${TMDB_IMG}/w342${entry.poster_path}`}
+            alt={entry.title}
+            className="w-full aspect-[2/3] object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full aspect-[2/3] bg-muted flex items-center justify-center">
+            <Film className="w-10 h-10 text-muted-foreground/30" />
+          </div>
+        )}
 
-        {/* Info */}
-        <div className="flex-1 min-w-0">
+        {/* Hover overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+
+        {/* Title + year at bottom on hover */}
+        <div className="absolute bottom-0 left-0 right-0 px-2.5 pb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+          <p className="text-white text-[11px] font-semibold line-clamp-2 leading-tight">{entry.title}</p>
+          {entry.release_date && (
+            <p className="text-white/55 text-[9px] mt-0.5">{entry.release_date.slice(0, 4)}</p>
+          )}
+        </div>
+
+        {/* User rating badge — top left */}
+        {entry._rating > 0 && (
+          <div className="absolute top-1.5 left-1.5 bg-primary/95 backdrop-blur-sm rounded-md px-1.5 py-0.5 flex items-center gap-1 shadow-md">
+            <Star className="w-2.5 h-2.5 text-primary-foreground fill-primary-foreground" />
+            <span className="text-primary-foreground text-[10px] font-bold">{entry._rating}</span>
+          </div>
+        )}
+
+        {/* Review indicator — top right */}
+        {hasReview && (
           <button
-            onClick={() => onMovieClick(entry._movieId || entry.id)}
-            className="text-foreground font-semibold text-sm text-left hover:text-primary transition line-clamp-1"
+            onClick={(e) => { e.stopPropagation(); setShowReview(true); }}
+            className="absolute top-1.5 right-1.5 w-7 h-7 rounded-lg bg-black/70 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-primary transition-all"
+            title="Есть рецензия"
           >
-            {entry.title}
+            <MessageSquare className="w-3.5 h-3.5 text-white" />
           </button>
-          <p className="text-muted-foreground text-xs">
-            {entry.release_date?.slice(0, 4)}
-            {entry.genres?.length > 0 && ` · ${entry.genres.slice(0, 2).map((g: any) => g.name).join(", ")}`}
-          </p>
-        </div>
-
-        {/* Rating */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {entry._rating > 0 && (
-            <span className="flex items-center gap-1 bg-primary/10 text-primary border border-primary/25 px-2 py-0.5 rounded-lg text-xs font-bold">
-              <Star className="w-3 h-3 fill-primary" />
-              {entry._rating}
-            </span>
-          )}
-          {hasReview && (
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="w-7 h-7 rounded-lg bg-muted hover:bg-accent border border-border flex items-center justify-center text-muted-foreground transition"
-            >
-              {expanded ? <ChevronDown className="w-3.5 h-3.5 rotate-180" /> : <MessageSquare className="w-3.5 h-3.5" />}
-            </button>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* Review */}
-      {expanded && hasReview && (
-        <div className="border-t border-border px-3 py-2.5 bg-muted/40">
-          <p className="text-foreground/80 text-xs leading-relaxed italic">«{entry._review}»</p>
+      {/* Review modal */}
+      {showReview && hasReview && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => setShowReview(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md"
+          >
+            <div className="flex items-start gap-3 p-5 border-b border-border">
+              {entry.poster_path && (
+                <img
+                  src={`${TMDB_IMG}/w92${entry.poster_path}`}
+                  alt={entry.title}
+                  className="w-12 h-[72px] object-cover rounded-lg shrink-0"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-foreground text-sm line-clamp-2">{entry.title}</h3>
+                <p className="text-muted-foreground text-xs mt-0.5">
+                  {entry.release_date?.slice(0, 4)}
+                  {entry._rating > 0 && (
+                    <span className="ml-2 inline-flex items-center gap-0.5">
+                      <Star className="w-2.5 h-2.5 text-primary fill-primary" />
+                      {entry._rating}
+                    </span>
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowReview(false)}
+                className="w-8 h-8 rounded-lg bg-muted hover:bg-accent flex items-center justify-center text-muted-foreground transition shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5">
+              <p className="text-foreground text-sm leading-relaxed italic">«{entry._review}»</p>
+            </div>
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
-// ── Main page ─────────────��────────────────────────────────────────────────────
+// ── Main page ─────────────────────────────────────────────────────────────────
 export function FriendProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -361,6 +405,12 @@ export function FriendProfilePage() {
       : "—";
   const withReview = watched.filter((m) => m._review?.trim()).length;
 
+  // Top 5 highest rated movies
+  const topFive = watched
+    .filter((m) => m._rating > 0)
+    .sort((a, b) => b._rating - a._rating)
+    .slice(0, 5);
+
   // Sorted + filtered
   const displayed = watched
     .filter((m) => filterRating === 0 || m._rating >= filterRating)
@@ -371,19 +421,16 @@ export function FriendProfilePage() {
     );
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
       {/* Back */}
-      <button
-        onClick={() => navigate("/friends")}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" /> Назад к друзьям
-      </button>
+      <BackButton fallbackPath="/friends" />
 
       {/* Profile header */}
-      <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
-        <div className="flex items-start gap-4">
+      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+        {/* ── Top row: avatar / info / button ── */}
+        <div className="flex items-start gap-4 p-6">
           <Avatar name={friendName} avatarUrl={friendAvatarUrl} size="lg" />
+
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-black text-foreground">{friendName}</h1>
             {friendEmail && (
@@ -391,19 +438,19 @@ export function FriendProfilePage() {
             )}
 
             {/* Stats */}
-            <div className="flex flex-wrap gap-3 mt-4">
-              <div className="flex items-center gap-1.5 bg-muted border border-border px-3 py-1.5 rounded-lg">
+            <div className="flex flex-wrap gap-2 mt-3">
+              <div className="flex items-center gap-1.5 bg-muted border border-border px-3 py-1.5 rounded-xl">
                 <BookOpen className="w-3.5 h-3.5 text-primary" />
                 <span className="text-foreground text-xs font-semibold">{watched.length}</span>
                 <span className="text-muted-foreground text-xs">просмотрено</span>
               </div>
-              <div className="flex items-center gap-1.5 bg-muted border border-border px-3 py-1.5 rounded-lg">
+              <div className="flex items-center gap-1.5 bg-muted border border-border px-3 py-1.5 rounded-xl">
                 <Star className="w-3.5 h-3.5 text-primary fill-primary" />
                 <span className="text-foreground text-xs font-semibold">{avgRating}</span>
                 <span className="text-muted-foreground text-xs">средняя оценка</span>
               </div>
               {withReview > 0 && (
-                <div className="flex items-center gap-1.5 bg-muted border border-border px-3 py-1.5 rounded-lg">
+                <div className="flex items-center gap-1.5 bg-muted border border-border px-3 py-1.5 rounded-xl">
                   <MessageSquare className="w-3.5 h-3.5 text-primary" />
                   <span className="text-foreground text-xs font-semibold">{withReview}</span>
                   <span className="text-muted-foreground text-xs">рецензий</span>
@@ -421,13 +468,99 @@ export function FriendProfilePage() {
             <span className="hidden sm:inline">Рекомендовать</span>
           </button>
         </div>
+
+        {/* ── Top-5 showcase ── */}
+        {!loading && topFive.length > 0 && (
+          <div className="border-t border-border">
+            {/* Label */}
+            <div className="px-6 pt-4 pb-3 flex items-center gap-2">
+              <Star className="w-3.5 h-3.5 text-primary fill-primary" />
+              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                Топ-5 фильмов
+              </span>
+            </div>
+
+            {/* Posters grid — desktop: 5 equal columns, mobile: horizontal scroll */}
+            <div className="px-4 pb-4">
+              {/* Desktop */}
+              <div className="hidden sm:grid grid-cols-5 gap-3">
+                {topFive.map((movie, idx) => (
+                  <button
+                    key={movie.id}
+                    onClick={() => navigate(`/movie/${movie._movieId || movie.id}`)}
+                    className="group relative rounded-xl overflow-hidden border border-border hover:border-primary/60 hover:scale-[1.03] transition-all duration-200 shadow-md"
+                  >
+                    {movie.poster_path ? (
+                      <img
+                        src={`${TMDB_IMG}/w342${movie.poster_path}`}
+                        alt={movie.title}
+                        className="w-full aspect-[2/3] object-cover"
+                      />
+                    ) : (
+                      <div className="w-full aspect-[2/3] bg-muted flex items-center justify-center">
+                        <Film className="w-8 h-8 text-muted-foreground/30" />
+                      </div>
+                    )}
+                    {/* Gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent pointer-events-none" />
+                    {/* Rank badge top-left */}
+                    <div className="absolute top-2 left-2 w-6 h-6 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                      <span className="text-white text-[10px] font-black">#{idx + 1}</span>
+                    </div>
+                    {/* Rating badge bottom */}
+                    <div className="absolute bottom-2 left-0 right-0 flex justify-center">
+                      <div className="flex items-center gap-1 bg-primary/95 backdrop-blur-sm rounded-lg px-2.5 py-1 shadow-lg">
+                        <Star className="w-3 h-3 text-primary-foreground fill-primary-foreground" />
+                        <span className="text-primary-foreground text-xs font-bold">{movie._rating}</span>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Mobile: horizontal scroll */}
+              <div className="sm:hidden flex gap-3 overflow-x-auto pb-1 -mx-1 px-1" style={{ scrollbarWidth: 'none' }}>
+                {topFive.map((movie, idx) => (
+                  <button
+                    key={movie.id}
+                    onClick={() => navigate(`/movie/${movie._movieId || movie.id}`)}
+                    className="group relative rounded-xl overflow-hidden border border-border hover:border-primary/60 transition-all duration-200 shadow-md shrink-0"
+                    style={{ width: '100px' }}
+                  >
+                    {movie.poster_path ? (
+                      <img
+                        src={`${TMDB_IMG}/w185${movie.poster_path}`}
+                        alt={movie.title}
+                        className="w-full aspect-[2/3] object-cover"
+                      />
+                    ) : (
+                      <div className="w-full aspect-[2/3] bg-muted flex items-center justify-center">
+                        <Film className="w-6 h-6 text-muted-foreground/30" />
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent pointer-events-none" />
+                    <div className="absolute top-1.5 left-1.5 w-5 h-5 rounded-full bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                      <span className="text-white text-[9px] font-black">#{idx + 1}</span>
+                    </div>
+                    <div className="absolute bottom-1.5 left-0 right-0 flex justify-center">
+                      <div className="flex items-center gap-0.5 bg-primary/95 backdrop-blur-sm rounded-md px-2 py-0.5 shadow-lg">
+                        <Star className="w-2.5 h-2.5 text-primary-foreground fill-primary-foreground" />
+                        <span className="text-primary-foreground text-[10px] font-bold">{movie._rating}</span>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Watch history */}
       <div>
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <h2 className="font-bold text-foreground flex items-center gap-2">
-            <Clock className="w-4 h-4 text-primary" />
+            <Clock className="w-4.5 h-4.5 text-primary" />
             История просмотра
             {!loading && (
               <span className="text-muted-foreground text-sm font-normal">({watched.length})</span>
@@ -440,7 +573,7 @@ export function FriendProfilePage() {
               <select
                 value={filterRating}
                 onChange={(e) => setFilterRating(Number(e.target.value))}
-                className="bg-muted border border-border rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary transition"
+                className="bg-muted border border-border rounded-xl px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary transition"
               >
                 <option value={0}>Все оценки</option>
                 {[5, 6, 7, 8, 9].map((n) => (
@@ -449,7 +582,7 @@ export function FriendProfilePage() {
               </select>
 
               {/* Sort */}
-              <div className="flex rounded-lg border border-border overflow-hidden text-xs">
+              <div className="flex rounded-xl border border-border overflow-hidden text-xs">
                 <button
                   onClick={() => setSortBy("recent")}
                   className={`px-3 py-1.5 transition ${sortBy === "recent" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}
@@ -482,9 +615,9 @@ export function FriendProfilePage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {displayed.map((entry) => (
-              <WatchedRow
+              <WatchedMovieCard
                 key={entry.id}
                 entry={entry}
                 onMovieClick={(movieId) => navigate(`/movie/${movieId}`)}

@@ -18,6 +18,7 @@ import { WatchlistPage } from "./pages/watchlist";
 import { PersonPage } from "./pages/person";
 import { FriendProfilePage } from "./pages/friend-profile";
 import { DiplomaDownloadPage } from "./pages/diploma-download";
+import { RecommendationsDocPage } from "./pages/recommendations-doc";
 import { Loader2 } from "lucide-react";
 
 // ── Shared shell with sidebar ─────────────────────────────────────────────────
@@ -119,6 +120,7 @@ export const router = createBrowserRouter([
       { path: "/friends/:id", Component: FriendProfilePage },
       { path: "/ai", Component: AiChatPage },
       { path: "/profile", Component: ProfilePage },
+      { path: "/recommendations-doc", Component: RecommendationsDocPage },
     ],
   },
   { path: "*", Component: () => <Navigate to="/" replace /> },

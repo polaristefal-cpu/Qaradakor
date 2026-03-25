@@ -4,22 +4,174 @@ import {
   getMovie, addWatched, removeWatched, getWatched,
   TMDB_IMG, aiExplain, aiAnalyzeReview,
   addToWatchlist, removeFromWatchlist, getWatchlist,
+  getFriends, sendRecommendation,
 } from "../lib/api";
 import {
-  Star, Clock, ArrowLeft, Check, Trash2, Loader2,
+  Star, Clock, Check, Trash2, Loader2,
   Calendar, Users, Film, Bot, Brain, LogIn, UserPlus, Sparkles,
   Bookmark, BookmarkCheck, Quote, ChevronDown, ChevronUp, Pencil,
-  MessageSquare, ThumbsUp, ThumbsDown, Minus, Play,
+  MessageSquare, ThumbsUp, ThumbsDown, Minus, Play, Send, X, UserCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../lib/auth-context";
+import { useLang } from "../lib/lang-context";
 import { TrailerModal } from "../components/trailer-modal";
 import { MovieReviews } from "../components/movie-reviews";
+import { BackButton } from "../components/back-button";
+import { SectionHeader } from "../components/section-header";
+
+// ── Recommend to Friend Modal ──────────────────────────────────────────────────
+function RecommendFriendModal({
+  movie,
+  onClose,
+}: {
+  movie: any;
+  onClose: () => void;
+}) {
+  const [friends, setFriends] = useState<any[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(true);
+  const [selected, setSelected] = useState<any>(null);
+  const [note, setNote] = useState("");
+  const [sending, setSending] = useState(false);
+  const { t } = useLang();
+
+  useEffect(() => {
+    getFriends()
+      .then((data) => setFriends(Array.isArray(data) ? data : []))
+      .catch(() => setFriends([]))
+      .finally(() => setLoadingFriends(false));
+  }, []);
+
+  const handleSend = async () => {
+    if (!selected) return;
+    setSending(true);
+    try {
+      await sendRecommendation(selected.id, movie.id, note.trim() || undefined);
+      toast.success(`${t("recommendSent")} «${movie.title}» → ${selected.name || selected.email}`);
+      onClose();
+    } catch (e: any) {
+      toast.error(e.message || t("error"));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const initials = (name: string) =>
+    (name || "?")
+      .split(" ")
+      .slice(0, 2)
+      .map((w: string) => w[0]?.toUpperCase())
+      .join("") || "?";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm">
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div>
+            <h2 className="font-bold text-foreground">{t("recommendMovieTitle")}</h2>
+            <p className="text-muted-foreground text-xs mt-0.5 line-clamp-1">«{movie.title}»</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-lg bg-muted hover:bg-accent flex items-center justify-center text-muted-foreground transition"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Friends list */}
+          <div>
+            <p className="text-xs text-muted-foreground mb-2.5 font-medium">{t("recommendSelectFriend")}</p>
+            {loadingFriends ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="w-6 h-6 text-primary animate-spin" />
+              </div>
+            ) : friends.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                <Users className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                {t("recommendNoFriends")}
+              </div>
+            ) : (
+              <div className="space-y-1.5 max-h-52 overflow-y-auto pr-0.5">
+                {friends.map((f) => {
+                  const isSelected = selected?.id === f.id;
+                  return (
+                    <button
+                      key={f.id}
+                      onClick={() => setSelected(isSelected ? null : f)}
+                      className={`w-full flex items-center gap-3 p-2.5 rounded-xl border transition-all text-left ${
+                        isSelected
+                          ? "bg-primary/10 border-primary/40 text-foreground"
+                          : "bg-muted border-transparent hover:border-border"
+                      }`}
+                    >
+                      {/* Avatar */}
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/30 to-primary/10 border border-primary/20 flex items-center justify-center text-primary font-black text-sm shrink-0">
+                        {initials(f.name || f.email || "")}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground text-sm font-semibold line-clamp-1">
+                          {f.name || f.email}
+                        </p>
+                        {f.name && f.email && (
+                          <p className="text-muted-foreground text-xs line-clamp-1">{f.email}</p>
+                        )}
+                      </div>
+                      {isSelected && (
+                        <UserCheck className="w-4 h-4 text-primary shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Note */}
+          {selected && (
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block font-medium">
+                {t("recommendNote")}
+              </label>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder={t("recommendNotePlaceholder")}
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition resize-none h-20 placeholder:text-muted-foreground/50"
+              />
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border border-border text-muted-foreground text-sm hover:text-foreground hover:border-primary/30 transition"
+            >
+              {t("cancel")}
+            </button>
+            <button
+              onClick={handleSend}
+              disabled={!selected || sending}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50 hover:bg-primary/90 transition shadow-sm"
+            >
+              {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {t("send")}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function MovieDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { session } = useAuth();
+  const { t, tmdbLang } = useLang();
   const [movie, setMovie] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [watched, setWatched] = useState<any>(null);
@@ -36,46 +188,47 @@ export function MovieDetailPage() {
   const [reviewExpanded, setReviewExpanded] = useState(false);
   const [savedReviewData, setSavedReviewData] = useState<{ review: string; rating: number; savedAt?: string; sentiment?: any } | null>(null);
   const [showTrailer, setShowTrailer] = useState(false);
+  const [recommendFriendModal, setRecommendFriendModal] = useState(false);
 
+  // Load movie + watchlist state
   useEffect(() => {
     if (!id) return;
-    setLoading(true); setMovie(null); setWatched(null); setRating(0); setReview(""); setInWatchlist(false);
-    setSavedReviewData(null); setReviewExpanded(false); setSentimentData(null);
-
+    setLoading(true);
     getMovie(Number(id))
       .then(setMovie)
       .catch(() => setMovie(null))
       .finally(() => setLoading(false));
+  }, [id, tmdbLang]); // re-fetch when language changes
 
-    if (session) {
-      getWatched().then((w) => {
-        if (Array.isArray(w)) {
-          const e = w.find((x: any) => x.movieId === Number(id));
-          if (e) {
-            setWatched(e); setRating(e.rating || 0); setReview(e.review || "");
-            if (e.review?.trim()) {
-              setSavedReviewData({
-                review: e.review,
-                rating: e.rating || 0,
-                savedAt: e.addedAt,
-                sentiment: e.sentiment || null,
-              });
-            }
+  useEffect(() => {
+    if (!session) return;
+    getWatched().then((w) => {
+      if (Array.isArray(w)) {
+        const e = w.find((x: any) => x.movieId === Number(id));
+        if (e) {
+          setWatched(e); setRating(e.rating || 0); setReview(e.review || "");
+          if (e.review?.trim()) {
+            setSavedReviewData({
+              review: e.review,
+              rating: e.rating || 0,
+              savedAt: e.addedAt,
+              sentiment: e.sentiment || null,
+            });
           }
         }
-      }).catch(() => {});
+      }
+    }).catch(() => {});
 
-      getWatchlist().then((wl) => {
-        if (Array.isArray(wl)) {
-          setInWatchlist(wl.some((x: any) => x.movieId === Number(id)));
-        }
-      }).catch(() => {});
-    }
+    getWatchlist().then((wl) => {
+      if (Array.isArray(wl)) {
+        setInWatchlist(wl.some((x: any) => x.movieId === Number(id)));
+      }
+    }).catch(() => {});
   }, [id, session]);
 
   const handleAdd = async () => {
-    if (!session) { toast.error("Войдите в аккаунт"); return; }
-    if (rating === 0) { toast.error("Поставьте оценку"); return; }
+    if (!session) { toast.error(t("signIn")); return; }
+    if (rating === 0) { toast.error(t("movieYourRating")); return; }
     setSaving(true);
     try {
       await addWatched(Number(id), rating, review, movie?.title, movie?.poster_path);
@@ -89,8 +242,8 @@ export function MovieDetailPage() {
         await removeFromWatchlist(Number(id));
         setInWatchlist(false);
       }
-      toast.success("Добавлено в библиотеку!");
-    } catch { toast.error("Ошибка при добавлении"); }
+      toast.success(t("addedToLibrary"));
+    } catch { toast.error(t("error")); }
     finally { setSaving(false); }
   };
 
@@ -99,19 +252,19 @@ export function MovieDetailPage() {
     try {
       await removeWatched(Number(id));
       setWatched(null); setRating(0); setReview(""); setSavedReviewData(null); setSentimentData(null);
-      toast.success("Удалено из библиотеки");
-    } catch { toast.error("Ошибка при удалении"); }
+      toast.success(t("removedFromLibrary"));
+    } catch { toast.error(t("error")); }
     finally { setSaving(false); }
   };
 
   const handleToggleWatchlist = async () => {
-    if (!session) { toast.error("Войдите в аккаунт"); return; }
+    if (!session) { toast.error(t("signIn")); return; }
     setWatchlistLoading(true);
     try {
       if (inWatchlist) {
         await removeFromWatchlist(Number(id));
         setInWatchlist(false);
-        toast.success("Удалено из «Хочу посмотреть»");
+        toast.success(t("removedFromWatchlist"));
       } else {
         await addToWatchlist({
           movieId: Number(id),
@@ -121,10 +274,10 @@ export function MovieDetailPage() {
           vote_average: movie.vote_average,
         });
         setInWatchlist(true);
-        toast.success("Добавлено в «Хочу посмотреть»!");
+        toast.success(t("addedToWatchlist"));
       }
     } catch (e: any) {
-      toast.error(e.message || "Ошибка");
+      toast.error(e.message || t("error"));
     } finally {
       setWatchlistLoading(false);
     }
@@ -139,8 +292,8 @@ export function MovieDetailPage() {
   if (!movie || movie.success === false) return (
     <div className="flex flex-col items-center justify-center py-32 gap-4">
       <Film className="w-14 h-14 text-muted-foreground/30" />
-      <p className="text-muted-foreground text-lg">Фильм не найден</p>
-      <button onClick={() => navigate("/")} className="text-primary hover:underline text-sm">На главную</button>
+      <p className="text-muted-foreground text-lg">{t("movieNotFound")}</p>
+      <button onClick={() => navigate("/")} className="text-primary hover:underline text-sm">{t("toHome")}</button>
     </div>
   );
 
@@ -170,16 +323,11 @@ export function MovieDetailPage() {
       )}
 
       <div
-        className="max-w-5xl mx-auto px-4 pb-16 relative z-10"
+        className="max-w-7xl mx-auto px-4 pb-16 relative z-10"
         style={{ marginTop: movie.backdrop_path ? "-140px" : "2rem" }}
       >
         {/* Back */}
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" /> Назад
-        </button>
+        <BackButton />
 
         <div className="flex flex-col md:flex-row gap-7">
           {/* Poster */}
@@ -202,6 +350,38 @@ export function MovieDetailPage() {
               <Play className="w-4 h-4 fill-current" />
               Смотреть трейлер
             </button>
+
+            {/* Watchlist button */}
+            {session && !watched && (
+              <button
+                onClick={handleToggleWatchlist}
+                disabled={watchlistLoading}
+                className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+                  inWatchlist
+                    ? "bg-primary/10 text-primary border-primary/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+                    : "bg-muted text-muted-foreground border-border hover:text-foreground hover:border-primary/30"
+                }`}
+              >
+                {watchlistLoading
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : inWatchlist
+                    ? <BookmarkCheck className="w-4 h-4" />
+                    : <Bookmark className="w-4 h-4" />
+                }
+                {inWatchlist ? t("inWatchlist") : t("addToWatchlist")}
+              </button>
+            )}
+
+            {/* Recommend to friend button */}
+            {session && (
+              <button
+                onClick={() => setRecommendFriendModal(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border border-border bg-muted text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all"
+              >
+                <Send className="w-4 h-4" />
+                {t("recommendToFriend")}
+              </button>
+            )}
           </div>
 
           {/* Info */}
@@ -249,33 +429,10 @@ export function MovieDetailPage() {
               </div>
             )}
 
-            {/* Watchlist button */}
-            {session && !watched && (
-              <div>
-                <button
-                  onClick={handleToggleWatchlist}
-                  disabled={watchlistLoading}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
-                    inWatchlist
-                      ? "bg-primary/10 text-primary border-primary/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
-                      : "bg-muted text-muted-foreground border-border hover:text-foreground hover:border-primary/30"
-                  }`}
-                >
-                  {watchlistLoading
-                    ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : inWatchlist
-                      ? <BookmarkCheck className="w-4 h-4" />
-                      : <Bookmark className="w-4 h-4" />
-                  }
-                  {inWatchlist ? "В списке «Хочу посмотреть»" : "Хочу посмотреть"}
-                </button>
-              </div>
-            )}
-
             {/* Overview */}
             {movie.overview && (
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">Описание</h3>
+                <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2">{t("movieOverview")}</h3>
                 <p className="text-foreground/80 leading-relaxed text-sm">{movie.overview}</p>
               </div>
             )}
@@ -295,13 +452,13 @@ export function MovieDetailPage() {
                     className="flex items-center gap-2 text-xs font-medium text-muted-foreground bg-muted hover:bg-accent border border-border hover:border-primary/30 px-3.5 py-2 rounded-xl transition-all"
                   >
                     {aiExplainLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Bot className="w-3.5 h-3.5" />}
-                    AI: Почему вам понравится этот фильм?
+                    {t("aiExplainBtn")}
                   </button>
                 ) : (
                   <div className="bg-muted border border-border rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Bot className="w-3.5 h-3.5 text-primary" />
-                      <span className="text-primary text-[11px] font-bold uppercase tracking-wider">AI-анализ совместимости</span>
+                      <span className="text-primary text-[11px] font-bold uppercase tracking-wider">{t("aiAnalysisTitle")}</span>
                     </div>
                     <p className="text-foreground/80 text-sm leading-relaxed">{aiExplanation}</p>
                   </div>
@@ -313,7 +470,7 @@ export function MovieDetailPage() {
             <div className="grid grid-cols-2 gap-3 pt-1">
               {directors.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Режиссёр</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{t("movieDirector")}</p>
                   <div className="flex flex-wrap gap-1">
                     {directors.map((d: any) => (
                       <button
@@ -328,16 +485,16 @@ export function MovieDetailPage() {
                 </div>
               )}
               {countries && (
-                <div><p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Страна</p><p className="text-sm text-foreground">{countries}</p></div>
+                <div><p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{t("movieCountry")}</p><p className="text-sm text-foreground">{countries}</p></div>
               )}
               {langs && (
-                <div><p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Язык</p><p className="text-sm text-foreground">{langs}</p></div>
+                <div><p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{t("movieLanguage")}</p><p className="text-sm text-foreground">{langs}</p></div>
               )}
               {budget && (
-                <div><p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Бюджет</p><p className="text-sm text-foreground">{budget}</p></div>
+                <div><p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{t("movieBudget")}</p><p className="text-sm text-foreground">{budget}</p></div>
               )}
               {revenue && (
-                <div><p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Сборы</p><p className="text-sm text-foreground">{revenue}</p></div>
+                <div><p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">{t("movieRevenue")}</p><p className="text-sm text-foreground">{revenue}</p></div>
               )}
             </div>
           </div>
@@ -347,7 +504,7 @@ export function MovieDetailPage() {
         {cast.length > 0 && (
           <div className="mt-10">
             <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4 flex items-center gap-2">
-              <Users className="w-3.5 h-3.5" /> Актёры
+              <Users className="w-3.5 h-3.5" /> {t("movieCast")}
             </h3>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
               {cast.map((c: any) => (
@@ -376,7 +533,7 @@ export function MovieDetailPage() {
         {/* Companies */}
         {companies.length > 0 && (
           <div className="mt-8">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Производство</h3>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">{t("movieProduction")}</h3>
             <div className="flex flex-wrap gap-2">
               {companies.map((c: any) => (
                 <div key={c.id} className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2 shadow-sm">
@@ -394,18 +551,18 @@ export function MovieDetailPage() {
             <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-5">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-foreground text-base">
-                  {watched ? "Вы уже смотрели этот фильм" : "Отметить как просмотренный"}
+                  {watched ? t("alreadyWatched") : t("markWatched")}
                 </h3>
                 {watched && (
                   <span className="text-xs font-semibold bg-primary/10 text-primary border border-primary/25 px-2.5 py-1 rounded-full">
-                    В библиотеке
+                    {t("inLibrary")}
                   </span>
                 )}
               </div>
 
               {/* Stars */}
               <div>
-                <p className="text-xs text-muted-foreground mb-2">Ваша оценка:</p>
+                <p className="text-xs text-muted-foreground mb-2">{t("movieYourRating")}</p>
                 <div className="flex items-center gap-0.5">
                   {[1,2,3,4,5,6,7,8,9,10].map((n) => (
                     <button
@@ -428,11 +585,11 @@ export function MovieDetailPage() {
 
               {/* Review */}
               <div>
-                <p className="text-xs text-muted-foreground mb-2">Отзыв (необязательно):</p>
+                <p className="text-xs text-muted-foreground mb-2">{t("movieReviewOptional")}</p>
                 <textarea
                   value={review}
                   onChange={(e) => setReview(e.target.value)}
-                  placeholder="Что вы думаете об этом фильме?..."
+                  placeholder={t("movieReviewPlaceholder")}
                   className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition resize-none h-24 placeholder:text-muted-foreground/50"
                 />
               </div>
@@ -444,7 +601,7 @@ export function MovieDetailPage() {
                   className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-all shadow-sm"
                 >
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                  {watched ? "Обновить" : "Добавить в библиотеку"}
+                  {watched ? t("updateLibrary") : t("addToLibrary")}
                 </button>
 
                 {review.trim().length >= 10 && (
@@ -465,7 +622,7 @@ export function MovieDetailPage() {
                     className="flex items-center gap-2 bg-muted text-muted-foreground hover:text-foreground border border-border hover:border-primary/30 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
                   >
                     {sentimentLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
-                    AI Анализ
+                    {t("aiAnalyzeBtn")}
                   </button>
                 )}
 
@@ -484,7 +641,7 @@ export function MovieDetailPage() {
                 <div className="bg-muted border border-border rounded-xl p-4 space-y-3">
                   <div className="flex items-center gap-2">
                     <Brain className="w-3.5 h-3.5 text-primary" />
-                    <span className="text-primary text-[11px] font-bold uppercase tracking-wider">AI Sentiment</span>
+                    <span className="text-primary text-[11px] font-bold uppercase tracking-wider">{t("aiSentimentTitle")}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
@@ -493,9 +650,9 @@ export function MovieDetailPage() {
                       sentimentData.sentiment === "mixed" ? "bg-primary/15 text-primary" :
                       "bg-muted text-muted-foreground"
                     }`}>
-                      {sentimentData.sentiment === "positive" ? "Позитивный" :
-                       sentimentData.sentiment === "negative" ? "Негативный" :
-                       sentimentData.sentiment === "mixed" ? "Смешанный" : "Нейтральный"}
+                      {sentimentData.sentiment === "positive" ? t("sentimentPositive") :
+                       sentimentData.sentiment === "negative" ? t("sentimentNegative") :
+                       sentimentData.sentiment === "mixed" ? t("sentimentMixed") : t("sentimentNeutral")}
                     </span>
                     <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
                       <div
@@ -523,17 +680,17 @@ export function MovieDetailPage() {
                 <Sparkles className="w-6 h-6 text-primary" />
               </div>
               <div className="flex-1 text-center sm:text-left">
-                <h3 className="font-bold text-foreground mb-1">Оцените этот фильм</h3>
+                <h3 className="font-bold text-foreground mb-1">{t("ctaLoginTitle")}</h3>
                 <p className="text-muted-foreground text-sm">
-                  Войдите, чтобы добавить в библиотеку, поставить оценку и получать AI-рекомендации.
+                  {t("ctaLoginDesc")}
                 </p>
               </div>
               <div className="flex gap-2 shrink-0">
                 <Link to="/login" className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all">
-                  <LogIn className="w-4 h-4" /> Войти
+                  <LogIn className="w-4 h-4" /> {t("signIn")}
                 </Link>
                 <Link to="/register" className="flex items-center gap-1.5 px-4 py-2 bg-muted text-foreground border border-border rounded-xl text-sm font-medium hover:border-primary/30 transition-all">
-                  <UserPlus className="w-4 h-4" /> Регистрация
+                  <UserPlus className="w-4 h-4" /> {t("signUp")}
                 </Link>
               </div>
             </div>
@@ -545,7 +702,7 @@ export function MovieDetailPage() {
           <div className="mt-6">
             <div className="flex items-center gap-2 mb-3">
               <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Ваша рецензия</h3>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("myReview")}</h3>
             </div>
 
             <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
@@ -584,10 +741,10 @@ export function MovieDetailPage() {
                           : savedReviewData.sentiment.sentiment === "negative"
                           ? <ThumbsDown className="w-3 h-3" />
                           : <Minus className="w-3 h-3" />}
-                        {savedReviewData.sentiment.sentiment === "positive" ? "Позитивная"
-                          : savedReviewData.sentiment.sentiment === "negative" ? "Негативная"
-                          : savedReviewData.sentiment.sentiment === "mixed" ? "Смшанная"
-                          : "Нейтральная"}
+                        {savedReviewData.sentiment.sentiment === "positive" ? t("sentimentPositiveReview")
+                          : savedReviewData.sentiment.sentiment === "negative" ? t("sentimentNegativeReview")
+                          : savedReviewData.sentiment.sentiment === "mixed" ? t("sentimentMixedReview")
+                          : t("sentimentNeutralReview")}
                       </span>
                     )}
                     {savedReviewData.savedAt && (
@@ -615,9 +772,9 @@ export function MovieDetailPage() {
                       className="mt-2 pl-5 flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
                     >
                       {reviewExpanded ? (
-                        <><ChevronUp className="w-3.5 h-3.5" /> Свернуть</>
+                        <><ChevronUp className="w-3.5 h-3.5" /> {t("collapse")}</>
                       ) : (
-                        <><ChevronDown className="w-3.5 h-3.5" /> Читать полностью</>
+                        <><ChevronDown className="w-3.5 h-3.5" /> {t("readMore")}</>
                       )}
                     </button>
                   )}
@@ -646,7 +803,7 @@ export function MovieDetailPage() {
                     }}
                     className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <Pencil className="w-3 h-3" /> Редактировать
+                    <Pencil className="w-3 h-3" /> {t("editReview")}
                   </button>
                 </div>
               </div>
@@ -655,7 +812,7 @@ export function MovieDetailPage() {
         )}
 
         <p className="text-center text-muted-foreground/40 text-xs mt-10">
-          This product uses the TMDB API but is not endorsed or certified by TMDB.
+          {t("tmdbNotice")}
         </p>
 
         {/* Community Reviews */}
@@ -668,6 +825,14 @@ export function MovieDetailPage() {
           movieId={Number(id)}
           movieTitle={movie.title}
           onClose={() => setShowTrailer(false)}
+        />
+      )}
+
+      {/* Recommend to Friend Modal */}
+      {recommendFriendModal && movie && (
+        <RecommendFriendModal
+          movie={movie}
+          onClose={() => setRecommendFriendModal(false)}
         />
       )}
     </div>

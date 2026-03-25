@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { TMDB_IMG } from "../lib/api";
 import { Star, Film, Bookmark, BookmarkCheck, Check, Loader2, Play } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "../lib/auth-context";
 import { useUserData } from "../lib/user-data-context";
 import { toast } from "sonner";
@@ -16,6 +16,7 @@ interface MovieCardProps {
 
 export function MovieCard({ movie, rating, compact, showQuickActions = true }: MovieCardProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { session } = useAuth();
   const userData = (() => {
     try { return useUserData(); } catch { return null; }
@@ -57,7 +58,7 @@ export function MovieCard({ movie, rating, compact, showQuickActions = true }: M
 
   return (
     <div
-      onClick={() => navigate(`/movie/${movie.id}`)}
+      onClick={() => navigate(`/movie/${movie.id}`, { state: { from: location.pathname + location.search } })}
       className={`group cursor-pointer relative rounded-xl overflow-hidden bg-card border border-border shadow-sm transition-all duration-300 hover:scale-[1.04] hover:shadow-lg hover:border-primary/40 ${compact ? "w-32" : "w-full"}`}
     >
       {/* Poster */}

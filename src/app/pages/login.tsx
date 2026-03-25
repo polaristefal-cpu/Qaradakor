@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { login, logout, get2FAStatus, sendOtp, verifyOtp, smsLoginSend, smsLoginVerify, supabase } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
+import { useLang } from "../lib/lang-context";
 import {
   Clapperboard, Eye, EyeOff, LogIn,
   Smartphone, ShieldCheck, RefreshCw, ArrowLeft, MessageSquare,
@@ -55,6 +56,7 @@ function OtpBoxes({ value, onChange, onKeyDown, onPaste, refs }: OtpBoxesProps) 
 export function LoginPage() {
   const [step, setStep] = useState<Step>("credentials");
   const { session } = useAuth();
+  const { t } = useLang();
   const navigate = useNavigate();
 
   // Step 1 — email + password
@@ -107,7 +109,7 @@ export function LoginPage() {
     return () => clearInterval(t);
   }, [smsCooldown]);
 
-  // ── Step 1: email + password ──────────────────────────────────────────────
+  // ── Step 1: email + password ─────────────────────────────────────────────
   const handleCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -149,7 +151,29 @@ export function LoginPage() {
     next[i] = digit;
     setOtp(next);
     setOtpError("");
-    if (digit && i < 5) inputRefs.current[i + 1]?.focus();
+    if (digit && i < 5) {
+      inputRefs.current[i + 1]?.focus();
+    }
+    
+    // Auto-submit when all 6 digits are entered
+    if (digit && i === 5 && next.every(d => d)) {
+      setTimeout(async () => {
+        const code = next.join("");
+        if (code.length === 6 && !otpLoading) {
+          setOtpLoading(true);
+          try {
+            await verifyOtp(code);
+            navigate("/");
+          } catch (err: any) {
+            setOtpError(err.message);
+            setOtp(["", "", "", "", "", ""]);
+            setTimeout(() => inputRefs.current[0]?.focus(), 50);
+          } finally {
+            setOtpLoading(false);
+          }
+        }
+      }, 150);
+    }
   };
 
   const handleOtpKeyDown = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -215,7 +239,7 @@ export function LoginPage() {
       setStep("sms-otp");
       setTimeout(() => smsOtpRefs.current[0]?.focus(), 100);
     } catch (err: any) {
-      const waitMatch = err.message?.match(/(\d+)\s*сек/);
+      const waitMatch = err.message?.match(/(\d+)\s*ск/);
       if (waitMatch) {
         setSmsCooldown(parseInt(waitMatch[1]));
         setSmsError("Код уже был отправлен. Подождите перед повторной отправкой.");
@@ -235,7 +259,34 @@ export function LoginPage() {
     next[i] = digit;
     setSmsOtp(next);
     setSmsOtpError("");
-    if (digit && i < 5) smsOtpRefs.current[i + 1]?.focus();
+    if (digit && i < 5) {
+      smsOtpRefs.current[i + 1]?.focus();
+    }
+    
+    // Auto-submit when all 6 digits are entered
+    if (digit && i === 5 && next.every(d => d)) {
+      setTimeout(async () => {
+        const code = next.join("");
+        if (code.length === 6 && !smsOtpLoading) {
+          setSmsOtpLoading(true);
+          try {
+            const result = await smsLoginVerify(("7" + smsPhone).trim(), code);
+            const { error } = await supabase.auth.setSession({
+              access_token: result.access_token,
+              refresh_token: result.refresh_token,
+            });
+            if (error) throw new Error(error.message);
+            navigate("/");
+          } catch (err: any) {
+            setSmsOtpError(err.message);
+            setSmsOtp(["", "", "", "", "", ""]);
+            setTimeout(() => smsOtpRefs.current[0]?.focus(), 50);
+          } finally {
+            setSmsOtpLoading(false);
+          }
+        }
+      }, 150);
+    }
   };
 
   const handleSmsOtpKeyDown = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -299,18 +350,18 @@ export function LoginPage() {
               <Clapperboard className="w-5 h-5 text-primary-foreground" />
             </div>
             <span className="text-2xl font-black text-foreground">
-              qaradakor<span className="text-primary text-lg">.kz</span>
+              qaradakor<span className="text-primary">.kz</span>
             </span>
           </Link>
-          <p className="text-muted-foreground text-sm mt-2">Ваша персональная кинобиблиотека</p>
+          <p className="text-muted-foreground text-sm mt-2">{t("siteTagline")}</p>
         </div>
 
         {/* ── STEP: Credentials ── */}
         {step === "credentials" && (
           <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
             <div>
-              <h2 className="text-lg font-black text-foreground">Вход в аккаунт</h2>
-              <p className="text-muted-foreground text-xs mt-0.5">Введите ваш email и пароль</p>
+              <h2 className="text-lg font-black text-foreground">{t("loginTitle")}</h2>
+              <p className="text-muted-foreground text-xs mt-0.5">{t("loginSubheading")}</p>
             </div>
 
             {error && (
@@ -334,7 +385,7 @@ export function LoginPage() {
               </div>
 
               <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">Пароль</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">{t("passwordLabel")}</label>
                 <div className="relative">
                   <input
                     type={showPw ? "text" : "password"}
@@ -363,14 +414,14 @@ export function LoginPage() {
                 {loading
                   ? <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                   : <LogIn className="w-4 h-4" />}
-                {loading ? "Входим…" : "Войти"}
+                {loading ? t("signingIn") : t("signIn")}
               </button>
             </form>
 
             {/* Divider */}
             <div className="flex items-center gap-3">
               <div className="flex-1 h-px bg-border" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">или</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{t("or")}</span>
               <div className="flex-1 h-px bg-border" />
             </div>
 
@@ -380,13 +431,13 @@ export function LoginPage() {
               className="w-full flex items-center justify-center gap-2 border border-border hover:border-[#25D366]/40 text-muted-foreground hover:text-foreground bg-muted/50 hover:bg-muted rounded-xl py-2.5 text-sm font-semibold transition-all"
             >
               <WhatsAppIcon className="w-4 h-4 text-[#25D366]" />
-              Войти по WhatsApp / SMS коду
+              {t("loginByWhatsApp")}
             </button>
 
             <p className="text-center text-xs text-muted-foreground">
-              Нет аккаунта?{" "}
+              {t("noAccount")}{" "}
               <Link to="/register" className="text-primary hover:underline font-semibold">
-                Зарегистрироваться
+                {t("registerLink")}
               </Link>
             </p>
           </div>
@@ -398,7 +449,7 @@ export function LoginPage() {
             <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
               <ShieldCheck className="w-6 h-6 text-primary" />
             </div>
-            <p className="text-foreground font-bold text-sm">Проверяем настройки безопасности…</p>
+            <p className="text-foreground font-bold text-sm">{t("checkingSecurity")}</p>
             <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mt-1" />
           </div>
         )}
@@ -412,9 +463,9 @@ export function LoginPage() {
                   ? <WhatsAppIcon className="w-7 h-7 text-[#25D366]" />
                   : <ShieldCheck className="w-7 h-7 text-primary" />}
               </div>
-              <h2 className="text-lg font-black text-foreground">Двухфакторная аутентификация</h2>
+              <h2 className="text-lg font-black text-foreground">{t("twoFATitle")}</h2>
               <p className="text-muted-foreground text-xs mt-1.5 leading-relaxed">
-                {otpChannel === "whatsapp" ? "Код отправлен в" : "SMS с кодом отправлено на"}{" "}
+                {otpChannel === "whatsapp" ? t("codeSentWhatsApp") : t("codeSentSMS")}{" "}
                 {otpChannel === "whatsapp" && <span className="text-[#25D366] font-bold">WhatsApp</span>}
                 {otpChannel === "whatsapp" ? " на номер" : ""}<br />
                 <span className="text-foreground font-semibold">{maskedPhone}</span>
@@ -430,7 +481,7 @@ export function LoginPage() {
             <form onSubmit={handleVerifyOtp} className="space-y-4">
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-3 text-center">
-                  Введите 6-значный код
+                  {t("enterSixDigit")}
                 </label>
                 <OtpBoxes
                   value={otp}
@@ -449,7 +500,7 @@ export function LoginPage() {
                 {otpLoading
                   ? <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                   : <ShieldCheck className="w-4 h-4" />}
-                {otpLoading ? "Проверяем…" : "Подтвердить"}
+                {otpLoading ? t("verifying") : t("confirm")}
               </button>
             </form>
 
@@ -459,7 +510,7 @@ export function LoginPage() {
                 className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                Назад
+                {t("back")}
               </button>
               <button
                 onClick={handleResend}
@@ -467,7 +518,7 @@ export function LoginPage() {
                 className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                {resendCooldown > 0 ? `Повторить (${resendCooldown}с)` : "Отправить снова"}
+                {resendCooldown > 0 ? `${t("resendIn")} (${resendCooldown}с)` : t("resend")}
               </button>
             </div>
 
@@ -477,8 +528,8 @@ export function LoginPage() {
                 : <Smartphone className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />}
               <p className="text-muted-foreground text-[11px] leading-relaxed">
                 {otpChannel === "whatsapp"
-                  ? <>Код отправлен в <strong className="text-[#25D366]">WhatsApp</strong>. Действителен <strong className="text-foreground">5 минут</strong>.</>
-                  : <>Код действителен <strong className="text-foreground">5 минут</strong>. До 3 попыток ввода.</>}
+                  ? <>{t("codeWhatsAppInfo")}</>
+                  : <>{t("codeSMSInfo")}</>}
               </p>
             </div>
           </div>
@@ -495,8 +546,8 @@ export function LoginPage() {
                 <ArrowLeft className="w-4 h-4" />
               </button>
               <div>
-                <h2 className="text-lg font-black text-foreground">Вход по WhatsApp / SMS</h2>
-                <p className="text-muted-foreground text-xs">Введите номер привязанного телефона</p>
+                <h2 className="text-lg font-black text-foreground">{t("smsLoginTitle")}</h2>
+                <p className="text-muted-foreground text-xs">{t("smsLoginSubheading")}</p>
               </div>
             </div>
 
@@ -509,7 +560,7 @@ export function LoginPage() {
             <form onSubmit={handleSmsLoginSend} className="space-y-4">
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">
-                  Номер телефона
+                  {t("phoneLabel")}
                 </label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-semibold pointer-events-none select-none">
@@ -517,21 +568,21 @@ export function LoginPage() {
                   </span>
                   <input
                     type="tel"
-                    value={smsPhone}
+                    value={smsPhone.replace(/(\d{3})(\d{3})(\d{2})(\d{2})/, '$1-$2-$3-$4').replace(/(\d{3})(\d{3})(\d{1,2})$/, '$1-$2-$3').replace(/(\d{3})(\d{1,3})$/, '$1-$2')}
                     onChange={(e) => {
                       const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
                       setSmsPhone(digits);
                       setSmsError("");
                     }}
                     className="w-full bg-muted border border-border rounded-xl pl-10 pr-3.5 py-2.5 text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition"
-                    placeholder="707 123 45 67"
+                    placeholder="776-393-33-36"
                     inputMode="numeric"
                     autoComplete="tel"
-                    maxLength={10}
+                    maxLength={13}
                   />
                 </div>
                 <p className="text-[10px] text-muted-foreground/60 mt-1.5 px-1">
-                  Номер должен быть привязан в настройках профиля (раздел 2FA)
+                  {t("phoneMustBeLinked")}
                 </p>
               </div>
 
@@ -543,15 +594,14 @@ export function LoginPage() {
                 {smsLoading
                   ? <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
                   : <WhatsAppIcon className="w-4 h-4 text-primary-foreground" />}
-                {smsLoading ? "Отправляем…" : "Получить код в WhatsApp / SMS"}
+                {smsLoading ? t("sendingCode") : t("getCodeBtn")}
               </button>
             </form>
 
             <div className="flex items-start gap-2.5 bg-muted/60 border border-border rounded-xl p-3">
               <Smartphone className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
               <p className="text-muted-foreground text-[11px] leading-relaxed">
-                Работает только для аккаунтов с <strong className="text-foreground">привязанным телефоном</strong>.
-                Добавьте номер в разделе Профиль → 2FA.
+                {t("smsLoginInfo")}
               </p>
             </div>
           </div>
@@ -567,11 +617,11 @@ export function LoginPage() {
                   ? <WhatsAppIcon className="w-7 h-7 text-[#25D366]" />
                   : <MessageSquare className="w-7 h-7 text-primary-foreground" />}
               </div>
-              <h2 className="text-lg font-black text-foreground">Код отправлен</h2>
+              <h2 className="text-lg font-black text-foreground">{t("codeSentTitle")}</h2>
               <p className="text-muted-foreground text-xs mt-1.5 leading-relaxed">
                 {smsChannel === "whatsapp"
-                  ? <><span className="text-[#25D366] font-bold">WhatsApp</span> сообщение отправлено на</>
-                  : "SMS с кодом для входа отправлено на"}<br />
+                  ? <><span className="text-[#25D366] font-bold">WhatsApp</span> {t("codeSentWhatsApp")}</>
+                  : t("codeSentSMSDesc")}<br />
                 <span className="text-foreground font-semibold">{smsMasked}</span>
               </p>
             </div>
@@ -587,7 +637,7 @@ export function LoginPage() {
             <form onSubmit={handleSmsOtpVerify} className="space-y-4">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-center mb-3">
-                  Введите 6-значный код
+                  {t("enterSixDigit")}
                 </p>
                 <OtpBoxes
                   value={smsOtp}
@@ -601,45 +651,31 @@ export function LoginPage() {
               <button
                 type="submit"
                 disabled={smsOtpLoading || smsOtp.join("").length < 6}
-                className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 font-semibold py-3 rounded-xl transition-all shadow-md shadow-primary/20 text-sm"
+                className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 font-semibold py-3 rounded-xl transition-all shadow-sm text-sm"
               >
                 {smsOtpLoading
                   ? <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                  : <span className="text-base">→</span>}
-                {smsOtpLoading ? "Входим…" : "Войти"}
+                  : <ShieldCheck className="w-4 h-4" />}
+                {smsOtpLoading ? t("verifying") : t("signIn")}
               </button>
             </form>
 
-            {/* Bottom actions */}
             <div className="flex items-center justify-between">
               <button
-                onClick={() => { setStep("sms-phone"); setSmsOtp(["", "", "", "", "", ""]); setSmsOtpError(""); }}
+                onClick={() => setStep("sms-phone")}
                 className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                Изменить номер
+                {t("back")}
               </button>
               <button
                 onClick={handleSmsResend}
                 disabled={smsCooldown > 0 || smsLoading}
                 className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 disabled:text-muted-foreground disabled:cursor-not-allowed transition-colors"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${smsLoading ? "animate-spin" : ""}`} />
-                {smsCooldown > 0 ? `Повторить (${smsCooldown}с)` : "Повторить"}
+                <RefreshCw className="w-3.5 h-3.5" />
+                {smsCooldown > 0 ? `${t("resendIn")} (${smsCooldown}с)` : t("resend")}
               </button>
-            </div>
-
-            {/* Info box */}
-            <div className={`flex items-start gap-2.5 rounded-xl p-3 ${smsChannel === "whatsapp" ? "bg-[#25D366]/8 border border-[#25D366]/20" : "bg-muted/60 border border-border"}`}>
-              {smsChannel === "whatsapp"
-                ? <WhatsAppIcon className="w-4 h-4 text-[#25D366] shrink-0 mt-0.5" />
-                : <Smartphone className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />}
-              <p className="text-muted-foreground text-[11px] leading-relaxed">
-                {smsChannel === "whatsapp"
-                  ? <>Код отправлен в <strong className="text-[#25D366]">WhatsApp</strong>. Действителен <strong className="text-foreground">5 минут</strong>.</>
-                  : <>Код действителен <strong className="text-foreground">5 минут</strong>. До 3 попыток ввода.</>}{" "}
-                <span className="text-primary">Никому не сообщайте код.</span>
-              </p>
             </div>
           </div>
         )}

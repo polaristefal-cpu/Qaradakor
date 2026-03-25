@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Clapperboard, Heart, Github, Mail } from "lucide-react";
+import { Clapperboard, Heart, Github, Mail, Instagram, MessageCircle } from "lucide-react";
 
 export function Footer() {
   const year = 2026;
@@ -27,6 +27,28 @@ export function Footer() {
             <p className="text-muted-foreground/60 text-[11px] font-semibold uppercase tracking-wider">
               Некоммерческий проект
             </p>
+            
+            {/* Social Links */}
+            <div className="flex items-center gap-2.5 mt-1">
+              <a
+                href="https://www.instagram.com/qaradakor.kz"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-8 h-8 rounded-lg bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all"
+                aria-label="Instagram"
+              >
+                <Instagram className="w-4 h-4" />
+              </a>
+              <a
+                href="https://wa.me/77074623075"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-8 h-8 rounded-lg bg-muted border border-border flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/50 hover:bg-primary/5 transition-all"
+                aria-label="WhatsApp"
+              >
+                <MessageCircle className="w-4 h-4" />
+              </a>
+            </div>
           </div>
 
           {/* Nav columns */}
@@ -83,7 +105,7 @@ export function Footer() {
           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/50 mb-2">
             Дипломная работа
           </p>
-          <p className="text-sm text-foreground font-bold">Ernat Koptileu <span className="text-muted-foreground font-normal">(SIS-2202)</span></p>
+          <p className="text-sm text-foreground font-bold">Yernat Koptileu <span className="text-muted-foreground font-normal">(SIS-2202)</span></p>
           <p className="text-xs text-muted-foreground mt-0.5">
             International Information Technology University, Almaty — {year}
           </p>

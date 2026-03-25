@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { getWatchlist, removeFromWatchlist, TMDB_IMG } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
+import { useLang } from "../lib/lang-context";
 import {
   Bookmark, Trash2, Loader2, Film, Search,
   Star, Calendar, SortAsc, SortDesc, Filter,
@@ -22,6 +23,7 @@ type SortKey = "addedAt" | "title" | "vote_average" | "release_date";
 export function WatchlistPage() {
   const { session } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLang();
   const [items, setItems] = useState<WatchlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [removing, setRemoving] = useState<number | null>(null);
@@ -33,7 +35,7 @@ export function WatchlistPage() {
     if (!session) { navigate("/login"); return; }
     getWatchlist()
       .then((data) => setItems(Array.isArray(data) ? data : []))
-      .catch(() => toast.error("Не удалось загрузить список"))
+      .catch(() => toast.error(t("failedToLoad")))
       .finally(() => setLoading(false));
   }, [session]);
 
@@ -42,196 +44,168 @@ export function WatchlistPage() {
     try {
       await removeFromWatchlist(movieId);
       setItems((prev) => prev.filter((m) => m.movieId !== movieId));
-      toast.success(`«${title}» удалён из списка`);
+      toast.success(`«${title}» ${t("removedFromList")}`);
     } catch {
-      toast.error("Не удалось удалить");
+      toast.error(t("failedToRemove"));
     } finally {
       setRemoving(null);
     }
   };
 
-  const filtered = items
-    .filter((m) => m.title.toLowerCase().includes(search.toLowerCase()))
+  const sorted = [...items]
+    .filter((m) => !search || m.title.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => {
-      let cmp = 0;
-      if (sortKey === "addedAt") cmp = new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime();
-      else if (sortKey === "title") cmp = a.title.localeCompare(b.title, "ru");
-      else if (sortKey === "vote_average") cmp = (a.vote_average || 0) - (b.vote_average || 0);
-      else if (sortKey === "release_date") cmp = (a.release_date || "").localeCompare(b.release_date || "");
-      return sortAsc ? cmp : -cmp;
+      const mul = sortAsc ? 1 : -1;
+      if (sortKey === "addedAt") return mul * (new Date(a.addedAt).getTime() - new Date(b.addedAt).getTime());
+      if (sortKey === "title") return mul * a.title.localeCompare(b.title);
+      if (sortKey === "vote_average") return mul * ((a.vote_average || 0) - (b.vote_average || 0));
+      if (sortKey === "release_date") return mul * (a.release_date || "").localeCompare(b.release_date || "");
+      return 0;
     });
 
-  const toggleSort = (key: SortKey) => {
-    if (sortKey === key) setSortAsc((v) => !v);
-    else { setSortKey(key); setSortAsc(false); }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-32 gap-3">
-        <Loader2 className="w-9 h-9 text-primary animate-spin" />
-        <p className="text-muted-foreground text-sm">Загружаем список…</p>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="flex justify-center items-center h-64">
+      <Loader2 className="w-8 h-8 text-primary animate-spin" />
+    </div>
+  );
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-5xl mx-auto px-4 py-8">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center gap-3 mb-1">
-          <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Bookmark className="w-4.5 h-4.5 text-primary" />
-          </div>
-          <h1 className="text-2xl font-black text-foreground">Хочу посмотреть</h1>
-          {items.length > 0 && (
-            <span className="text-xs font-bold text-muted-foreground bg-muted border border-border px-2.5 py-1 rounded-full">
-              {items.length}
-            </span>
-          )}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+          <Bookmark className="w-5 h-5 text-primary" />
         </div>
-        <p className="text-muted-foreground text-sm ml-12">
-          Фильмы, которые вы планируете посмотреть
-        </p>
+        <div>
+          <h1 className="text-2xl font-black text-foreground">{t("watchlistTitle")}</h1>
+          <p className="text-muted-foreground text-sm">{items.length} {t("moviesCount")}</p>
+        </div>
       </div>
 
-      {/* Empty state */}
+      {/* Empty */}
       {items.length === 0 && (
-        <div className="bg-card border border-border rounded-2xl p-12 flex flex-col items-center text-center shadow-sm">
-          <div className="w-16 h-16 rounded-2xl bg-primary/5 flex items-center justify-center mb-4">
-            <Bookmark className="w-8 h-8 text-primary/30" />
+        <div className="flex flex-col items-center justify-center py-24 gap-5 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-muted border border-border flex items-center justify-center">
+            <Bookmark className="w-8 h-8 text-muted-foreground/30" />
           </div>
-          <h2 className="text-foreground font-bold text-lg mb-2">Список пуст</h2>
-          <p className="text-muted-foreground text-sm max-w-xs leading-relaxed mb-6">
-            Находите фильмы и нажимайте «Хочу посмотреть» — они появятся здесь
-          </p>
+          <div>
+            <h2 className="text-lg font-bold text-foreground mb-1">{t("emptyWatchlist")}</h2>
+            <p className="text-muted-foreground text-sm">{t("emptyWatchlistDesc")}</p>
+          </div>
           <button
-            onClick={() => navigate("/search")}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm"
+            onClick={() => navigate("/")}
+            className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all shadow-sm"
           >
-            <Search className="w-4 h-4" />
-            Найти фильмы
+            {t("browseMovies")}
           </button>
         </div>
       )}
 
-      {/* Controls */}
+      {/* Toolbar */}
       {items.length > 0 && (
-        <div className="flex flex-col sm:flex-row gap-3 mb-5">
-          {/* Search */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="flex flex-col sm:flex-row gap-2.5 mb-5">
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Поиск по названию…"
-              className="w-full bg-card border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition"
+              placeholder={t("searchWatchlist")}
+              className="w-full bg-card border border-border rounded-xl pl-9 pr-3 py-2 text-foreground placeholder:text-muted-foreground/50 text-sm focus:outline-none focus:border-primary transition"
             />
           </div>
-          {/* Sort buttons */}
-          <div className="flex items-center gap-1.5 bg-card border border-border rounded-xl p-1">
-            {(
-              [
-                { key: "addedAt", label: "Дата" },
-                { key: "title", label: "Название" },
-                { key: "vote_average", label: "Рейтинг" },
-              ] as { key: SortKey; label: string }[]
-            ).map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => toggleSort(key)}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  sortKey === key
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-              >
-                {label}
-                {sortKey === key && (sortAsc ? <SortAsc className="w-3 h-3" /> : <SortDesc className="w-3 h-3" />)}
-              </button>
-            ))}
-          </div>
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+            className="bg-card border border-border rounded-xl px-3 py-2 text-foreground text-sm focus:outline-none focus:border-primary transition cursor-pointer"
+          >
+            <option value="addedAt">{t("sortByAddedDate")}</option>
+            <option value="title">{t("sortByTitle")}</option>
+            <option value="vote_average">{t("sortByVote")}</option>
+            <option value="release_date">{t("sortByRelease")}</option>
+          </select>
+          <button
+            onClick={() => setSortAsc(!sortAsc)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border rounded-xl text-muted-foreground hover:text-foreground hover:border-primary/30 transition text-sm"
+          >
+            {sortAsc ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
+          </button>
         </div>
       )}
 
-      {/* No results after search */}
-      {items.length > 0 && filtered.length === 0 && (
-        <div className="text-center py-12">
-          <Film className="w-10 h-10 text-muted-foreground/20 mx-auto mb-3" />
-          <p className="text-muted-foreground text-sm">Ничего не найдено</p>
-        </div>
-      )}
-
-      {/* Grid */}
-      {filtered.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {filtered.map((movie) => (
+      {/* List */}
+      {sorted.length > 0 && (
+        <div className="space-y-2">
+          {sorted.map((item) => (
             <div
-              key={movie.movieId}
-              className="group bg-card border border-border rounded-2xl overflow-hidden hover:border-primary/30 hover:shadow-lg transition-all cursor-pointer relative"
-              onClick={() => navigate(`/movie/${movie.movieId}`)}
+              key={item.movieId}
+              className="flex items-center gap-4 bg-card border border-border rounded-xl p-3.5 hover:border-primary/30 transition-all group shadow-sm"
             >
               {/* Poster */}
-              <div className="relative aspect-[2/3] bg-muted overflow-hidden">
-                {movie.poster_path ? (
+              <div
+                onClick={() => navigate(`/movie/${item.movieId}`)}
+                className="shrink-0 cursor-pointer"
+              >
+                {item.poster_path ? (
                   <img
-                    src={`${TMDB_IMG}/w342${movie.poster_path}`}
-                    alt={movie.title}
-                    className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-300"
+                    src={`${TMDB_IMG}/w92${item.poster_path}`}
+                    alt={item.title}
+                    className="w-12 h-[72px] rounded-lg object-cover shadow-sm group-hover:shadow-md transition-shadow"
                     loading="lazy"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Film className="w-10 h-10 text-muted-foreground/20" />
+                  <div className="w-12 h-[72px] rounded-lg bg-muted flex items-center justify-center">
+                    <Film className="w-5 h-5 text-muted-foreground/30" />
                   </div>
                 )}
-
-                {/* Rating badge */}
-                {movie.vote_average > 0 && (
-                  <div className="absolute top-2 left-2 bg-black/70 backdrop-blur rounded-lg px-1.5 py-0.5 flex items-center gap-1">
-                    <Star className="w-2.5 h-2.5 text-primary fill-primary" />
-                    <span className="text-white text-[10px] font-bold">{movie.vote_average.toFixed(1)}</span>
-                  </div>
-                )}
-
-                {/* Remove button */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleRemove(movie.movieId, movie.title); }}
-                  disabled={removing === movie.movieId}
-                  className="absolute top-2 right-2 w-7 h-7 bg-black/60 backdrop-blur rounded-lg flex items-center justify-center text-white hover:bg-destructive/80 transition-all opacity-0 group-hover:opacity-100"
-                  title="Удалить из списка"
-                >
-                  {removing === movie.movieId
-                    ? <Loader2 className="w-3 h-3 animate-spin" />
-                    : <Trash2 className="w-3 h-3" />
-                  }
-                </button>
-
-                {/* Hover overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end p-3">
-                  <p className="text-white text-xs font-semibold leading-tight line-clamp-2">{movie.title}</p>
-                </div>
               </div>
 
               {/* Info */}
-              <div className="p-3">
-                <h3 className="text-foreground text-xs font-bold leading-tight line-clamp-2 mb-1.5">
-                  {movie.title}
-                </h3>
-                <div className="flex items-center justify-between">
-                  {movie.release_date && (
-                    <span className="text-muted-foreground text-[10px] flex items-center gap-0.5">
-                      <Calendar className="w-2.5 h-2.5" />
-                      {movie.release_date.slice(0, 4)}
+              <div
+                className="flex-1 min-w-0 cursor-pointer"
+                onClick={() => navigate(`/movie/${item.movieId}`)}
+              >
+                <p className="text-foreground font-semibold text-sm truncate group-hover:text-primary transition-colors">
+                  {item.title}
+                </p>
+                <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+                  {item.release_date && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      {item.release_date.slice(0, 4)}
                     </span>
                   )}
-                  <span className="text-muted-foreground/50 text-[9px]">
-                    {new Date(movie.addedAt).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}
-                  </span>
+                  {item.vote_average > 0 && (
+                    <span className="flex items-center gap-1">
+                      <Star className="w-3 h-3 text-primary fill-primary" />
+                      {item.vote_average.toFixed(1)}
+                    </span>
+                  )}
                 </div>
+                <p className="text-[10px] text-muted-foreground/50 mt-1">
+                  {t("addedAt")} {new Date(item.addedAt).toLocaleDateString()}
+                </p>
               </div>
+
+              {/* Remove */}
+              <button
+                onClick={() => handleRemove(item.movieId, item.title)}
+                disabled={removing === item.movieId}
+                className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/20 transition-all opacity-0 group-hover:opacity-100"
+              >
+                {removing === item.movieId
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Trash2 className="w-3.5 h-3.5" />}
+              </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* No search results */}
+      {sorted.length === 0 && items.length > 0 && (
+        <div className="text-center py-12 text-muted-foreground">
+          <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
+          <p>{t("noResults")}</p>
         </div>
       )}
     </div>

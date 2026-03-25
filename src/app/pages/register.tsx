@@ -1,19 +1,26 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { signup, login } from "../lib/api";
+import { useLang } from "../lib/lang-context";
 import { Clapperboard, UserPlus } from "lucide-react";
 
 export function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { t } = useLang();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (password !== confirmPw) {
+      setError(t("passwordsNoMatch"));
+      return;
+    }
     setLoading(true);
     try {
       await signup(email, password, name);
@@ -25,10 +32,6 @@ export function RegisterPage() {
       setLoading(false);
     }
   };
-
-  const inputClass =
-    "w-full bg-muted border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition";
-  const labelClass = "text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5";
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -45,14 +48,13 @@ export function RegisterPage() {
               qaradakor<span className="text-primary text-lg">.kz</span>
             </span>
           </Link>
-          <p className="text-muted-foreground text-sm mt-2">Создайте аккаунт — это бесплатно</p>
+          <p className="text-muted-foreground text-sm mt-2">{t("siteTagline")}</p>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
+        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm space-y-4">
           <div>
-            <h2 className="text-lg font-black text-foreground">Регистрация</h2>
-            <p className="text-muted-foreground text-xs mt-0.5">Заполните данные для создания аккаунта</p>
+            <h2 className="text-lg font-black text-foreground">{t("registerTitle")}</h2>
+            <p className="text-muted-foreground text-xs mt-0.5">{t("registerSubheading")}</p>
           </div>
 
           {error && (
@@ -61,73 +63,77 @@ export function RegisterPage() {
             </div>
           )}
 
-          <div>
-            <label className={labelClass}>Имя</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={inputClass}
-              placeholder="Ваше имя"
-              required
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">{t("nameLabel")}</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full bg-muted border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition"
+                placeholder={t("namePlaceholder")}
+                required
+              />
+            </div>
 
-          <div>
-            <label className={labelClass}>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={inputClass}
-              placeholder="you@example.com"
-              required
-            />
-          </div>
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-muted border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition"
+                placeholder="you@example.com"
+                required
+                autoComplete="email"
+              />
+            </div>
 
-          <div>
-            <label className={labelClass}>Пароль</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={inputClass}
-              placeholder="Минимум 6 символов"
-              required
-              minLength={6}
-            />
-          </div>
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">{t("passwordLabel")}</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-muted border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition"
+                placeholder="••••••••"
+                required
+                autoComplete="new-password"
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 font-semibold py-2.5 rounded-xl transition-all shadow-sm hover:shadow-md hover:shadow-primary/20 text-sm"
-          >
-            {loading ? (
-              <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <UserPlus className="w-4 h-4" />
-            )}
-            {loading ? "Создание аккаунта..." : "Создать аккаунт"}
-          </button>
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1.5">{t("confirmPassword")}</label>
+              <input
+                type="password"
+                value={confirmPw}
+                onChange={(e) => setConfirmPw(e.target.value)}
+                className="w-full bg-muted border border-border rounded-xl px-3.5 py-2.5 text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition"
+                placeholder={t("confirmPasswordPlaceholder")}
+                required
+                autoComplete="new-password"
+              />
+            </div>
 
-          {/* Benefits */}
-          <div className="bg-muted rounded-xl p-3 space-y-1.5">
-            {["Личная кинобиблиотека", "AI-рекомендации", "Система друзей", "AI-чатбот"].map((f) => (
-              <div key={f} className="flex items-center gap-2">
-                <div className="w-1 h-1 rounded-full bg-primary shrink-0" />
-                <span className="text-muted-foreground text-xs">{f}</span>
-              </div>
-            ))}
-          </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 font-semibold py-2.5 rounded-xl transition-all shadow-sm hover:shadow-md hover:shadow-primary/20 text-sm"
+            >
+              {loading
+                ? <div className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
+                : <UserPlus className="w-4 h-4" />}
+              {loading ? t("registering") : t("registerTitle")}
+            </button>
+          </form>
 
           <p className="text-center text-xs text-muted-foreground">
-            Уже есть аккаунт?{" "}
+            {t("alreadyHaveAccount")}{" "}
             <Link to="/login" className="text-primary hover:underline font-semibold">
-              Войти
+              {t("signInLink")}
             </Link>
           </p>
-        </form>
+        </div>
       </div>
     </div>
   );

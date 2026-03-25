@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import {
   getFriends, getFriendRequests, sendFriendRequest,
   acceptFriend, rejectFriend, removeFriend,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useNavigate } from "react-router";
+import { useLang } from "../lib/lang-context";
 
 type Tab = "friends" | "requests" | "recommendations";
 
@@ -72,7 +73,7 @@ function FriendCard({
 }
 
 // ── Recommendation card ────────────────────────────────────────────────────────
-function RecommendCard({ rec, onMarkSeen }: { rec: any; onMarkSeen: (id: string) => void }) {
+function RecommendationCard({ rec, onOpen }: { rec: any; onOpen: () => void }) {
   const navigate = useNavigate();
   return (
     <div
@@ -140,7 +141,7 @@ function RecommendCard({ rec, onMarkSeen }: { rec: any; onMarkSeen: (id: string)
           </button>
           {!rec.seen && (
             <button
-              onClick={() => onMarkSeen(rec.id)}
+              onClick={() => onOpen()}
               className="px-3 py-1.5 rounded-lg bg-muted border border-border text-muted-foreground text-xs hover:text-foreground transition text-center"
             >
               Отметить
@@ -152,16 +153,57 @@ function RecommendCard({ rec, onMarkSeen }: { rec: any; onMarkSeen: (id: string)
   );
 }
 
+// ── Request card ───────────────────────────────────────────────────────────────
+function RequestCard({
+  request,
+  onAccept,
+  onDecline,
+  loading,
+}: {
+  request: any;
+  onAccept: () => void;
+  onDecline: () => void;
+  loading: boolean;
+}) {
+  return (
+    <div
+      className="bg-card border border-border rounded-2xl p-4 flex items-center gap-3 shadow-sm"
+    >
+      <Avatar name={request.fromName || "?"} />
+      <div className="flex-1 min-w-0">
+        <p className="text-foreground font-semibold text-sm">{request.fromName}</p>
+        <p className="text-muted-foreground text-xs">{request.fromEmail}</p>
+      </div>
+      <div className="flex gap-2 shrink-0">
+        <button
+          onClick={onAccept}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition"
+        >
+          <Check className="w-3.5 h-3.5" /> Принять
+        </button>
+        <button
+          onClick={onDecline}
+          className="w-8 h-8 rounded-lg bg-muted text-muted-foreground hover:bg-destructive/10 hover:text-destructive border border-border flex items-center justify-center transition"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 export function FriendsPage() {
   const navigate = useNavigate();
+  const { t } = useLang();
   const [tab, setTab] = useState<Tab>("friends");
   const [friends, setFriends] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
+  const [searchEmail, setSearchEmail] = useState("");
+  const [sendingReq, setSendingReq] = useState(false);
+  const [actionId, setActionId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -183,36 +225,40 @@ export function FriendsPage() {
 
   useEffect(() => { load(); }, []);
 
-  const handleSend = async (e: React.FormEvent) => {
+  const handleSendRequest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
-    setSending(true);
+    if (!searchEmail.trim()) return;
+    setSendingReq(true);
     try {
-      await sendFriendRequest(email);
+      await sendFriendRequest(searchEmail);
       toast.success("Запрос дружбы отправлен!");
-      setEmail("");
+      setSearchEmail("");
     } catch (err: any) {
       toast.error(err.message);
     } finally {
-      setSending(false);
+      setSendingReq(false);
     }
   };
 
-  const handleAccept = async (fromId: string) => {
-    await acceptFriend(fromId);
+  const handleAccept = async (id: string) => {
+    setActionId(id);
+    await acceptFriend(id);
     toast.success("Друг добавлен!");
     load();
+    setActionId(null);
   };
 
-  const handleReject = async (fromId: string) => {
-    await rejectFriend(fromId);
+  const handleDecline = async (id: string) => {
+    setActionId(id);
+    await rejectFriend(id);
     toast.info("Запрос отклонён");
     load();
+    setActionId(null);
   };
 
-  const handleRemove = async (friendId: string) => {
+  const handleRemoveFriend = async (id: string) => {
     if (!confirm("Удалить из друзей?")) return;
-    await removeFriend(friendId);
+    await removeFriend(id);
     toast.success("Удалён из друзей");
     load();
   };
@@ -228,194 +274,122 @@ export function FriendsPage() {
 
   const newRecs = recommendations.filter((r) => !r.seen).length;
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-32 gap-3">
-        <Loader2 className="w-9 h-9 text-primary animate-spin" />
-        <p className="text-muted-foreground text-sm">Загрузка...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 mb-6">
         <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-          <Users className="w-5 h-5 text-primary" />
+          <Users className="w-5.5 h-5.5 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-black text-foreground">Друзья</h1>
-          <p className="text-muted-foreground text-sm">
-            {friends.length} друг{friends.length === 1 ? "" : friends.length < 5 ? "а" : "ей"} · смотрите профили и рекомендации
-          </p>
+          <h1 className="text-2xl font-black text-foreground">{t("friendsTitle")}</h1>
+          <p className="text-muted-foreground text-sm">{friends.length} {t("myFriendsList")}</p>
         </div>
       </div>
 
       {/* Add friend */}
-      <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
-        <h3 className="text-foreground font-bold flex items-center gap-2 mb-3 text-sm">
-          <UserPlus className="w-4 h-4 text-primary" /> Добавить друга по email
-        </h3>
-        <form onSubmit={handleSend} className="flex gap-2.5">
-          <div className="relative flex-1">
-            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="email@example.com"
-              className="w-full bg-muted border border-border rounded-xl pl-9 pr-4 py-2.5 text-foreground placeholder:text-muted-foreground/50 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={sending}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm shrink-0 flex items-center gap-2"
-          >
-            {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Отправить
-          </button>
-        </form>
-      </div>
+      <form onSubmit={handleSendRequest} className="flex gap-2.5 mb-6">
+        <div className="relative flex-1">
+          <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="email"
+            value={searchEmail}
+            onChange={(e) => setSearchEmail(e.target.value)}
+            placeholder={t("searchByEmail")}
+            className="w-full bg-card border border-border rounded-xl pl-10 pr-3 py-2.5 text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={sendingReq || !searchEmail.trim()}
+          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-all shadow-sm"
+        >
+          {sendingReq ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+          {t("sendRequest")}
+        </button>
+      </form>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-muted p-1 rounded-xl border border-border">
-        {([
-          { key: "friends", label: "Друзья", count: friends.length },
-          { key: "requests", label: "Запросы", count: requests.length },
-          { key: "recommendations", label: "Рекомендации", count: newRecs },
-        ] as { key: Tab; label: string; count: number }[]).map(({ key, label, count }) => (
+      <div className="flex gap-1 mb-6 bg-muted p-1 rounded-xl">
+        {(["friends", "requests", "recommendations"] as Tab[]).map((tabKey) => (
           <button
-            key={key}
-            onClick={() => setTab(key)}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-all ${
-              tab === key
-                ? "bg-card text-foreground shadow-sm border border-border"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+            key={tabKey}
+            onClick={() => setTab(tabKey)}
+            className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${tab === tabKey ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
-            {label}
-            {count > 0 && (
-              <span
-                className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                  tab === key ? "bg-primary text-primary-foreground" : "bg-border text-muted-foreground"
-                }`}
-              >
-                {count}
-              </span>
-            )}
+            {tabKey === "friends" ? t("myFriendsList") : tabKey === "requests" ? `${t("requestsTab")} ${requests.length > 0 ? `(${requests.length})` : ""}` : t("recommendationsTab")}
           </button>
         ))}
       </div>
 
-      {/* ── Tab: Friends ───────────────────────────────────────────────────── */}
-      {tab === "friends" && (
-        <div>
+      {/* Loading */}
+      {loading && <div className="flex justify-center py-20"><Loader2 className="w-7 h-7 text-primary animate-spin" /></div>}
+
+      {/* Friends tab */}
+      {!loading && tab === "friends" && (
+        <div className="space-y-2">
           {friends.length === 0 ? (
-            <div className="text-center py-16 bg-card border border-border rounded-2xl">
-              <div className="w-14 h-14 rounded-2xl bg-muted border border-border inline-flex items-center justify-center mb-4">
-                <Users className="w-7 h-7 text-muted-foreground/30" />
+            <div className="flex flex-col items-center gap-4 py-20 text-center">
+              <Users className="w-12 h-12 text-muted-foreground/20" />
+              <div>
+                <p className="font-semibold text-foreground">{t("noFriends")}</p>
+                <p className="text-muted-foreground text-sm mt-1">{t("noFriendsDesc")}</p>
               </div>
-              <p className="text-foreground font-semibold text-sm">Нет друзей</p>
-              <p className="text-muted-foreground text-xs mt-1">Отправьте запрос по email выше</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {friends.map((f: any) => (
-                <FriendCard
-                  key={f.id}
-                  friend={f}
-                  onRemove={() => handleRemove(f.id)}
-                  onProfile={() =>
-                    navigate(`/friends/${f.id}`, {
-                      state: { name: f.name, email: f.email },
-                    })
-                  }
+            friends.map((f) => (
+              <FriendCard
+                key={f.id}
+                friend={f}
+                onRemove={() => handleRemoveFriend(f.id)}
+                onProfile={() => navigate(`/friends/${f.id}`)}
+              />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Requests tab */}
+      {!loading && tab === "requests" && (
+        <div className="space-y-2">
+          {requests.length === 0 ? (
+            <div className="flex flex-col items-center gap-4 py-20 text-center">
+              <Bell className="w-12 h-12 text-muted-foreground/20" />
+              <p className="text-muted-foreground">{t("noRequests")}</p>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">{t("incomingRequests")}</p>
+              {requests.map((r) => (
+                <RequestCard
+                  key={r.id}
+                  request={r}
+                  onAccept={() => handleAccept(r.id)}
+                  onDecline={() => handleDecline(r.id)}
+                  loading={actionId === r.id}
                 />
               ))}
-            </div>
+            </>
           )}
         </div>
       )}
 
-      {/* ── Tab: Requests ──────────────────────────────────────────────────── */}
-      {tab === "requests" && (
-        <div>
-          {requests.length === 0 ? (
-            <div className="text-center py-16 bg-card border border-border rounded-2xl">
-              <div className="w-14 h-14 rounded-2xl bg-muted border border-border inline-flex items-center justify-center mb-4">
-                <Bell className="w-7 h-7 text-muted-foreground/30" />
-              </div>
-              <p className="text-foreground font-semibold text-sm">Нет входящих запросов</p>
-              <p className="text-muted-foreground text-xs mt-1">Когда кто-то пришлёт запрос, он появится здесь</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {requests.map((r: any) => (
-                <div
-                  key={r.fromId}
-                  className="bg-card border border-border rounded-2xl p-4 flex items-center gap-3 shadow-sm"
-                >
-                  <Avatar name={r.fromName || "?"} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-foreground font-semibold text-sm">{r.fromName}</p>
-                    <p className="text-muted-foreground text-xs">{r.fromEmail}</p>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      onClick={() => handleAccept(r.fromId)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition"
-                    >
-                      <Check className="w-3.5 h-3.5" /> Принять
-                    </button>
-                    <button
-                      onClick={() => handleReject(r.fromId)}
-                      className="w-8 h-8 rounded-lg bg-muted text-muted-foreground hover:bg-destructive/10 hover:text-destructive border border-border flex items-center justify-center transition"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Tab: Recommendations ───────────────────────────────────────────── */}
-      {tab === "recommendations" && (
-        <div>
+      {/* Recommendations tab */}
+      {!loading && tab === "recommendations" && (
+        <div className="space-y-3">
           {recommendations.length === 0 ? (
-            <div className="text-center py-16 bg-card border border-border rounded-2xl">
-              <div className="w-14 h-14 rounded-2xl bg-muted border border-border inline-flex items-center justify-center mb-4">
-                <Film className="w-7 h-7 text-muted-foreground/30" />
-              </div>
-              <p className="text-foreground font-semibold text-sm">Нет рекомендаций</p>
-              <p className="text-muted-foreground text-xs mt-1">
-                Друзья могут рекомендовать фильмы прямо из профиля
-              </p>
-              <button
-                onClick={() => setTab("friends")}
-                className="mt-4 text-primary text-sm hover:underline"
-              >
-                Перейти к друзьям →
-              </button>
+            <div className="flex flex-col items-center gap-4 py-20 text-center">
+              <Film className="w-12 h-12 text-muted-foreground/20" />
+              <p className="text-muted-foreground">{t("noRecommendations")}</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {/* Unseen first */}
-              {recommendations
-                .slice()
-                .sort((a, b) => (a.seen === b.seen ? 0 : a.seen ? 1 : -1))
-                .map((rec) => (
-                  <RecommendCard
-                    key={rec.id}
-                    rec={rec}
-                    onMarkSeen={handleMarkSeen}
-                  />
-                ))}
-            </div>
+            recommendations.map((rec) => (
+              <RecommendationCard
+                key={rec.id}
+                rec={rec}
+                onOpen={() => { navigate(`/movie/${rec.movieId}`); markRecommendationSeen(rec.id).catch(() => {}); }}
+              />
+            ))
           )}
         </div>
       )}

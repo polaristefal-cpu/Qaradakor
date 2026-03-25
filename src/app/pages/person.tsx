@@ -6,6 +6,7 @@ import {
   ArrowLeft, User, Film, Loader2, Calendar,
   Clapperboard, Star, Filter,
 } from "lucide-react";
+import { BackButton } from "../components/back-button";
 
 type Role = "all" | "cast" | "crew";
 
@@ -94,12 +95,7 @@ export function PersonPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Back */}
-      <button
-        onClick={() => navigate(-1)}
-        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" /> Назад
-      </button>
+      <BackButton />
 
       {/* Person card */}
       <div className="bg-card border border-border rounded-2xl p-5 sm:p-6 mb-8 shadow-sm">

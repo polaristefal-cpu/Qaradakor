@@ -1,43 +1,43 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ─── LIGHT MODE ─────────────────────────────────────────────────────────────
-   White / Alabaster Grey / Electric Aqua / Onyx
+   White / Light Grey / Dark Cyan / Black Text
    ──────────────────────────────────────────────────────────────────────────── */
 :root {
   --font-size: 16px;
 
   /* Surfaces */
   --background:        #FFFFFF;   /* White */
-  --background-alt:    #E2E2E2;   /* Alabaster Grey */
-  --foreground:        #0A0A0A;   /* Onyx */
+  --background-alt:    #F5F5F5;   /* Light Grey */
+  --foreground:        #000000;   /* Pure black for maximum contrast */
 
   /* Cards / Panels */
   --card:              #FFFFFF;
-  --card-foreground:   #0A0A0A;
+  --card-foreground:   #000000;
   --popover:           #FFFFFF;
-  --popover-foreground:#0A0A0A;
+  --popover-foreground:#000000;
 
   /* Muted / Subtle */
-  --muted:             #E2E2E2;
-  --muted-foreground:  #6B6B6B;
+  --muted:             #eafafa;   /* Dark Cyan 50 */
+  --muted-foreground:  #666666;   /* Medium grey for secondary text */
 
   /* Accent surface */
-  --accent:            #E2E2E2;
-  --accent-foreground: #0A0A0A;
+  --accent:            #d5f5f6;   /* Dark Cyan 100 */
+  --accent-foreground: #000000;
 
   /* Borders & Inputs */
-  --border:            #D4D4D4;
+  --border:            #d5f5f6;   /* Dark Cyan 100 - lighter borders */
   --input:             transparent;
   --input-background:  #FFFFFF;
-  --switch-background: #C0C0C0;
-  --ring:              #6BF1F1;
+  --switch-background: #82e0e3;   /* Dark Cyan 300 */
+  --ring:              #2eccd1;   /* Dark Cyan 500 */
 
-  /* Primary — Electric Aqua */
-  --primary:           #6BF1F1;
-  --primary-foreground:#0A0A0A;
+  /* Primary — Dark Cyan */
+  --primary:           #2eccd1;   /* Dark Cyan 500 */
+  --primary-foreground:#000000;   /* Black text on cyan */
 
-  /* Secondary — Onyx */
-  --secondary:         #0A0A0A;
+  /* Secondary — Dark Cyan 600 */
+  --secondary:         #25a3a7;
   --secondary-foreground: #FFFFFF;
 
   /* Status */
@@ -47,11 +47,11 @@
   --success-foreground:#FFFFFF;
 
   /* Charts */
-  --chart-1: #6BF1F1;
-  --chart-2: #0A0A0A;
+  --chart-1: #2eccd1;  /* Dark Cyan 500 */
+  --chart-2: #58d6da;  /* Dark Cyan 400 */
   --chart-3: #DC2626;
-  --chart-4: #0D9488;
-  --chart-5: #7C3AED;
+  --chart-4: #25a3a7;  /* Dark Cyan 600 */
+  --chart-5: #1c7a7d;  /* Dark Cyan 700 */
 
   /* Layout */
   --radius: 0.625rem;
@@ -60,83 +60,83 @@
 
   /* Nav specific */
   --nav-bg: rgba(255, 255, 255, 0.96);
-  --nav-border: #D4D4D4;
+  --nav-border: #d5f5f6;
 
   /* Sidebar */
   --sidebar:                #FFFFFF;
-  --sidebar-foreground:     #0A0A0A;
-  --sidebar-primary:        #6BF1F1;
-  --sidebar-primary-foreground: #0A0A0A;
-  --sidebar-accent:         #E2E2E2;
-  --sidebar-accent-foreground: #0A0A0A;
-  --sidebar-border:         #D4D4D4;
-  --sidebar-ring:           #6BF1F1;
+  --sidebar-foreground:     #000000;
+  --sidebar-primary:        #2eccd1;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent:         #eafafa;
+  --sidebar-accent-foreground: #000000;
+  --sidebar-border:         #d5f5f6;
+  --sidebar-ring:           #2eccd1;
 }
 
 /* ─── DARK MODE ──────────────────────────────────────────────────────────────
-   Onyx base with Electric Aqua accent
+   OLED-friendly: Pure black background with white text
    ──────────────────────────────────────────────────────────────────────────── */
 .dark {
   /* Surfaces */
-  --background:        #0A0A0A;   /* Onyx */
-  --background-alt:    #141414;
-  --foreground:        #FFFFFF;   /* White */
+  --background:        #000000;   /* Pure black for OLED */
+  --background-alt:    #0a0a0a;   /* Slightly lighter black */
+  --foreground:        #FFFFFF;   /* Pure white text */
 
   /* Cards / Panels */
-  --card:              #1A1A1A;
+  --card:              #0f0f0f;   /* Very dark grey */
   --card-foreground:   #FFFFFF;
-  --popover:           #1A1A1A;
+  --popover:           #0f0f0f;
   --popover-foreground:#FFFFFF;
 
   /* Muted */
-  --muted:             #1E1E1E;
-  --muted-foreground:  #888888;
+  --muted:             #1a1a1a;   /* Dark grey */
+  --muted-foreground:  #999999;   /* Medium grey for secondary text */
 
   /* Accent surface */
-  --accent:            #222222;
+  --accent:            #1a1a1a;
   --accent-foreground: #FFFFFF;
 
   /* Borders & Inputs */
-  --border:            #2A2A2A;
+  --border:            #2a2a2a;   /* Subtle border */
   --input:             transparent;
-  --input-background:  #1A1A1A;
-  --switch-background: #3A3A3A;
-  --ring:              #6BF1F1;
+  --input-background:  #0f0f0f;
+  --switch-background: #2a2a2a;
+  --ring:              #2eccd1;
 
-  /* Primary — Electric Aqua */
-  --primary:           #6BF1F1;
-  --primary-foreground:#0A0A0A;
+  /* Primary — Bright Cyan accent */
+  --primary:           #2eccd1;   /* Bright cyan */
+  --primary-foreground:#000000;   /* Black text on cyan */
 
-  /* Secondary — Alabaster Grey */
-  --secondary:         #E2E2E2;
-  --secondary-foreground: #0A0A0A;
+  /* Secondary — Light Cyan */
+  --secondary:         #58d6da;   /* Lighter cyan */
+  --secondary-foreground: #000000;
 
   /* Status */
   --destructive:       #EF4444;
   --destructive-foreground: #FFFFFF;
   --success:           #22C55E;
-  --success-foreground:#0A0A0A;
+  --success-foreground:#000000;
 
   /* Charts */
-  --chart-1: #6BF1F1;
-  --chart-2: #E2E2E2;
+  --chart-1: #2eccd1;
+  --chart-2: #58d6da;
   --chart-3: #EF4444;
-  --chart-4: #14B8A6;
-  --chart-5: #A78BFA;
+  --chart-4: #25a3a7;
+  --chart-5: #82e0e3;
 
   /* Nav */
-  --nav-bg: rgba(10, 10, 10, 0.96);
-  --nav-border: #2A2A2A;
+  --nav-bg: rgba(0, 0, 0, 0.96);
+  --nav-border: #2a2a2a;
 
   /* Sidebar */
-  --sidebar:                #0A0A0A;
+  --sidebar:                #000000;   /* Pure black sidebar */
   --sidebar-foreground:     #FFFFFF;
-  --sidebar-primary:        #6BF1F1;
-  --sidebar-primary-foreground: #0A0A0A;
-  --sidebar-accent:         #1A1A1A;
+  --sidebar-primary:        #2eccd1;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent:         #0f0f0f;
   --sidebar-accent-foreground: #FFFFFF;
-  --sidebar-border:         #2A2A2A;
-  --sidebar-ring:           #6BF1F1;
+  --sidebar-border:         #1a1a1a;
+  --sidebar-ring:           #2eccd1;
 }
 
 /* ─── TAILWIND TOKEN MAP ────────────────────────────────────────────────────── */
