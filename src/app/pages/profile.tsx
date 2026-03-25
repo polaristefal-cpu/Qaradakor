@@ -7,7 +7,7 @@ import {
   Loader2, Library, Sparkles, Calendar,
   Users, Bot, TrendingUp, Smartphone, ShieldCheck,
   ShieldOff, ShieldAlert, Eye, EyeOff, Phone, ArrowLeft,
-  Camera, Mail, Clock,
+  Camera, Mail, Clock, Bookmark,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -515,6 +515,7 @@ export function ProfilePage() {
       {/* ── Quick links ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {[
+          { to: "/watchlist", icon: Bookmark, label: "Вотчлист", desc: "Список к просмотру" },
           { to: "/recommendations", icon: Sparkles, label: "Рекомендации", desc: "Персональная подборка AI" },
           { to: "/ai", icon: Bot, label: "AI-ассистент", desc: "Чат по фильмам" },
           { to: "/friends", icon: Users, label: "Друзья", desc: "Список друзей" },

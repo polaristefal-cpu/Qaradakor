@@ -1,7 +1,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ─── LIGHT MODE ─────────────────────────────────────────────────────────────
-   White / Light Grey / Dark Cyan / Black Text
+   Pure Black & White - Белый фон, чёрный текст
    ──────────────────────────────────────────────────────────────────────────── */
 :root {
   --font-size: 16px;
@@ -9,7 +9,7 @@
   /* Surfaces */
   --background:        #FFFFFF;   /* White */
   --background-alt:    #F5F5F5;   /* Light Grey */
-  --foreground:        #000000;   /* Pure black for maximum contrast */
+  --foreground:        #000000;   /* Pure black text */
 
   /* Cards / Panels */
   --card:              #FFFFFF;
@@ -18,67 +18,67 @@
   --popover-foreground:#000000;
 
   /* Muted / Subtle */
-  --muted:             #eafafa;   /* Dark Cyan 50 */
+  --muted:             #F5F5F5;   /* Light grey */
   --muted-foreground:  #666666;   /* Medium grey for secondary text */
 
   /* Accent surface */
-  --accent:            #d5f5f6;   /* Dark Cyan 100 */
+  --accent:            #E5E5E5;   /* Lighter grey */
   --accent-foreground: #000000;
 
   /* Borders & Inputs */
-  --border:            #d5f5f6;   /* Dark Cyan 100 - lighter borders */
+  --border:            #E5E5E5;   /* Light grey borders */
   --input:             transparent;
   --input-background:  #FFFFFF;
-  --switch-background: #82e0e3;   /* Dark Cyan 300 */
-  --ring:              #2eccd1;   /* Dark Cyan 500 */
+  --switch-background: #CCCCCC;   /* Medium grey */
+  --ring:              #000000;   /* Black focus ring */
 
-  /* Primary — Dark Cyan */
-  --primary:           #2eccd1;   /* Dark Cyan 500 */
-  --primary-foreground:#000000;   /* Black text on cyan */
+  /* Primary — Black */
+  --primary:           #000000;   /* Black */
+  --primary-foreground:#FFFFFF;   /* White text on black */
 
-  /* Secondary — Dark Cyan 600 */
-  --secondary:         #25a3a7;
+  /* Secondary — Dark Grey */
+  --secondary:         #333333;
   --secondary-foreground: #FFFFFF;
 
   /* Status */
-  --destructive:       #DC2626;
+  --destructive:       #000000;   /* Black */
   --destructive-foreground: #FFFFFF;
-  --success:           #16A34A;
+  --success:           #000000;   /* Black */
   --success-foreground:#FFFFFF;
 
   /* Charts */
-  --chart-1: #2eccd1;  /* Dark Cyan 500 */
-  --chart-2: #58d6da;  /* Dark Cyan 400 */
-  --chart-3: #DC2626;
-  --chart-4: #25a3a7;  /* Dark Cyan 600 */
-  --chart-5: #1c7a7d;  /* Dark Cyan 700 */
+  --chart-1: #000000;  /* Black */
+  --chart-2: #333333;  /* Dark Grey */
+  --chart-3: #666666;  /* Medium Grey */
+  --chart-4: #999999;  /* Light Grey */
+  --chart-5: #CCCCCC;  /* Lighter Grey */
 
   /* Layout */
-  --radius: 0.625rem;
+  --radius: 0.75rem;  /* 12px - базовое значение (md) */
   --font-weight-medium: 500;
   --font-weight-normal: 400;
 
   /* Nav specific */
   --nav-bg: rgba(255, 255, 255, 0.96);
-  --nav-border: #d5f5f6;
+  --nav-border: #E5E5E5;
 
   /* Sidebar */
   --sidebar:                #FFFFFF;
   --sidebar-foreground:     #000000;
-  --sidebar-primary:        #2eccd1;
-  --sidebar-primary-foreground: #000000;
-  --sidebar-accent:         #eafafa;
+  --sidebar-primary:        #000000;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent:         #F5F5F5;
   --sidebar-accent-foreground: #000000;
-  --sidebar-border:         #d5f5f6;
-  --sidebar-ring:           #2eccd1;
+  --sidebar-border:         #E5E5E5;
+  --sidebar-ring:           #000000;
 }
 
 /* ─── DARK MODE ──────────────────────────────────────────────────────────────
-   OLED-friendly: Pure black background with white text
+   Pure Black & White - Чёрный фон, белый текст
    ──────────────────────────────────────────────────────────────────────────── */
 .dark {
   /* Surfaces */
-  --background:        #000000;   /* Pure black for OLED */
+  --background:        #000000;   /* Pure black */
   --background-alt:    #0a0a0a;   /* Slightly lighter black */
   --foreground:        #FFFFFF;   /* Pure white text */
 
@@ -101,28 +101,28 @@
   --input:             transparent;
   --input-background:  #0f0f0f;
   --switch-background: #2a2a2a;
-  --ring:              #2eccd1;
+  --ring:              #FFFFFF;   /* White focus ring */
 
-  /* Primary — Bright Cyan accent */
-  --primary:           #2eccd1;   /* Bright cyan */
-  --primary-foreground:#000000;   /* Black text on cyan */
+  /* Primary — White */
+  --primary:           #FFFFFF;   /* White */
+  --primary-foreground:#000000;   /* Black text on white */
 
-  /* Secondary — Light Cyan */
-  --secondary:         #58d6da;   /* Lighter cyan */
+  /* Secondary — Light Grey */
+  --secondary:         #CCCCCC;   /* Light grey */
   --secondary-foreground: #000000;
 
   /* Status */
-  --destructive:       #EF4444;
-  --destructive-foreground: #FFFFFF;
-  --success:           #22C55E;
+  --destructive:       #FFFFFF;   /* White */
+  --destructive-foreground: #000000;
+  --success:           #FFFFFF;   /* White */
   --success-foreground:#000000;
 
   /* Charts */
-  --chart-1: #2eccd1;
-  --chart-2: #58d6da;
-  --chart-3: #EF4444;
-  --chart-4: #25a3a7;
-  --chart-5: #82e0e3;
+  --chart-1: #FFFFFF;  /* White */
+  --chart-2: #CCCCCC;  /* Light Grey */
+  --chart-3: #999999;  /* Medium Grey */
+  --chart-4: #666666;  /* Dark Grey */
+  --chart-5: #333333;  /* Darker Grey */
 
   /* Nav */
   --nav-bg: rgba(0, 0, 0, 0.96);
@@ -131,12 +131,12 @@
   /* Sidebar */
   --sidebar:                #000000;   /* Pure black sidebar */
   --sidebar-foreground:     #FFFFFF;
-  --sidebar-primary:        #2eccd1;
+  --sidebar-primary:        #FFFFFF;
   --sidebar-primary-foreground: #000000;
   --sidebar-accent:         #0f0f0f;
   --sidebar-accent-foreground: #FFFFFF;
   --sidebar-border:         #1a1a1a;
-  --sidebar-ring:           #2eccd1;
+  --sidebar-ring:           #FFFFFF;
 }
 
 /* ─── TAILWIND TOKEN MAP ────────────────────────────────────────────────────── */
@@ -178,10 +178,14 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border:     var(--sidebar-border);
   --color-sidebar-ring:       var(--sidebar-ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  
+  /* Border Radius System */
+  --radius-xs:  0.375rem;  /* 6px  - badges, close buttons, tooltips */
+  --radius-sm:  0.5rem;    /* 8px  - small buttons, chips */
+  --radius-md:  0.75rem;   /* 12px - standard buttons, inputs, cards */
+  --radius-lg:  1rem;      /* 16px - modals, large cards */
+  --radius-xl:  1.25rem;   /* 20px - sidebar elements, navigation */
+  --radius-2xl: 1.5rem;    /* 24px - large panels, hero sections */
 }
 
 /* ─── BASE STYLES ───────────────────────────────────────────────────────────── */

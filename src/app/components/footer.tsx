@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { Clapperboard, Heart, Github, Mail, Instagram, MessageCircle } from "lucide-react";
+import iconQara from "../../imports/iconqara.svg";
 
 export function Footer() {
   const year = 2026;
@@ -14,12 +15,13 @@ export function Footer() {
           {/* Brand */}
           <div className="flex flex-col gap-3 max-w-xs">
             <Link to="/" className="flex items-center gap-2.5 group w-fit">
-              <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/25 group-hover:scale-105 transition-transform shrink-0">
-                <Clapperboard className="w-4 h-4 text-primary-foreground" />
+              <div className="w-8 h-8 rounded-xl overflow-hidden group-hover:scale-105 transition-transform shrink-0 shadow-md">
+                <img src={iconQara} alt="qaradakor" className="w-full h-full object-cover" />
               </div>
-              <span className="text-foreground font-black tracking-tight text-sm">
-                qaradakor<span className="text-primary">.kz</span>
-              </span>
+              <div className="leading-none">
+                <span className="text-foreground font-black tracking-tight text-sm">qaradakor</span>
+                <span className="text-primary font-black text-sm">.kz</span>
+              </div>
             </Link>
             <p className="text-muted-foreground text-xs leading-relaxed">
               Ваша личная библиотека фильмов с поиском, рекомендациями на основе ИИ и системой друзей.

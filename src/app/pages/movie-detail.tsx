@@ -336,52 +336,57 @@ export function MovieDetailPage() {
               <img
                 src={`${TMDB_IMG}/w500${movie.poster_path}`}
                 alt={movie.title}
-                className="w-44 md:w-56 rounded-2xl shadow-2xl border border-border"
+                className="w-44 md:w-56 aspect-[2/3] object-cover rounded-2xl shadow-2xl border border-border"
               />
             ) : (
               <div className="w-44 md:w-56 aspect-[2/3] bg-muted rounded-2xl flex items-center justify-center border border-border">
                 <Film className="w-14 h-14 text-muted-foreground/30" />
               </div>
             )}
-            <button
-              onClick={() => setShowTrailer(true)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border border-primary/40 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground transition-all shadow-sm"
-            >
-              <Play className="w-4 h-4 fill-current" />
-              Смотреть трейлер
-            </button>
-
-            {/* Watchlist button */}
-            {session && !watched && (
+            
+            {/* Action buttons - Mobile optimized */}
+            <div className="w-full space-y-2">
+              {/* Trailer button - Primary action */}
               <button
-                onClick={handleToggleWatchlist}
-                disabled={watchlistLoading}
-                className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
-                  inWatchlist
-                    ? "bg-primary/10 text-primary border-primary/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
-                    : "bg-muted text-muted-foreground border-border hover:text-foreground hover:border-primary/30"
-                }`}
+                onClick={() => setShowTrailer(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-md"
               >
-                {watchlistLoading
-                  ? <Loader2 className="w-4 h-4 animate-spin" />
-                  : inWatchlist
-                    ? <BookmarkCheck className="w-4 h-4" />
-                    : <Bookmark className="w-4 h-4" />
-                }
-                {inWatchlist ? t("inWatchlist") : t("addToWatchlist")}
+                <Play className="w-4 h-4 fill-current" />
+                Смотреть трейлер
               </button>
-            )}
 
-            {/* Recommend to friend button */}
-            {session && (
-              <button
-                onClick={() => setRecommendFriendModal(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border border-border bg-muted text-muted-foreground hover:text-foreground hover:border-primary/30 transition-all"
-              >
-                <Send className="w-4 h-4" />
-                {t("recommendToFriend")}
-              </button>
-            )}
+              {/* Watchlist button */}
+              {session && !watched && (
+                <button
+                  onClick={handleToggleWatchlist}
+                  disabled={watchlistLoading}
+                  className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+                    inWatchlist
+                      ? "bg-primary/10 text-primary border-primary/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+                      : "bg-card text-foreground border-border hover:border-primary/40"
+                  }`}
+                >
+                  {watchlistLoading
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : inWatchlist
+                      ? <BookmarkCheck className="w-4 h-4" />
+                      : <Bookmark className="w-4 h-4" />
+                  }
+                  {inWatchlist ? t("inWatchlist") : t("addToWatchlist")}
+                </button>
+              )}
+
+              {/* Recommend to friend button */}
+              {session && (
+                <button
+                  onClick={() => setRecommendFriendModal(true)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold border border-border bg-card text-foreground hover:border-primary/40 transition-all"
+                >
+                  <Send className="w-4 h-4" />
+                  {t("recommendToFriend")}
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Info */}

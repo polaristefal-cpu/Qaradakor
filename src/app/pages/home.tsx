@@ -9,6 +9,9 @@ import {
   getMoviesByGenre,
   getMovieVideos,
   TMDB_IMG,
+  getWatchlist,
+  addToWatchlist,
+  removeFromWatchlist,
 } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
 import { useLang } from "../lib/lang-context";
@@ -39,6 +42,9 @@ import {
   Heart,
   MessageSquare,
   ArrowRight,
+  Bookmark,
+  BookmarkCheck,
+  Loader2,
 } from "lucide-react";
 import { MovieCard } from "../components/movie-card";
 import { TopReviewsSection } from "../components/top-reviews-section";
@@ -670,16 +676,57 @@ function Top10Section({ movies }: { movies: Movie[] }) {
 // ─── Random Movie Card ─────────────────────────────────────────────────────────
 function RandomMovieCard({ movies }: { movies: Movie[] }) {
   const navigate = useNavigate();
+  const { session } = useAuth();
   const { t } = useLang();
   const [movie, setMovie] = useState<Movie | null>(null);
+  const [inWatchlist, setInWatchlist] = useState(false);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
 
   const pickRandom = () => {
     if (!movies.length) return;
     const m = movies[Math.floor(Math.random() * movies.length)];
     setMovie(m);
+    setInWatchlist(false); // Reset watchlist status
   };
 
   useEffect(() => { pickRandom(); }, [movies.length]);
+
+  // Check if movie is in watchlist
+  useEffect(() => {
+    if (!movie || !session) return;
+    (async () => {
+      try {
+        const wl = await getWatchlist();
+        setInWatchlist(wl?.some((w: any) => w.movieId === movie.id) || false);
+      } catch {
+        setInWatchlist(false);
+      }
+    })();
+  }, [movie?.id, session]);
+
+  const handleToggleWatchlist = async () => {
+    if (!movie || !session) return;
+    setWatchlistLoading(true);
+    try {
+      if (inWatchlist) {
+        await removeFromWatchlist(movie.id);
+        setInWatchlist(false);
+      } else {
+        await addToWatchlist({
+          movieId: movie.id,
+          title: movie.title,
+          poster_path: movie.poster_path,
+          release_date: movie.release_date,
+          vote_average: movie.vote_average,
+        });
+        setInWatchlist(true);
+      }
+    } catch (err) {
+      console.error("Watchlist toggle error:", err);
+    } finally {
+      setWatchlistLoading(false);
+    }
+  };
 
   if (!movie) return null;
 
@@ -687,6 +734,7 @@ function RandomMovieCard({ movies }: { movies: Movie[] }) {
     <section>
       <SectionHeader icon={Shuffle} label={t("randomMovieSection")} iconClass="text-primary" />
       <div className="flex flex-col sm:flex-row gap-4 bg-card border border-border rounded-2xl p-5 overflow-hidden">
+        {/* Image - visible on all screens */}
         {movie.backdrop_path ? (
           <img
             src={`${TMDB_IMG}/w780${movie.backdrop_path}`}
@@ -700,6 +748,7 @@ function RandomMovieCard({ movies }: { movies: Movie[] }) {
             className="w-full sm:w-64 h-36 rounded-xl object-cover shrink-0"
           />
         ) : null}
+        
         <div className="flex-1 flex flex-col justify-between min-w-0">
           <div>
             <h3 className="text-lg font-bold text-foreground mb-1">{movie.title}</h3>
@@ -718,7 +767,10 @@ function RandomMovieCard({ movies }: { movies: Movie[] }) {
               <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">{movie.overview}</p>
             )}
           </div>
-          <div className="flex gap-2 mt-3">
+          
+          {/* Buttons - Responsive layout */}
+          <div className="flex flex-wrap gap-2 mt-3">
+            {/* Details button */}
             <button
               onClick={() => navigate(`/movie/${movie.id}`)}
               className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all"
@@ -726,6 +778,32 @@ function RandomMovieCard({ movies }: { movies: Movie[] }) {
               <Info className="w-3.5 h-3.5" />
               {t("details")}
             </button>
+            
+            {/* Watchlist button - Only for logged in users */}
+            {session && (
+              <button
+                onClick={handleToggleWatchlist}
+                disabled={watchlistLoading}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                  inWatchlist
+                    ? "bg-primary/10 text-primary border-primary/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+                    : "bg-card text-foreground border-border hover:border-primary/40"
+                }`}
+              >
+                {watchlistLoading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : inWatchlist ? (
+                  <BookmarkCheck className="w-3.5 h-3.5" />
+                ) : (
+                  <Bookmark className="w-3.5 h-3.5" />
+                )}
+                <span className="hidden sm:inline">
+                  {inWatchlist ? t("inWatchlist") : t("addToWatchlist")}
+                </span>
+              </button>
+            )}
+            
+            {/* Shuffle button */}
             <button
               onClick={pickRandom}
               className="flex items-center gap-1.5 px-4 py-2 bg-foreground/10 text-foreground rounded-xl text-sm font-medium border border-border hover:bg-foreground/15 transition-all"

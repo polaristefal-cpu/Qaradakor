@@ -38,7 +38,7 @@ function AppShell() {
       <Sidebar />
       <main
         className="flex-1 min-w-0 transition-all duration-300 ease-in-out pt-13 md:pt-0 pb-20 md:pb-0 flex flex-col"
-        style={{ marginRight: isDesktop ? sidebarWidth : 0 }}
+        style={{ marginLeft: isDesktop ? sidebarWidth : 0 }}
       >
         <div className="flex-1">
           <Outlet />

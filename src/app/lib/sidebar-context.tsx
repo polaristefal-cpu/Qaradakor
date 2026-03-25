@@ -9,8 +9,8 @@ interface SidebarCtx {
 const Ctx = createContext<SidebarCtx>({ collapsed: false, toggle: () => {}, sidebarWidth: 224 });
 
 const STORAGE_KEY = "qaradakor_sidebar_collapsed";
-const WIDTH_EXPANDED = 224;
-const WIDTH_COLLAPSED = 68;
+const WIDTH_EXPANDED = 240;
+const WIDTH_COLLAPSED = 56;
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(() => {

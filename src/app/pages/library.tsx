@@ -3,7 +3,8 @@ import { getWatched, getMovie, TMDB_IMG } from "../lib/api";
 import { useNavigate, Link } from "react-router";
 import {
   Library as LibIcon, Loader2, Star, Clock, Search, Film,
-  Grid3X3, List, SortAsc,
+  Grid3X3, List, SortAsc, Calendar, TrendingUp, Award,
+  Flame, Heart, MessageSquare, Target, BarChart3, Activity,
 } from "lucide-react";
 import { useAuth } from "../lib/auth-context";
 import { useLang } from "../lib/lang-context";
@@ -64,6 +65,89 @@ export function LibraryPage() {
   const totalRuntime = movies.reduce((s, m) => s + (m.runtime || 0), 0);
   const avgRating = movies.length > 0 ? (movies.reduce((s, m) => s + (m._rating || 0), 0) / movies.length).toFixed(1) : "—";
 
+  // ── Extended Analytics ──────────────────────────────────────────────────────
+  const reviewsCount = movies.filter(m => m._review?.trim()).length;
+  const totalDays = Math.floor(totalRuntime / (60 * 24));
+  const totalHours = Math.floor((totalRuntime % (60 * 24)) / 60);
+  const perfectScores = movies.filter(m => m._rating === 10).length;
+  const favGenres = movies.flatMap(m => m.genres || []);
+  const genreCounts = favGenres.reduce((acc, g) => {
+    acc[g.name] = (acc[g.name] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  const topGenre = Object.entries(genreCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
+
+  // Activity heatmap (GitHub-style)
+  const activityMap = new Map<string, number>();
+  movies.forEach(m => {
+    if (m._addedAt) {
+      const date = new Date(m._addedAt).toISOString().slice(0, 10);
+      activityMap.set(date, (activityMap.get(date) || 0) + 1);
+    }
+  });
+
+  // Last 52 weeks (365 days)
+  const today = new Date();
+  const weeks: Array<Array<{ date: string; count: number; day: number }>> = [];
+  const startDate = new Date(today);
+  startDate.setDate(today.getDate() - 364);
+  
+  let currentWeek: Array<{ date: string; count: number; day: number }> = [];
+  for (let i = 0; i < 365; i++) {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + i);
+    const dateStr = date.toISOString().slice(0, 10);
+    const count = activityMap.get(dateStr) || 0;
+    const day = date.getDay();
+    
+    currentWeek.push({ date: dateStr, count, day });
+    
+    if (day === 6 || i === 364) {
+      weeks.push([...currentWeek]);
+      currentWeek = [];
+    }
+  }
+
+  const maxActivity = Math.max(...Array.from(activityMap.values()), 1);
+  const getHeatColor = (count: number) => {
+    if (count === 0) return "bg-muted/50 border-border/50";
+    const intensity = Math.ceil((count / maxActivity) * 4);
+    if (intensity === 1) return "bg-primary/25 border-primary/30";
+    if (intensity === 2) return "bg-primary/50 border-primary/60";
+    if (intensity === 3) return "bg-primary/75 border-primary/80";
+    return "bg-primary border-primary shadow-sm";
+  };
+
+  // Recent activity (last 30 days)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(today.getDate() - 30);
+  const recentMovies = movies.filter(m => 
+    m._addedAt && new Date(m._addedAt) >= thirtyDaysAgo
+  ).length;
+
+  // Longest streak
+  const sortedDates = Array.from(activityMap.keys()).sort();
+  let currentStreak = 0;
+  let maxStreak = 0;
+  let prevDate: Date | null = null;
+  
+  sortedDates.forEach(dateStr => {
+    const date = new Date(dateStr);
+    if (prevDate) {
+      const diff = Math.floor((date.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (diff === 1) {
+        currentStreak++;
+      } else {
+        maxStreak = Math.max(maxStreak, currentStreak);
+        currentStreak = 1;
+      }
+    } else {
+      currentStreak = 1;
+    }
+    prevDate = date;
+  });
+  maxStreak = Math.max(maxStreak, currentStreak);
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-3">
@@ -107,6 +191,88 @@ export function LibraryPage() {
               </p>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── Extended Analytics ── */}
+      {movies.length > 0 && (
+        <div className="space-y-6 mb-6">
+          {/* Activity Heatmap (GitHub-style) */}
+          <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-bold text-foreground">Активность просмотров</h3>
+              </div>
+              <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Flame className="w-3 h-3" />
+                  Рекорд: {maxStreak} {maxStreak === 1 ? "день" : maxStreak < 5 ? "дня" : "дней"}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <TrendingUp className="w-3 h-3" />
+                  За месяц: {recentMovies}
+                </span>
+              </div>
+            </div>
+
+            {/* Heatmap grid */}
+            <div className="overflow-x-auto pb-2">
+              <div className="inline-flex gap-[2px] min-w-max">
+                {weeks.map((week, i) => (
+                  <div key={i} className="flex flex-col gap-[2px]">
+                    {[0,1,2,3,4,5,6].map(day => {
+                      const cell = week.find(c => c.day === day);
+                      if (!cell) return <div key={day} className="w-[10px] h-[10px]" />;
+                      const monthStart = new Date(cell.date).getDate() === 1;
+                      return (
+                        <div
+                          key={day}
+                          title={`${cell.date}: ${cell.count} фильм${cell.count === 1 ? "" : cell.count < 5 ? "а" : "ов"}`}
+                          className={`w-[10px] h-[10px] rounded-sm border transition-all hover:scale-125 hover:shadow-sm cursor-pointer ${getHeatColor(cell.count)} ${monthStart && day === 0 ? "ring-1 ring-primary/30" : ""}`}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+              <span className="text-[10px] text-muted-foreground">Меньше</span>
+              <div className="flex items-center gap-1">
+                {[0, 1, 2, 3, 4].map(i => (
+                  <div key={i} className={`w-3 h-3 rounded-sm border ${getHeatColor(i === 0 ? 0 : Math.ceil((i / 4) * maxActivity))}`} />
+                ))}
+              </div>
+              <span className="text-[10px] text-muted-foreground">Больше</span>
+            </div>
+          </div>
+
+          {/* Additional Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            {[
+              { label: "Идеальные 10/10", value: perfectScores, icon: Award },
+              { label: "Рецензий", value: reviewsCount, icon: MessageSquare },
+              { label: "Любимый жанр", value: topGenre, icon: Heart },
+              { label: "Всего дней", value: totalDays > 0 ? `${totalDays}д` : `${totalHours}ч`, icon: Calendar },
+              { label: "За 30 дней", value: recentMovies, icon: TrendingUp },
+              { label: "Рекорд подряд", value: maxStreak > 0 ? `${maxStreak}д` : "—", icon: Flame },
+            ].map(({ label, value, icon: Icon }) => (
+              <div key={label} className="bg-card border border-border rounded-xl px-3 py-3 shadow-sm hover:shadow-md hover:border-primary/30 transition-all">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <div className="w-6 h-6 rounded-lg bg-muted flex items-center justify-center">
+                    <Icon className="w-3 h-3 text-foreground" />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground font-medium leading-tight">{label}</p>
+                </div>
+                <p className="text-lg font-black text-foreground leading-none">
+                  {value}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
