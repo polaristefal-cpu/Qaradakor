@@ -10,7 +10,7 @@ import { useState, useEffect } from "react";
 import {
   Clapperboard, Search, Users, Sparkles, Library,
   LogOut, LogIn, Bot, UserPlus, User, Bookmark,
-  ChevronLeft, ChevronRight, Home, Globe,
+  ChevronLeft, ChevronRight, Home, Globe, Layers,
 } from "lucide-react";
 import { useUserData } from "../lib/user-data-context";
 
@@ -122,6 +122,7 @@ export function Sidebar() {
 
   const publicLinks = [
     { to: "/", icon: Home, label: t("navHome") },
+    { to: "/collections", icon: Layers, label: t("navCollections") },
   ];
 
   const authLinks = [
@@ -134,17 +135,17 @@ export function Sidebar() {
 
   const mobileAuthNav = [
     { to: "/", icon: Home, label: t("navHome"), badge: 0 },
+    { to: "/collections", icon: Layers, label: t("navCollections"), badge: 0 },
     { to: "/library", icon: Library, label: t("navLibrary"), badge: 0 },
-    { to: "/recommendations", icon: Sparkles, label: t("navRecommendations"), badge: 0 },
     { to: "/ai", icon: Bot, label: t("navAiChat"), badge: 0 },
     { to: "/profile", icon: User, label: t("profileTitle"), badge: 0 },
   ];
 
   const mobileGuestNav = [
     { to: "/", icon: Home, label: t("navHome") },
+    { to: "/collections", icon: Layers, label: t("navCollections") },
     { to: "/search", icon: Search, label: t("navSearch") },
     { to: "/login", icon: LogIn, label: t("signIn") },
-    { to: "/register", icon: UserPlus, label: t("signUp") },
   ];
 
   const mobileNav = session ? mobileAuthNav : mobileGuestNav;

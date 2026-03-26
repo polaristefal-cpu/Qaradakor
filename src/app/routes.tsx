@@ -1,5 +1,4 @@
 import { createBrowserRouter, Navigate, Outlet } from "react-router";
-import { useEffect, useState } from "react";
 import { useAuth } from "./lib/auth-context";
 import { useSidebar } from "./lib/sidebar-context";
 import { Sidebar } from "./components/sidebar";
@@ -19,26 +18,21 @@ import { PersonPage } from "./pages/person";
 import { FriendProfilePage } from "./pages/friend-profile";
 import { DiplomaDownloadPage } from "./pages/diploma-download";
 import { RecommendationsDocPage } from "./pages/recommendations-doc";
+import { CollectionsPage } from "./pages/collections";
+import { CollectionDetailPage } from "./pages/collection-detail";
 import { Loader2 } from "lucide-react";
 
 // ── Shared shell with sidebar ─────────────────────────────────────────────────
 function AppShell() {
-  const { sidebarWidth } = useSidebar();
-  const [isDesktop, setIsDesktop] = useState(() => window.innerWidth >= 768);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(min-width: 768px)");
-    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
+  const { collapsed } = useSidebar();
 
   return (
     <div className="min-h-screen bg-background flex">
       <Sidebar />
       <main
-        className="flex-1 min-w-0 transition-all duration-300 ease-in-out pt-13 md:pt-0 pb-20 md:pb-0 flex flex-col"
-        style={{ marginLeft: isDesktop ? sidebarWidth : 0 }}
+        className={`flex-1 min-w-0 transition-all duration-300 ease-in-out pt-13 md:pt-0 pb-20 md:pb-0 flex flex-col ${
+          collapsed ? "md:ml-14" : "md:ml-60"
+        }`}
       >
         <div className="flex-1">
           <Outlet />
@@ -107,6 +101,8 @@ export const router = createBrowserRouter([
       { path: "/movie/:id", Component: MovieDetailPage },
       { path: "/person/:id", Component: PersonPage },
       { path: "/diploma", Component: DiplomaDownloadPage },
+      { path: "/collections", Component: CollectionsPage },
+      { path: "/collections/:id", Component: CollectionDetailPage },
     ],
   },
   // Protected pages

@@ -5,12 +5,14 @@ import {
   TMDB_IMG, aiExplain, aiAnalyzeReview,
   addToWatchlist, removeFromWatchlist, getWatchlist,
   getFriends, sendRecommendation,
+  getMyCollections, addMovieToCollection,
 } from "../lib/api";
 import {
   Star, Clock, Check, Trash2, Loader2,
   Calendar, Users, Film, Bot, Brain, LogIn, UserPlus, Sparkles,
   Bookmark, BookmarkCheck, Quote, ChevronDown, ChevronUp, Pencil,
   MessageSquare, ThumbsUp, ThumbsDown, Minus, Play, Send, X, UserCheck,
+  Layers, Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../lib/auth-context";
@@ -189,6 +191,9 @@ export function MovieDetailPage() {
   const [savedReviewData, setSavedReviewData] = useState<{ review: string; rating: number; savedAt?: string; sentiment?: any } | null>(null);
   const [showTrailer, setShowTrailer] = useState(false);
   const [recommendFriendModal, setRecommendFriendModal] = useState(false);
+  const [collections, setCollections] = useState<any[]>([]);
+  const [loadingCollections, setLoadingCollections] = useState(true);
+  const [selectedCollection, setSelectedCollection] = useState<any>(null);
 
   // Load movie + watchlist state
   useEffect(() => {
@@ -224,6 +229,12 @@ export function MovieDetailPage() {
         setInWatchlist(wl.some((x: any) => x.movieId === Number(id)));
       }
     }).catch(() => {});
+
+    getMyCollections().then((cols) => {
+      if (Array.isArray(cols)) {
+        setCollections(cols);
+      }
+    }).catch(() => {}).finally(() => setLoadingCollections(false));
   }, [id, session]);
 
   const handleAdd = async () => {
@@ -280,6 +291,26 @@ export function MovieDetailPage() {
       toast.error(e.message || t("error"));
     } finally {
       setWatchlistLoading(false);
+    }
+  };
+
+  const handleAddToCollection = async () => {
+    if (!session) { toast.error(t("signIn")); return; }
+    if (!selectedCollection) return;
+    setSaving(true);
+    try {
+      await addMovieToCollection(selectedCollection.id, {
+        movieId: Number(id),
+        title: movie.title,
+        poster_path: movie.poster_path,
+        release_date: movie.release_date,
+        vote_average: movie.vote_average,
+      });
+      toast.success(t("addedToCollection"));
+    } catch (e: any) {
+      toast.error(e.message || t("error"));
+    } finally {
+      setSaving(false);
     }
   };
 

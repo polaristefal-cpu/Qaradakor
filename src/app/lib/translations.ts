@@ -34,6 +34,7 @@ const t = {
   navAiChat: { ru: "AI-чат", en: "AI Chat", kz: "AI-чат" },
   navFriends: { ru: "Друзья", en: "Friends", kz: "Достар" },
   navSearch: { ru: "Поиск", en: "Search", kz: "Іздеу" },
+  navCollections: { ru: "Подборки", en: "Collections", kz: "Жиынтықтар" },
   themeLabel: { ru: "Тема", en: "Theme", kz: "Тақырып" },
   logout: { ru: "Выйти", en: "Logout", kz: "Шығу" },
   myProfile: { ru: "Мой профиль", en: "My Profile", kz: "Менің профилім" },
@@ -138,6 +139,7 @@ const t = {
   removedFromLibrary: { ru: "Удалено из библиотеки", en: "Removed from Library", kz: "Кітапханадан жойылды" },
   addedToWatchlist: { ru: "Добавлено в «Хочу посмотреть»!", en: "Added to Watchlist!", kz: "Бақылау тізіміне қосылды!" },
   removedFromWatchlist: { ru: "Удалено из «Хочу посмотреть»", en: "Removed from Watchlist", kz: "Бақылау тізімінен жойылды" },
+  addedToCollection: { ru: "Добавлено в подборку!", en: "Added to Collection!", kz: "Жиынтыққа қосылды!" },
   movieNotFound: { ru: "Фильм не найден", en: "Movie not found", kz: "Фильм табылмады" },
   toHome: { ru: "На главную", en: "Home", kz: "Басты бетке" },
   recommendMovieTitle: { ru: "Рекомендовать другу", en: "Recommend to Friend", kz: "Достыма ұсыну" },
@@ -180,7 +182,7 @@ const t = {
 
   // ── Register ───────────────────────────────────────────────────────────────
   registerTitle: { ru: "Создать аккаунт", en: "Create Account", kz: "Аккаунт жасау" },
-  registerSubheading: { ru: "Заполните форму для регистрации", en: "Fill in the form to register", kz: "Тіркелу үшін пішінді толтырыңыз" },
+  registerSubheading: { ru: "Заполните форму для регистрации", en: "Fill in the form to register", kz: "Тіркелу үшін пішінді то��тырыңыз" },
   nameLabel: { ru: "Имя", en: "Name", kz: "Аты" },
   namePlaceholder: { ru: "Ваше имя", en: "Your name", kz: "Сіздің атыңыз" },
   confirmPassword: { ru: "Подтвердите пароль", en: "Confirm Password", kz: "Құпия сөзді растаңыз" },

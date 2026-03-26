@@ -4,6 +4,7 @@ import { getTmdbLang } from "./tmdb-lang";
 
 const BASE = `https://${projectId}.supabase.co/functions/v1/make-server-59141208`;
 
+export const TMDB_IMG = "https://image.tmdb.org/t/p";
 export const supabase = createClient(
   `https://${projectId}.supabase.co`,
   publicAnonKey
@@ -105,7 +106,7 @@ async function request(path: string, options: RequestInit = {}) {
     console.error(`API non-JSON response ${path}: status=${res.status} body="${rawText}"`);
     if (res.status === 404) {
       throw new Error(
-        "Маршрут не найден (404). Edge Function устарела — задеплойте свежую версию командой: supabase functions deploy make-server-59141208"
+        "Маршрут не найден (404). Edge Function устарела — задеплойте свежую ерсию командой: supabase functions deploy make-server-59141208"
       );
     }
     if (res.status >= 500) throw new Error("Ошибка сервера. Попробуйте повторить запрос через несколько секунд.");
@@ -370,6 +371,14 @@ export async function getFriendWatched(friendId: string) {
   return request(`/friends/${friendId}/watched`);
 }
 
+export async function getFriendRecommendations() {
+  return request("/friends/recommendations");
+}
+
+export async function markRecommendationSeen(id: string) {
+  return request(`/friends/recommendations/${id}/seen`, { method: "POST" });
+}
+
 // Friend profile & recommendations
 export async function getFriendProfile(friendId: string) {
   return request(`/friends/${friendId}/profile`);
@@ -399,52 +408,72 @@ export async function sendRecommendation(friendId: string, movieId: number, note
   }
 }
 
-export async function getFriendRecommendations(): Promise<any[]> {
-  try {
-    const data = await request("/friends/recommendations");
-    return Array.isArray(data) ? data : [];
-  } catch {
-    // Route not yet deployed on Edge Function — return empty list silently
-    return [];
-  }
+// ---- COLLECTIONS ----
+export async function getCollections(): Promise<any[]> {
+  return request("/collections");
 }
 
-export async function markRecommendationSeen(recId: string) {
-  try {
-    return await request(`/friends/recommendations/${recId}/seen`, { method: "POST" });
-  } catch {
-    // Silently ignore if route not yet deployed
-    return null;
-  }
+export async function getMyCollections(): Promise<any[]> {
+  return request("/my-collections");
 }
 
-export async function getRecommendations(params?: {
-  exclude?: number[];
-  page?: number;
-  seed?: number;
+export async function createCollection(name: string, description?: string) {
+  return request("/collections", {
+    method: "POST",
+    body: JSON.stringify({ name, description }),
+  });
+}
+
+export async function updateCollection(id: string, data: { name?: string; description?: string }) {
+  return request(`/collections/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteCollection(id: string) {
+  return request(`/collections/${id}`, { method: "DELETE" });
+}
+
+export async function getCollection(id: string) {
+  return request(`/collections/${id}`);
+}
+
+export async function addMovieToCollection(collectionId: string, movie: {
+  movieId: number; title: string; poster_path: string | null; release_date: string; vote_average: number;
 }) {
-  const query = new URLSearchParams();
-  if (params?.exclude?.length) {
-    query.set("exclude", params.exclude.join(","));
-  }
-  if (params?.page) query.set("page", String(params.page));
-  if (params?.seed) query.set("seed", String(params.seed));
-  const qs = query.toString();
-  return request(`/recommendations${qs ? `?${qs}` : ""}`);
+  return request(`/collections/${collectionId}/movies`, {
+    method: "POST",
+    body: JSON.stringify(movie),
+  });
 }
 
+export async function removeMovieFromCollection(collectionId: string, movieId: number) {
+  return request(`/collections/${collectionId}/movies/${movieId}`, { method: "DELETE" });
+}
+
+export async function toggleCollectionLike(collectionId: string) {
+  return request(`/collections/${collectionId}/like`, { method: "POST" });
+}
+
+export async function addCollectionComment(collectionId: string, text: string) {
+  return request(`/collections/${collectionId}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ text }),
+  });
+}
+
+export async function deleteCollectionComment(collectionId: string, commentId: string) {
+  return request(`/collections/${collectionId}/comments/${commentId}`, { method: "DELETE" });
+}
+
+// ---- REVIEWS ----
 export async function getTopReviews(): Promise<any[]> {
-  try {
-    const data = await request("/reviews/top");
-    return Array.isArray(data) ? data : [];
-  } catch { return []; }
+  return request("/reviews/top");
 }
 
 export async function getMovieReviews(movieId: number): Promise<any[]> {
-  try {
-    const data = await request(`/reviews/movie/${movieId}`);
-    return Array.isArray(data) ? data : [];
-  } catch { return []; }
+  return request(`/reviews/movie/${movieId}`);
 }
 
 export async function likeReview(reviewId: string) {
@@ -455,33 +484,9 @@ export async function deleteReview(reviewId: string) {
   return request(`/reviews/${reviewId}`, { method: "DELETE" });
 }
 
-// AI
-export async function aiChat(message: string, history: { role: string; content: string }[]) {
-  return request("/ai/chat", {
-    method: "POST",
-    body: JSON.stringify({ message, history }),
-  });
-}
-
-export async function aiAnalyzeReview(review: string, movieTitle: string) {
-  return request("/ai/analyze-review", {
-    method: "POST",
-    body: JSON.stringify({ review, movieTitle }),
-  });
-}
-
-export async function aiExplain(movieId: number) {
-  return request("/ai/explain", {
-    method: "POST",
-    body: JSON.stringify({ movieId }),
-  });
-}
-
-export const TMDB_IMG = "https://image.tmdb.org/t/p";
-
-// People / Persons
-export async function searchPeople(query: string) {
-  return request(`/tmdb/search/person?query=${encodeURIComponent(query)}&language=${getTmdbLang()}`);
+// ---- PEOPLE (TMDB) ----
+export async function searchPeople(query: string, page = 1) {
+  return request(`/tmdb/search/person?query=${encodeURIComponent(query)}&language=${getTmdbLang()}&page=${page}`);
 }
 
 export async function getPersonDetails(personId: number) {
@@ -490,4 +495,31 @@ export async function getPersonDetails(personId: number) {
 
 export async function getPersonMovies(personId: number) {
   return request(`/tmdb/person/${personId}/movie_credits?language=${getTmdbLang()}`);
+}
+
+// ---- AI ----
+export async function aiChat(messages: { role: string; content: string }[]) {
+  return request("/ai/chat", {
+    method: "POST",
+    body: JSON.stringify({ messages }),
+  });
+}
+
+export async function aiExplain(movieId: number, movieTitle: string) {
+  return request("/ai/explain", {
+    method: "POST",
+    body: JSON.stringify({ movieId, movieTitle }),
+  });
+}
+
+export async function aiAnalyzeReview(movieId: number, review: string) {
+  return request("/ai/analyze-review", {
+    method: "POST",
+    body: JSON.stringify({ movieId, review }),
+  });
+}
+
+// ---- CONTENT RECOMMENDATIONS ----
+export async function getRecommendations() {
+  return request("/recommendations");
 }

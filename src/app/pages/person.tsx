@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { BackButton } from "../components/back-button";
 
-type Role = "all" | "cast" | "crew";
+type Role = "all" | "cast" | "crew" | "director";
 
 export function PersonPage() {
   const { id } = useParams<{ id: string }>();
@@ -60,6 +60,7 @@ export function PersonPage() {
     .filter(m => {
       if (role === "cast") return m._role === "cast";
       if (role === "crew") return m._role === "crew";
+      if (role === "director") return (m._job || "").toLowerCase().includes("director");
       return true;
     })
     .sort((a, b) => {
@@ -187,6 +188,7 @@ export function PersonPage() {
               {([
                 { key: "all", label: "Все" },
                 { key: "cast", label: "В ролях" },
+                { key: "director", label: "Режиссёр" },
                 { key: "crew", label: "За кадром" },
               ] as { key: Role; label: string }[]).map(({ key, label }) => (
                 <button

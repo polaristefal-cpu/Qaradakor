@@ -1530,4 +1530,244 @@ app.post("/make-server-59141208/auth/sms-login-verify", async (c) => {
   }
 });
 
+// ---- COLLECTIONS ----
+
+// List all public collections
+app.get("/make-server-59141208/collections", async (c) => {
+  try {
+    const user = await getUser(c);
+    const all: any[] = await kv.getByPrefix("coll:") || [];
+    const collections = all.filter((item: any) => item && item.id && item.name);
+    collections.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    for (const coll of collections) {
+      const likes: any = await kv.get(`coll_likes:${coll.id}`) || {};
+      coll.likesCount = Object.keys(likes).length;
+      coll.likedByMe = user ? !!likes[user.id] : false;
+    }
+    return c.json(collections);
+  } catch (e: any) {
+    console.log("[Collections] list error:", e.message);
+    return c.json({ error: `Get collections error: ${e.message}` }, 500);
+  }
+});
+
+// Create collection
+app.post("/make-server-59141208/collections", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const { name, description } = await c.req.json();
+    if (!name?.trim()) return c.json({ error: "Название обязательно" }, 400);
+    const profile: any = await kv.get(`user:${user.id}:profile`) || {};
+    const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const coll = {
+      id, userId: user.id,
+      userName: profile.name || user.email.split("@")[0],
+      name: name.trim(),
+      description: description?.trim() || "",
+      moviesCount: 0, likesCount: 0, commentsCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    await kv.set(`coll:${id}`, coll);
+    const userColls: string[] = await kv.get(`user_colls:${user.id}`) || [];
+    userColls.unshift(id);
+    await kv.set(`user_colls:${user.id}`, userColls);
+    return c.json(coll);
+  } catch (e: any) {
+    return c.json({ error: `Create collection error: ${e.message}` }, 500);
+  }
+});
+
+// Get single collection with movies & comments
+app.get("/make-server-59141208/collections/:id", async (c) => {
+  try {
+    const user = await getUser(c);
+    const id = c.req.param("id");
+    const coll: any = await kv.get(`coll:${id}`);
+    if (!coll) return c.json({ error: "Подборка не найдена" }, 404);
+    const movies: any[] = await kv.get(`coll_movies:${id}`) || [];
+    const likes: any = await kv.get(`coll_likes:${id}`) || {};
+    const comments: any[] = await kv.get(`coll_comments:${id}`) || [];
+    return c.json({
+      ...coll, movies,
+      likesCount: Object.keys(likes).length,
+      likedByMe: user ? !!likes[user.id] : false,
+      comments,
+    });
+  } catch (e: any) {
+    return c.json({ error: `Get collection error: ${e.message}` }, 500);
+  }
+});
+
+// Update collection
+app.put("/make-server-59141208/collections/:id", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const id = c.req.param("id");
+    const coll: any = await kv.get(`coll:${id}`);
+    if (!coll) return c.json({ error: "Не найдено" }, 404);
+    if (coll.userId !== user.id) return c.json({ error: "Нет прав" }, 403);
+    const { name, description } = await c.req.json();
+    const updated = { ...coll, ...(name ? { name: name.trim() } : {}), description: description !== undefined ? description.trim() : coll.description, updatedAt: new Date().toISOString() };
+    await kv.set(`coll:${id}`, updated);
+    return c.json(updated);
+  } catch (e: any) {
+    return c.json({ error: `Update collection error: ${e.message}` }, 500);
+  }
+});
+
+// Delete collection
+app.delete("/make-server-59141208/collections/:id", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const id = c.req.param("id");
+    const coll: any = await kv.get(`coll:${id}`);
+    if (!coll) return c.json({ error: "Не найдено" }, 404);
+    if (coll.userId !== user.id) return c.json({ error: "Нет прав" }, 403);
+    await kv.del(`coll:${id}`);
+    await kv.del(`coll_movies:${id}`);
+    await kv.del(`coll_likes:${id}`);
+    await kv.del(`coll_comments:${id}`);
+    const userColls: string[] = await kv.get(`user_colls:${user.id}`) || [];
+    await kv.set(`user_colls:${user.id}`, userColls.filter((cid) => cid !== id));
+    return c.json({ ok: true });
+  } catch (e: any) {
+    return c.json({ error: `Delete collection error: ${e.message}` }, 500);
+  }
+});
+
+// Add movie to collection
+app.post("/make-server-59141208/collections/:id/movies", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const id = c.req.param("id");
+    const coll: any = await kv.get(`coll:${id}`);
+    if (!coll) return c.json({ error: "Не найдено" }, 404);
+    if (coll.userId !== user.id) return c.json({ error: "Нет прав" }, 403);
+    const { movieId, title, poster_path, release_date, vote_average } = await c.req.json();
+    if (!movieId) return c.json({ error: "movieId required" }, 400);
+    const movies: any[] = await kv.get(`coll_movies:${id}`) || [];
+    if (movies.some((m: any) => m.movieId === movieId)) return c.json({ ok: true, alreadyExists: true });
+    movies.push({ movieId, title, poster_path, release_date, vote_average, addedAt: new Date().toISOString() });
+    await kv.set(`coll_movies:${id}`, movies);
+    await kv.set(`coll:${id}`, { ...coll, moviesCount: movies.length, updatedAt: new Date().toISOString() });
+    return c.json({ ok: true, moviesCount: movies.length });
+  } catch (e: any) {
+    return c.json({ error: `Add movie error: ${e.message}` }, 500);
+  }
+});
+
+// Remove movie from collection
+app.delete("/make-server-59141208/collections/:id/movies/:movieId", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const id = c.req.param("id");
+    const movieId = parseInt(c.req.param("movieId"));
+    const coll: any = await kv.get(`coll:${id}`);
+    if (!coll) return c.json({ error: "Не найдено" }, 404);
+    if (coll.userId !== user.id) return c.json({ error: "Нет прав" }, 403);
+    let movies: any[] = await kv.get(`coll_movies:${id}`) || [];
+    movies = movies.filter((m: any) => m.movieId !== movieId);
+    await kv.set(`coll_movies:${id}`, movies);
+    await kv.set(`coll:${id}`, { ...coll, moviesCount: movies.length, updatedAt: new Date().toISOString() });
+    return c.json({ ok: true, moviesCount: movies.length });
+  } catch (e: any) {
+    return c.json({ error: `Remove movie error: ${e.message}` }, 500);
+  }
+});
+
+// Toggle like on collection
+app.post("/make-server-59141208/collections/:id/like", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const id = c.req.param("id");
+    const coll: any = await kv.get(`coll:${id}`);
+    if (!coll) return c.json({ error: "Не найдено" }, 404);
+    const likes: any = await kv.get(`coll_likes:${id}`) || {};
+    if (likes[user.id]) { delete likes[user.id]; } else { likes[user.id] = true; }
+    await kv.set(`coll_likes:${id}`, likes);
+    const likesCount = Object.keys(likes).length;
+    await kv.set(`coll:${id}`, { ...coll, likesCount });
+    return c.json({ liked: !!likes[user.id], likesCount });
+  } catch (e: any) {
+    return c.json({ error: `Like error: ${e.message}` }, 500);
+  }
+});
+
+// Add comment to collection
+app.post("/make-server-59141208/collections/:id/comments", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const id = c.req.param("id");
+    const coll: any = await kv.get(`coll:${id}`);
+    if (!coll) return c.json({ error: "Не найдено" }, 404);
+    const { text } = await c.req.json();
+    if (!text?.trim()) return c.json({ error: "Текст обязателен" }, 400);
+    const profile: any = await kv.get(`user:${user.id}:profile`) || {};
+    const comments: any[] = await kv.get(`coll_comments:${id}`) || [];
+    const comment = {
+      id: `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      userId: user.id,
+      userName: profile.name || user.email.split("@")[0],
+      text: text.trim(),
+      createdAt: new Date().toISOString(),
+    };
+    comments.push(comment);
+    await kv.set(`coll_comments:${id}`, comments.slice(-200));
+    await kv.set(`coll:${id}`, { ...coll, commentsCount: comments.length, updatedAt: new Date().toISOString() });
+    return c.json(comment);
+  } catch (e: any) {
+    return c.json({ error: `Comment error: ${e.message}` }, 500);
+  }
+});
+
+// Delete comment
+app.delete("/make-server-59141208/collections/:id/comments/:commentId", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const id = c.req.param("id");
+    const commentId = c.req.param("commentId");
+    const coll: any = await kv.get(`coll:${id}`);
+    if (!coll) return c.json({ error: "Не найдено" }, 404);
+    let comments: any[] = await kv.get(`coll_comments:${id}`) || [];
+    const comment = comments.find((com: any) => com.id === commentId);
+    if (!comment) return c.json({ error: "Комментарий не найден" }, 404);
+    if (comment.userId !== user.id && coll.userId !== user.id) return c.json({ error: "Нет прав" }, 403);
+    comments = comments.filter((com: any) => com.id !== commentId);
+    await kv.set(`coll_comments:${id}`, comments);
+    await kv.set(`coll:${id}`, { ...coll, commentsCount: comments.length });
+    return c.json({ ok: true });
+  } catch (e: any) {
+    return c.json({ error: `Delete comment error: ${e.message}` }, 500);
+  }
+});
+
+// Get current user's own collections
+app.get("/make-server-59141208/my-collections", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const userColls: string[] = await kv.get(`user_colls:${user.id}`) || [];
+    if (userColls.length === 0) return c.json([]);
+    const colls = await Promise.all(userColls.map((cid) => kv.get(`coll:${cid}`)));
+    const validColls = colls.filter(Boolean) as any[];
+    for (const coll of validColls) {
+      const likes: any = await kv.get(`coll_likes:${coll.id}`) || {};
+      coll.likesCount = Object.keys(likes).length;
+      coll.likedByMe = !!likes[user.id];
+    }
+    return c.json(validColls);
+  } catch (e: any) {
+    return c.json({ error: `Get my collections error: ${e.message}` }, 500);
+  }
+});
+
 Deno.serve(app.fetch);
