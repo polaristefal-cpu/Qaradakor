@@ -12,6 +12,13 @@ import {
   getWatchlist,
   addToWatchlist,
   removeFromWatchlist,
+  getTrendingTV,
+  getPopularTV,
+  getTopRatedTV,
+  getAiringToday,
+  getKazakhMoviesTopRated,
+  getKazakhMoviesNew,
+  getKazakhMoviesGoldenAge,
 } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
 import { useLang } from "../lib/lang-context";
@@ -45,6 +52,9 @@ import {
   Bookmark,
   BookmarkCheck,
   Loader2,
+  Tv,
+  MapPin,
+  Trophy,
 } from "lucide-react";
 import { MovieCard } from "../components/movie-card";
 import { TopReviewsSection } from "../components/top-reviews-section";
@@ -168,11 +178,13 @@ function MovieRow({
   icon,
   iconClass,
   movies,
+  mediaType = "movie",
 }: {
   label: string;
   icon: React.ElementType;
   iconClass?: string;
-  movies: Movie[];
+  movies: any[];
+  mediaType?: "movie" | "tv";
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -205,18 +217,19 @@ function MovieRow({
           className="flex gap-3 overflow-x-auto pb-2 scroll-smooth"
           style={{ scrollbarWidth: "none" }}
         >
-          {movies.map((m) => (
-            <div
-              key={m.id}
-              className="shrink-0 w-32 sm:w-36 group/item"
-            >
-              <MovieCard movie={m} />
-              <p className="mt-1.5 text-xs font-medium text-foreground line-clamp-1 px-0.5 group-hover/item:text-primary transition-colors">{m.title}</p>
-              {m.release_date && (
-                <p className="text-[10px] text-muted-foreground px-0.5">{m.release_date.slice(0, 4)}</p>
-              )}
-            </div>
-          ))}
+          {movies.map((m) => {
+            const displayTitle = m.title || m.name || "";
+            const displayDate = m.release_date || m.first_air_date || "";
+            return (
+              <div key={m.id} className="shrink-0 w-32 sm:w-36 group/item">
+                <MovieCard movie={m} mediaType={mediaType} />
+                <p className="mt-1.5 text-xs font-medium text-foreground line-clamp-1 px-0.5 group-hover/item:text-primary transition-colors">{displayTitle}</p>
+                {displayDate && (
+                  <p className="text-[10px] text-muted-foreground px-0.5">{displayDate.slice(0, 4)}</p>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -868,6 +881,91 @@ function HowItWorks() {
   );
 }
 
+// ─── Kazakh Cinema Section ─────────────────────────────────────────────────────
+function KazakhCinemaSection() {
+  const { t, tmdbLang } = useLang();
+  const [topRated, setTopRated] = useState<any[]>([]);
+  const [newReleases, setNewReleases] = useState<any[]>([]);
+  const [goldenAge, setGoldenAge] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([
+      getKazakhMoviesTopRated(),
+      getKazakhMoviesNew(),
+      getKazakhMoviesGoldenAge(),
+    ])
+      .then(([tr, nr, ga]) => {
+        setTopRated(tr.results || []);
+        setNewReleases(nr.results || []);
+        setGoldenAge(ga.results || []);
+      })
+      .catch((err) => console.error("Kazakh cinema fetch error:", err))
+      .finally(() => setLoading(false));
+  }, [tmdbLang]);
+
+  const hasData = topRated.length > 0 || newReleases.length > 0 || goldenAge.length > 0;
+
+  return (
+    <div>
+      {/* Section Banner */}
+      <div className="relative rounded-2xl overflow-hidden mb-8 border border-border">
+        <div className="absolute inset-0 bg-gradient-to-br from-foreground/8 via-foreground/4 to-transparent" />
+        <div className="relative z-10 px-6 py-7 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 shrink-0">
+            <MapPin className="w-6 h-6 text-primary" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-primary/70 border border-primary/20 px-2 py-0.5 rounded-md">
+                🇰🇿 Kazakhstan
+              </span>
+            </div>
+            <h2 className="text-xl font-black text-foreground tracking-tight">{t("kazakhCinemaSection")}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{t("kazakhGoldenAgeDesc")}</p>
+          </div>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-10">
+          <div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : !hasData ? (
+        <div className="text-center py-10 text-muted-foreground text-sm">{t("kazakhCinemaEmpty")}</div>
+      ) : (
+        <div className="space-y-12">
+          {topRated.length > 0 && (
+            <MovieRow
+              label={t("kazakhBestSection")}
+              icon={Trophy}
+              iconClass="text-primary"
+              movies={topRated.slice(0, 20)}
+            />
+          )}
+          {newReleases.length > 0 && (
+            <MovieRow
+              label={t("kazakhNewSection")}
+              icon={Zap}
+              iconClass="text-primary"
+              movies={newReleases.slice(0, 20)}
+            />
+          )}
+          {goldenAge.length > 0 && (
+            <MovieRow
+              label={t("kazakhGoldenAgeSection")}
+              icon={Award}
+              iconClass="text-primary"
+              movies={goldenAge.slice(0, 20)}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── HomePage ──────────────────────────────────────────────────────────────────
 export function HomePage() {
   const { session } = useAuth();
@@ -877,21 +975,32 @@ export function HomePage() {
   const [topRated, setTopRated] = useState<Movie[]>([]);
   const [upcoming, setUpcoming] = useState<Movie[]>([]);
   const [nowPlaying, setNowPlaying] = useState<Movie[]>([]);
+  const [tvTrending, setTvTrending] = useState<any[]>([]);
+  const [tvPopular, setTvPopular] = useState<any[]>([]);
+  const [tvTopRated, setTvTopRated] = useState<any[]>([]);
+  const [tvAiring, setTvAiring] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([getTrending(), getPopular(), getTopRated(), getUpcoming(), getNowPlaying()])
-      .then(([tr, p, tR, u, np]) => {
+    Promise.all([
+      getTrending(), getPopular(), getTopRated(), getUpcoming(), getNowPlaying(),
+      getTrendingTV(), getPopularTV(), getTopRatedTV(), getAiringToday(),
+    ])
+      .then(([tr, p, tR, u, np, tvTr, tvP, tvTR, tvAir]) => {
         setTrending(tr.results || []);
         setPopular(p.results || []);
         setTopRated(tR.results || []);
         setUpcoming(u.results || []);
         setNowPlaying(np.results || []);
+        setTvTrending(tvTr.results || []);
+        setTvPopular(tvP.results || []);
+        setTvTopRated(tvTR.results || []);
+        setTvAiring(tvAir.results || []);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [tmdbLang]); // re-fetch when language changes
+  }, [tmdbLang]);
 
   if (loading) {
     return (
@@ -937,6 +1046,24 @@ export function HomePage() {
 
         {/* Genre browser */}
         <GenreSection />
+
+        {/* ── TV Shows Section ── */}
+        <div>
+          <div className="flex items-center gap-3 mb-8 pb-4 border-b border-border">
+            <div className="w-0.5 h-6 rounded-full bg-primary" />
+            <Tv className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-black text-foreground tracking-tight">{t("tvShowsSection")}</h2>
+          </div>
+          <div className="space-y-12">
+            <MovieRow label={t("trendingTVSection")} icon={Zap} iconClass="text-primary" movies={tvTrending.slice(0, 20)} mediaType="tv" />
+            <MovieRow label={t("airingTodaySection")} icon={Flame} iconClass="text-destructive" movies={tvAiring.slice(0, 20)} mediaType="tv" />
+            <MovieRow label={t("popularTVSection")} icon={TrendingUp} iconClass="text-secondary" movies={tvPopular.slice(0, 20)} mediaType="tv" />
+            <MovieRow label={t("topRatedTVSection")} icon={Award} iconClass="text-primary" movies={tvTopRated.slice(0, 20)} mediaType="tv" />
+          </div>
+        </div>
+
+        {/* ── Kazakh Cinema Section ── */}
+        <KazakhCinemaSection />
 
         {/* How it works (guest) */}
         {!session && <HowItWorks />}

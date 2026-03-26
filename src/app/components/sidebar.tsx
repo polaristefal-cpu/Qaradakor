@@ -136,8 +136,8 @@ export function Sidebar() {
   const mobileAuthNav = [
     { to: "/", icon: Home, label: t("navHome"), badge: 0 },
     { to: "/collections", icon: Layers, label: t("navCollections"), badge: 0 },
-    { to: "/library", icon: Library, label: t("navLibrary"), badge: 0 },
-    { to: "/ai", icon: Bot, label: t("navAiChat"), badge: 0 },
+    { to: "/my-collection", icon: Library, label: t("navMyCollection"), badge: 0 },
+    { to: "/ai-recommendations", icon: Sparkles, label: t("navAiRecs"), badge: 0 },
     { to: "/profile", icon: User, label: t("profileTitle"), badge: 0 },
   ];
 

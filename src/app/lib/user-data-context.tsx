@@ -13,18 +13,24 @@ export interface WatchedEntry {
   rating: number;
   review?: string;
   addedAt: string;
+  mediaType?: "movie" | "tv";
 }
 
 interface UserDataCtx {
+  // Movies
   watchedMap: Record<number, WatchedEntry>;
   watchlistSet: Set<number>;
   addToWatchlistFn: (movie: {
     movieId: number; title: string;
     poster_path: string | null; release_date: string; vote_average: number;
+    mediaType?: "movie" | "tv";
   }) => Promise<void>;
-  removeFromWatchlistFn: (movieId: number) => Promise<void>;
-  addWatchedFn: (movieId: number, rating: number, review?: string) => Promise<void>;
-  removeWatchedFn: (movieId: number) => Promise<void>;
+  removeFromWatchlistFn: (movieId: number, mediaType?: "movie" | "tv") => Promise<void>;
+  addWatchedFn: (movieId: number, rating: number, review?: string, mediaType?: "movie" | "tv") => Promise<void>;
+  removeWatchedFn: (movieId: number, mediaType?: "movie" | "tv") => Promise<void>;
+  // TV Shows
+  tvWatchedMap: Record<number, WatchedEntry>;
+  tvWatchlistSet: Set<number>;
 }
 
 const Ctx = createContext<UserDataCtx | null>(null);
@@ -33,49 +39,91 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const [watchedMap, setWatchedMap] = useState<Record<number, WatchedEntry>>({});
   const [watchlistSet, setWatchlistSet] = useState<Set<number>>(new Set());
+  const [tvWatchedMap, setTvWatchedMap] = useState<Record<number, WatchedEntry>>({});
+  const [tvWatchlistSet, setTvWatchlistSet] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     if (!session) {
       setWatchedMap({});
       setWatchlistSet(new Set());
+      setTvWatchedMap({});
+      setTvWatchlistSet(new Set());
       return;
     }
     Promise.all([getWatched(), getWatchlist()])
       .then(([w, wl]) => {
-        const map: Record<number, WatchedEntry> = {};
-        if (Array.isArray(w)) w.forEach((e: WatchedEntry) => { map[e.movieId] = e; });
-        setWatchedMap(map);
-        if (Array.isArray(wl)) setWatchlistSet(new Set(wl.map((e: any) => e.movieId as number)));
+        const movieMap: Record<number, WatchedEntry> = {};
+        const tvMap: Record<number, WatchedEntry> = {};
+        if (Array.isArray(w)) {
+          w.forEach((e: WatchedEntry) => {
+            if ((e.mediaType || "movie") === "tv") tvMap[e.movieId] = e;
+            else movieMap[e.movieId] = e;
+          });
+        }
+        setWatchedMap(movieMap);
+        setTvWatchedMap(tvMap);
+
+        const movieIds = new Set<number>();
+        const tvIds = new Set<number>();
+        if (Array.isArray(wl)) {
+          wl.forEach((e: any) => {
+            if ((e.mediaType || "movie") === "tv") tvIds.add(e.movieId as number);
+            else movieIds.add(e.movieId as number);
+          });
+        }
+        setWatchlistSet(movieIds);
+        setTvWatchlistSet(tvIds);
       })
       .catch(() => {});
   }, [session]);
 
   const addToWatchlistFn = useCallback(async (movie: any) => {
+    const mt: "movie" | "tv" = movie.mediaType || "movie";
     await apiAddToWatchlist(movie);
-    setWatchlistSet(prev => new Set([...prev, movie.movieId as number]));
+    if (mt === "tv") {
+      setTvWatchlistSet(prev => new Set([...prev, movie.movieId as number]));
+    } else {
+      setWatchlistSet(prev => new Set([...prev, movie.movieId as number]));
+    }
   }, []);
 
-  const removeFromWatchlistFn = useCallback(async (movieId: number) => {
-    await apiRemoveFromWatchlist(movieId);
-    setWatchlistSet(prev => { const n = new Set(prev); n.delete(movieId); return n; });
+  const removeFromWatchlistFn = useCallback(async (movieId: number, mediaType: "movie" | "tv" = "movie") => {
+    await apiRemoveFromWatchlist(movieId, mediaType);
+    if (mediaType === "tv") {
+      setTvWatchlistSet(prev => { const n = new Set(prev); n.delete(movieId); return n; });
+    } else {
+      setWatchlistSet(prev => { const n = new Set(prev); n.delete(movieId); return n; });
+    }
   }, []);
 
-  const addWatchedFn = useCallback(async (movieId: number, rating: number, review?: string) => {
-    await apiAddWatched(movieId, rating, review);
-    setWatchedMap(prev => ({
-      ...prev,
-      [movieId]: { movieId, rating, review, addedAt: new Date().toISOString() },
-    }));
-    setWatchlistSet(prev => { const n = new Set(prev); n.delete(movieId); return n; });
+  const addWatchedFn = useCallback(async (movieId: number, rating: number, review?: string, mediaType: "movie" | "tv" = "movie") => {
+    await apiAddWatched(movieId, rating, review, undefined, undefined, mediaType);
+    const entry: WatchedEntry = { movieId, rating, review, addedAt: new Date().toISOString(), mediaType };
+    if (mediaType === "tv") {
+      setTvWatchedMap(prev => ({ ...prev, [movieId]: entry }));
+      setTvWatchlistSet(prev => { const n = new Set(prev); n.delete(movieId); return n; });
+    } else {
+      setWatchedMap(prev => ({ ...prev, [movieId]: entry }));
+      setWatchlistSet(prev => { const n = new Set(prev); n.delete(movieId); return n; });
+    }
   }, []);
 
-  const removeWatchedFn = useCallback(async (movieId: number) => {
-    await apiRemoveWatched(movieId);
-    setWatchedMap(prev => { const n = { ...prev }; delete n[movieId]; return n; });
+  const removeWatchedFn = useCallback(async (movieId: number, mediaType: "movie" | "tv" = "movie") => {
+    await apiRemoveWatched(movieId, mediaType);
+    if (mediaType === "tv") {
+      setTvWatchedMap(prev => { const n = { ...prev }; delete n[movieId]; return n; });
+    } else {
+      setWatchedMap(prev => { const n = { ...prev }; delete n[movieId]; return n; });
+    }
   }, []);
 
   return (
-    <Ctx.Provider value={{ watchedMap, watchlistSet, addToWatchlistFn, removeFromWatchlistFn, addWatchedFn, removeWatchedFn }}>
+    <Ctx.Provider value={{
+      watchedMap, watchlistSet,
+      tvWatchedMap, tvWatchlistSet,
+      addToWatchlistFn, removeFromWatchlistFn,
+      addWatchedFn, removeWatchedFn,
+    }}>
       {children}
     </Ctx.Provider>
   );

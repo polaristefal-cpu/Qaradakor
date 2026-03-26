@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { getWatched, getMovie, TMDB_IMG } from "../lib/api";
+import { getWatched, getMovie, getTVShowBasic, TMDB_IMG } from "../lib/api";
 import { useNavigate, Link } from "react-router";
 import {
   Library as LibIcon, Loader2, Star, Clock, Search, Film,
   Grid3X3, List, SortAsc, Calendar, TrendingUp, Award,
-  Flame, Heart, MessageSquare, Target, BarChart3, Activity,
+  Flame, Heart, MessageSquare, Target, BarChart3, Activity, Tv,
 } from "lucide-react";
 import { useAuth } from "../lib/auth-context";
 import { useLang } from "../lib/lang-context";
@@ -15,6 +15,7 @@ interface WatchedMovie {
   vote_average: number; runtime: number;
   genres: { id: number; name: string }[];
   overview: string; _rating: number; _addedAt: string; _review: string;
+  _mediaType?: "movie" | "tv";
 }
 
 export function LibraryPage() {
@@ -27,6 +28,7 @@ export function LibraryPage() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [filter, setFilter] = useState("");
   const [ratingFilter, setRatingFilter] = useState<number | null>(null);
+  const [mediaTypeFilter, setMediaTypeFilter] = useState<"all" | "movie" | "tv">("all");
 
   useEffect(() => {
     if (!session) { setMovies([]); setLoading(false); return; }
@@ -37,9 +39,18 @@ export function LibraryPage() {
         const details = await Promise.all(
           watched.map(async (w: any) => {
             try {
-              const m = await getMovie(w.movieId);
+              const isTV = (w.mediaType || "movie") === "tv";
+              const m = isTV ? await getTVShowBasic(w.movieId) : await getMovie(w.movieId);
               if (!m || m.success === false) return null;
-              return { ...m, _rating: w.rating, _addedAt: w.addedAt, _review: w.review };
+              // Normalize TV show fields to movie-like fields
+              const normalized = isTV ? {
+                ...m,
+                title: m.name || m.title,
+                original_title: m.original_name || m.original_title,
+                release_date: m.first_air_date || m.release_date,
+                runtime: m.episode_run_time?.[0] || 0,
+              } : m;
+              return { ...normalized, _rating: w.rating, _addedAt: w.addedAt, _review: w.review, _mediaType: w.mediaType || "movie" };
             } catch { return null; }
           })
         );
@@ -53,6 +64,7 @@ export function LibraryPage() {
     .filter((m) => {
       if (filter && !m.title.toLowerCase().includes(filter.toLowerCase()) && !m.original_title?.toLowerCase().includes(filter.toLowerCase())) return false;
       if (ratingFilter !== null && m._rating !== ratingFilter) return false;
+      if (mediaTypeFilter !== "all" && (m._mediaType || "movie") !== mediaTypeFilter) return false;
       return true;
     })
     .sort((a, b) => {
@@ -64,6 +76,8 @@ export function LibraryPage() {
 
   const totalRuntime = movies.reduce((s, m) => s + (m.runtime || 0), 0);
   const avgRating = movies.length > 0 ? (movies.reduce((s, m) => s + (m._rating || 0), 0) / movies.length).toFixed(1) : "—";
+  const moviesCount = movies.filter(m => (m._mediaType || "movie") === "movie").length;
+  const tvCount = movies.filter(m => m._mediaType === "tv").length;
 
   // ── Extended Analytics ──────────────────────────────────────────────────────
   const reviewsCount = movies.filter(m => m._review?.trim()).length;
@@ -148,6 +162,12 @@ export function LibraryPage() {
   });
   maxStreak = Math.max(maxStreak, currentStreak);
 
+  // Helper: navigate to correct detail page
+  const goToDetail = (m: WatchedMovie) => {
+    if (m._mediaType === "tv") navigate(`/tv/${m.id}`);
+    else navigate(`/movie/${m.id}`);
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-3">
@@ -168,7 +188,12 @@ export function LibraryPage() {
           <div>
             <h1 className="text-2xl font-black text-foreground">{t("libraryTitle")}</h1>
             <p className="text-muted-foreground text-sm">
-              {movies.length} {t("moviesCount")}
+              {movies.length} {t("totalItems")}
+              {tvCount > 0 && (
+                <span className="ml-2 text-xs">
+                  · {moviesCount} {t("moviesCount")} · {tvCount} {t("tvCount")}
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -178,10 +203,10 @@ export function LibraryPage() {
       {movies.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           {[
-            { label: t("moviesCount"), value: movies.length, icon: Film, color: "text-foreground" },
+            { label: t("totalItems"), value: movies.length, icon: Film, color: "text-foreground" },
             { label: t("avgRating"), value: avgRating, icon: Star, color: "text-primary" },
-            { label: t("watched"), value: `${Math.floor(totalRuntime / 60)}ч`, icon: Clock, color: "text-secondary" },
-            { label: t("myReview"), value: movies.filter(m => m._review).length, icon: SortAsc, color: "text-foreground" },
+            { label: t("watched"), value: `${Math.floor(totalRuntime / 60)}${t("libHourShort")}`, icon: Clock, color: "text-secondary" },
+            { label: t("libReviews"), value: movies.filter(m => m._review).length, icon: SortAsc, color: "text-foreground" },
           ].map(({ label, value, icon: Icon, color }) => (
             <div key={label} className="bg-card border border-border rounded-xl px-4 py-3 shadow-sm">
               <p className="text-muted-foreground text-[11px] font-bold uppercase tracking-widest mb-1">{label}</p>
@@ -202,16 +227,16 @@ export function LibraryPage() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Activity className="w-4 h-4 text-primary" />
-                <h3 className="text-sm font-bold text-foreground">Активность просмотров</h3>
+                <h3 className="text-sm font-bold text-foreground">{t("libActivityTitle")}</h3>
               </div>
               <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <Flame className="w-3 h-3" />
-                  Рекорд: {maxStreak} {maxStreak === 1 ? "день" : maxStreak < 5 ? "дня" : "дней"}
+                  {t("libStreak")}: {maxStreak}{t("libDayShort")}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <TrendingUp className="w-3 h-3" />
-                  За месяц: {recentMovies}
+                  {t("libLastMonth")}: {recentMovies}
                 </span>
               </div>
             </div>
@@ -224,12 +249,11 @@ export function LibraryPage() {
                     {[0,1,2,3,4,5,6].map(day => {
                       const cell = week.find(c => c.day === day);
                       if (!cell) return <div key={day} className="w-[10px] h-[10px]" />;
-                      const monthStart = new Date(cell.date).getDate() === 1;
                       return (
                         <div
                           key={day}
-                          title={`${cell.date}: ${cell.count} фильм${cell.count === 1 ? "" : cell.count < 5 ? "а" : "ов"}`}
-                          className={`w-[10px] h-[10px] rounded-sm border transition-all hover:scale-125 hover:shadow-sm cursor-pointer ${getHeatColor(cell.count)} ${monthStart && day === 0 ? "ring-1 ring-primary/30" : ""}`}
+                          title={`${cell.date}: ${cell.count}`}
+                          className={`w-[10px] h-[10px] rounded-sm border transition-all hover:scale-125 hover:shadow-sm cursor-pointer ${getHeatColor(cell.count)}`}
                         />
                       );
                     })}
@@ -240,25 +264,25 @@ export function LibraryPage() {
 
             {/* Legend */}
             <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
-              <span className="text-[10px] text-muted-foreground">Меньше</span>
+              <span className="text-[10px] text-muted-foreground">{t("libLessLabel")}</span>
               <div className="flex items-center gap-1">
                 {[0, 1, 2, 3, 4].map(i => (
                   <div key={i} className={`w-3 h-3 rounded-sm border ${getHeatColor(i === 0 ? 0 : Math.ceil((i / 4) * maxActivity))}`} />
                 ))}
               </div>
-              <span className="text-[10px] text-muted-foreground">Больше</span>
+              <span className="text-[10px] text-muted-foreground">{t("libMoreLabel")}</span>
             </div>
           </div>
 
           {/* Additional Metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {[
-              { label: "Идеальные 10/10", value: perfectScores, icon: Award },
-              { label: "Рецензий", value: reviewsCount, icon: MessageSquare },
-              { label: "Любимый жанр", value: topGenre, icon: Heart },
-              { label: "Всего дней", value: totalDays > 0 ? `${totalDays}д` : `${totalHours}ч`, icon: Calendar },
-              { label: "За 30 дней", value: recentMovies, icon: TrendingUp },
-              { label: "Рекорд подряд", value: maxStreak > 0 ? `${maxStreak}д` : "—", icon: Flame },
+              { label: t("libPerfect10"), value: perfectScores, icon: Award },
+              { label: t("libReviews"), value: reviewsCount, icon: MessageSquare },
+              { label: t("libFavGenre"), value: topGenre, icon: Heart },
+              { label: t("libTotalTime"), value: totalDays > 0 ? `${totalDays}${t("libDayShort")}` : `${totalHours}${t("libHourShort")}`, icon: Calendar },
+              { label: t("libLast30"), value: recentMovies, icon: TrendingUp },
+              { label: t("libBestStreak"), value: maxStreak > 0 ? `${maxStreak}${t("libDayShort")}` : "—", icon: Flame },
             ].map(({ label, value, icon: Icon }) => (
               <div key={label} className="bg-card border border-border rounded-xl px-3 py-3 shadow-sm hover:shadow-md hover:border-primary/30 transition-all">
                 <div className="flex items-center gap-2 mb-1.5">
@@ -287,6 +311,28 @@ export function LibraryPage() {
               placeholder={t("filterPlaceholder")}
               className="w-full bg-card border border-border rounded-xl pl-9 pr-3 py-2 text-foreground placeholder:text-muted-foreground/50 text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition"
             />
+          </div>
+
+          {/* Media type filter */}
+          <div className="flex gap-1">
+            {(["all", "movie", "tv"] as const).map((mt) => {
+              const label = mt === "all" ? t("filterAll") : mt === "movie" ? t("filterMovies") : t("filterTV");
+              const Icon = mt === "tv" ? Tv : Film;
+              return (
+                <button
+                  key={mt}
+                  onClick={() => setMediaTypeFilter(mt)}
+                  className={`flex items-center gap-1.5 px-3 h-9 rounded-xl border text-xs font-semibold transition-all ${
+                    mediaTypeFilter === mt
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-card border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                  }`}
+                >
+                  {mt !== "all" && <Icon className="w-3 h-3" />}
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Sort */}
@@ -361,8 +407,8 @@ export function LibraryPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
             {filtered.map((m) => (
               <div
-                key={m.id}
-                onClick={() => navigate(`/movie/${m.id}`)}
+                key={`${m._mediaType}-${m.id}`}
+                onClick={() => goToDetail(m)}
                 className="group cursor-pointer relative rounded-xl overflow-hidden bg-card border border-border shadow-sm hover:border-primary/40 hover:shadow-lg hover:scale-[1.03] transition-all duration-300"
               >
                 {m.poster_path ? (
@@ -372,10 +418,18 @@ export function LibraryPage() {
                     <Film className="w-8 h-8 text-muted-foreground/20" />
                   </div>
                 )}
+                {/* Rating badge */}
                 {m._rating > 0 && (
                   <div className="absolute top-2 right-2 bg-primary/95 backdrop-blur-sm rounded-md px-1.5 py-0.5 flex items-center gap-1">
                     <Star className="w-2.5 h-2.5 text-primary-foreground fill-primary-foreground" />
                     <span className="text-primary-foreground text-[10px] font-black">{m._rating}</span>
+                  </div>
+                )}
+                {/* TV badge */}
+                {m._mediaType === "tv" && (
+                  <div className="absolute top-2 left-2 bg-black/80 backdrop-blur-sm rounded-md px-1.5 py-0.5 flex items-center gap-1">
+                    <Tv className="w-2.5 h-2.5 text-white" />
+                    <span className="text-white text-[9px] font-bold">TV</span>
                   </div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
@@ -395,8 +449,8 @@ export function LibraryPage() {
           <div className="space-y-1.5">
             {filtered.map((m) => (
               <div
-                key={m.id}
-                onClick={() => navigate(`/movie/${m.id}`)}
+                key={`${m._mediaType}-${m.id}`}
+                onClick={() => goToDetail(m)}
                 className="flex items-center gap-4 bg-card border border-border rounded-xl p-3 hover:border-primary/30 hover:shadow-sm cursor-pointer transition-all group"
               >
                 {m.poster_path ? (
@@ -407,11 +461,18 @@ export function LibraryPage() {
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-foreground font-semibold text-sm truncate group-hover:text-primary transition-colors">{m.title}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-foreground font-semibold text-sm truncate group-hover:text-primary transition-colors">{m.title}</p>
+                    {m._mediaType === "tv" && (
+                      <span className="shrink-0 flex items-center gap-0.5 text-[9px] font-bold text-muted-foreground border border-border rounded px-1 py-0.5">
+                        <Tv className="w-2.5 h-2.5" /> TV
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2.5 mt-0.5 text-xs text-muted-foreground">
                     {m.release_date && <span>{m.release_date.slice(0, 4)}</span>}
                     {m.genres?.length > 0 && <span>{m.genres.slice(0, 2).map(g => g.name).join(", ")}</span>}
-                    {m.runtime > 0 && <span>{m.runtime} мин</span>}
+                    {m.runtime > 0 && <span>{m.runtime} {t("libMinShort")}</span>}
                   </div>
                   {m._review && <p className="text-muted-foreground text-xs mt-0.5 line-clamp-1 italic">«{m._review}»</p>}
                 </div>

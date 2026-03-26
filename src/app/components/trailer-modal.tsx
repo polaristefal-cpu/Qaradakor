@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { X, Loader2, PlayCircle, AlertCircle } from "lucide-react";
-import { getMovieVideos } from "../lib/api";
+import { getMovieVideos, getTVShowVideos } from "../lib/api";
 
 interface TrailerModalProps {
   movieId: number;
   movieTitle: string;
   onClose: () => void;
+  mediaType?: "movie" | "tv";
 }
 
 interface VideoResult {
@@ -32,7 +33,7 @@ function pickBestTrailer(videos: VideoResult[]): VideoResult | null {
   );
 }
 
-export function TrailerModal({ movieId, movieTitle, onClose }: TrailerModalProps) {
+export function TrailerModal({ movieId, movieTitle, onClose, mediaType = "movie" }: TrailerModalProps) {
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +41,8 @@ export function TrailerModal({ movieId, movieTitle, onClose }: TrailerModalProps
   useEffect(() => {
     setLoading(true);
     setError(null);
-    getMovieVideos(movieId)
+    const fetchFn = mediaType === "tv" ? getTVShowVideos : getMovieVideos;
+    fetchFn(movieId)
       .then((data) => {
         const best = pickBestTrailer(data?.results || []);
         if (best) {

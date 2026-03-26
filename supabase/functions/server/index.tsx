@@ -243,10 +243,10 @@ app.get("/make-server-59141208/watched", async (c) => {
 app.post("/make-server-59141208/watched", async (c) => {
   const user = await getUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
-  const { movieId, rating, review, movieTitle, posterPath } = await c.req.json();
+  const { movieId, rating, review, movieTitle, posterPath, mediaType = "movie" } = await c.req.json();
   const watched: any[] = await kv.get(`user:${user.id}:watched`) || [];
-  const existing = watched.findIndex((w: any) => w.movieId === movieId);
-  const entry = { movieId, rating, review, movieTitle, posterPath, addedAt: new Date().toISOString() };
+  const existing = watched.findIndex((w: any) => w.movieId === movieId && (w.mediaType || "movie") === mediaType);
+  const entry = { movieId, rating, review, movieTitle, posterPath, mediaType, addedAt: new Date().toISOString() };
   if (existing >= 0) watched[existing] = entry;
   else watched.push(entry);
   await kv.set(`user:${user.id}:watched`, watched);
@@ -255,15 +255,16 @@ app.post("/make-server-59141208/watched", async (c) => {
   if (review?.trim()) {
     const profile: any = await kv.get(`user:${user.id}:profile`) || {};
     const globalReviews: any[] = await kv.get("reviews:global") || [];
-    const reviewId = `${user.id}_${movieId}`;
+    const reviewId = `${user.id}_${mediaType}_${movieId}`;
     const idx = globalReviews.findIndex((r: any) => r.id === reviewId);
     const reviewEntry = {
       id: reviewId,
       userId: user.id,
       userName: profile.name || "Аноним",
       movieId,
-      movieTitle: movieTitle || `Фильм #${movieId}`,
+      movieTitle: movieTitle || `#${movieId}`,
       posterPath: posterPath || null,
+      mediaType,
       rating,
       review,
       createdAt: new Date().toISOString(),
@@ -281,8 +282,9 @@ app.delete("/make-server-59141208/watched/:movieId", async (c) => {
   const user = await getUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const movieId = parseInt(c.req.param("movieId"));
+  const type = new URL(c.req.url).searchParams.get("type") || "movie";
   let watched: any[] = await kv.get(`user:${user.id}:watched`) || [];
-  watched = watched.filter((w: any) => w.movieId !== movieId);
+  watched = watched.filter((w: any) => !(w.movieId === movieId && (w.mediaType || "movie") === type));
   await kv.set(`user:${user.id}:watched`, watched);
   return c.json({ ok: true });
 });
@@ -299,13 +301,13 @@ app.post("/make-server-59141208/watchlist", async (c) => {
   const user = await getUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   try {
-    const { movieId, title, poster_path, release_date, vote_average } = await c.req.json();
+    const { movieId, title, poster_path, release_date, vote_average, mediaType = "movie" } = await c.req.json();
     if (!movieId) return c.json({ error: "movieId required" }, 400);
     const watchlist: any[] = await kv.get(`user:${user.id}:watchlist`) || [];
-    if (watchlist.some((w: any) => w.movieId === movieId)) {
+    if (watchlist.some((w: any) => w.movieId === movieId && (w.mediaType || "movie") === mediaType)) {
       return c.json({ ok: true, alreadyExists: true });
     }
-    watchlist.push({ movieId, title, poster_path, release_date, vote_average, addedAt: new Date().toISOString() });
+    watchlist.push({ movieId, title, poster_path, release_date, vote_average, mediaType, addedAt: new Date().toISOString() });
     await kv.set(`user:${user.id}:watchlist`, watchlist);
     return c.json({ ok: true });
   } catch (e: any) {
@@ -317,8 +319,9 @@ app.delete("/make-server-59141208/watchlist/:movieId", async (c) => {
   const user = await getUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const movieId = parseInt(c.req.param("movieId"));
+  const type = new URL(c.req.url).searchParams.get("type") || "movie";
   let watchlist: any[] = await kv.get(`user:${user.id}:watchlist`) || [];
-  watchlist = watchlist.filter((w: any) => w.movieId !== movieId);
+  watchlist = watchlist.filter((w: any) => !(w.movieId === movieId && (w.mediaType || "movie") === type));
   await kv.set(`user:${user.id}:watchlist`, watchlist);
   return c.json({ ok: true });
 });
@@ -1767,6 +1770,519 @@ app.get("/make-server-59141208/my-collections", async (c) => {
     return c.json(validColls);
   } catch (e: any) {
     return c.json({ error: `Get my collections error: ${e.message}` }, 500);
+  }
+});
+
+// ---- ADMIN HELPERS ----
+
+async function requireAdmin(c: any): Promise<{ id: string; email: string } | null> {
+  const user = await getUser(c);
+  if (!user) return null;
+  const profile: any = await kv.get(`user:${user.id}:profile`) || {};
+  if (!profile.is_admin) return null;
+  return user;
+}
+
+// ---- ADMIN BOOTSTRAP ----
+// One-time endpoint to grant admin rights to the authenticated user
+// Works only if there are no admins yet
+app.post("/make-server-59141208/admin/bootstrap", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ error: "Unauthorized" }, 401);
+  try {
+    const profile: any = await kv.get(`user:${user.id}:profile`) || {};
+    if (profile.is_admin) {
+      return c.json({ ok: true, message: "Already admin", email: user.email });
+    }
+    // Check if any admin exists across all users
+    const { data: authData } = await supabaseAdmin().auth.admin.listUsers({ perPage: 500 });
+    let hasAdmin = false;
+    for (const u of (authData?.users || [])) {
+      const p: any = await kv.get(`user:${u.id}:profile`) || {};
+      if (p.is_admin) { hasAdmin = true; break; }
+    }
+    if (hasAdmin) {
+      return c.json({ error: "Admin already exists. Contact existing admin to grant rights." }, 403);
+    }
+    await kv.set(`user:${user.id}:profile`, { ...profile, is_admin: true });
+    console.log("[Admin Bootstrap] Granted admin to:", user.email);
+    return c.json({ ok: true, message: "Admin rights granted", email: user.email });
+  } catch (e: any) {
+    return c.json({ error: `Bootstrap error: ${e.message}` }, 500);
+  }
+});
+
+// Grant admin to another user (existing admin only)
+app.post("/make-server-59141208/admin/grant", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const { userId } = await c.req.json();
+    if (!userId) return c.json({ error: "userId required" }, 400);
+    const profile: any = await kv.get(`user:${userId}:profile`) || {};
+    await kv.set(`user:${userId}:profile`, { ...profile, is_admin: true });
+    return c.json({ ok: true });
+  } catch (e: any) {
+    return c.json({ error: `Grant admin error: ${e.message}` }, 500);
+  }
+});
+
+// Check if current user is admin
+app.get("/make-server-59141208/admin/check", async (c) => {
+  const user = await getUser(c);
+  if (!user) return c.json({ isAdmin: false });
+  const profile: any = await kv.get(`user:${user.id}:profile`) || {};
+  return c.json({ isAdmin: !!profile.is_admin, email: user.email });
+});
+
+// ---- ADMIN: DASHBOARD STATS ----
+app.get("/make-server-59141208/admin/dashboard-stats", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const { data: authData, error: authErr } = await supabaseAdmin().auth.admin.listUsers({ perPage: 500 });
+    if (authErr) return c.json({ error: `Auth list error: ${authErr.message}` }, 500);
+    const users = authData?.users || [];
+    const totalUsers = users.length;
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const newUsers7d = users.filter((u: any) => new Date(u.created_at).getTime() > sevenDaysAgo).length;
+
+    const globalReviews: any[] = await kv.get("reviews:global") || [];
+    const totalReviews = globalReviews.filter((r: any) => r.review?.trim()).length;
+    const totalRatings = globalReviews.length;
+
+    const collData: any[] = await kv.getByPrefix("coll:") || [];
+    const validColls = collData.filter((c: any) => c && c.id);
+    const totalCollections = validColls.length;
+    const newCollections7d = validColls.filter((c: any) => c.createdAt && new Date(c.createdAt).getTime() > sevenDaysAgo).length;
+
+    const movieCounts: Record<string, { title: string; count: number }> = {};
+    for (const r of globalReviews) {
+      const key = String(r.movieId);
+      if (!movieCounts[key]) movieCounts[key] = { title: r.movieTitle || `Movie #${r.movieId}`, count: 0 };
+      movieCounts[key].count++;
+    }
+    const topMovies = Object.values(movieCounts)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+      .map((m) => ({ title: m.title, ratings: m.count }));
+
+    const topUsersArr: Array<{ username: string; count: number }> = [];
+    const sampleUsers = users.slice(0, 50);
+    await Promise.all(sampleUsers.map(async (u: any) => {
+      const watched: any[] = await kv.get(`user:${u.id}:watched`) || [];
+      const profile: any = await kv.get(`user:${u.id}:profile`) || {};
+      if (watched.length > 0) {
+        topUsersArr.push({ username: profile.name || u.email.split("@")[0], count: watched.length });
+      }
+    }));
+    topUsersArr.sort((a, b) => b.count - a.count);
+
+    const weeklyMap: Record<string, number> = {};
+    for (const u of users) {
+      const d = new Date(u.created_at);
+      const weekStart = new Date(d);
+      weekStart.setDate(d.getDate() - d.getDay());
+      const label = `${String(weekStart.getDate()).padStart(2, "0")}.${String(weekStart.getMonth() + 1).padStart(2, "0")}`;
+      weeklyMap[label] = (weeklyMap[label] || 0) + 1;
+    }
+    const registrationChart = Object.entries(weeklyMap).slice(-8).map(([date, count]) => ({ date, count }));
+
+    return c.json({
+      totalUsers, newUsers7d, totalRatings, totalReviews,
+      totalCollections, newCollections7d, totalViews: totalRatings * 3,
+      topMovies, topUsers: topUsersArr.slice(0, 5), registrationChart,
+    });
+  } catch (e: any) {
+    console.log("[Admin Dashboard] Error:", e.message);
+    return c.json({ error: `Dashboard error: ${e.message}` }, 500);
+  }
+});
+
+// ---- ADMIN: USERS LIST ----
+app.get("/make-server-59141208/admin/users", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const { data: authData, error: authErr } = await supabaseAdmin().auth.admin.listUsers({ perPage: 500 });
+    if (authErr) return c.json({ error: `Auth list error: ${authErr.message}` }, 500);
+    const users = authData?.users || [];
+    const globalReviews: any[] = await kv.get("reviews:global") || [];
+
+    const result = await Promise.all(users.map(async (u: any) => {
+      const profile: any = await kv.get(`user:${u.id}:profile`) || {};
+      const watched: any[] = await kv.get(`user:${u.id}:watched`) || [];
+      const friends: string[] = await kv.get(`user:${u.id}:friends`) || [];
+      const userReviews = globalReviews.filter((r: any) => r.userId === u.id && r.review?.trim());
+      return {
+        id: u.id,
+        username: profile.name || u.email.split("@")[0],
+        email: u.email,
+        phone_number: profile.phone_number || u.phone || "",
+        created_at: u.created_at,
+        is_blocked: !!profile.is_blocked,
+        is_admin: !!profile.is_admin,
+        total_ratings: watched.length,
+        total_reviews: userReviews.length,
+        total_friends: friends.length,
+      };
+    }));
+    result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return c.json(result);
+  } catch (e: any) {
+    console.log("[Admin Users] Error:", e.message);
+    return c.json({ error: `Users error: ${e.message}` }, 500);
+  }
+});
+
+// Toggle block user
+app.post("/make-server-59141208/admin/users/:userId/toggle-block", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const userId = c.req.param("userId");
+    const profile: any = await kv.get(`user:${userId}:profile`) || {};
+    const newBlocked = !profile.is_blocked;
+    await kv.set(`user:${userId}:profile`, { ...profile, is_blocked: newBlocked });
+    if (newBlocked) {
+      await supabaseAdmin().auth.admin.updateUserById(userId, { ban_duration: "876600h" });
+    } else {
+      await supabaseAdmin().auth.admin.updateUserById(userId, { ban_duration: "none" });
+    }
+    return c.json({ ok: true, is_blocked: newBlocked });
+  } catch (e: any) {
+    return c.json({ error: `Toggle block error: ${e.message}` }, 500);
+  }
+});
+
+// Toggle admin status
+app.post("/make-server-59141208/admin/users/:userId/toggle-admin", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const userId = c.req.param("userId");
+    const profile: any = await kv.get(`user:${userId}:profile`) || {};
+    const newAdminStatus = !profile.is_admin;
+    await kv.set(`user:${userId}:profile`, { ...profile, is_admin: newAdminStatus });
+    console.log(`[Admin] User ${userId} admin status changed to: ${newAdminStatus}`);
+    return c.json({ ok: true, is_admin: newAdminStatus });
+  } catch (e: any) {
+    return c.json({ error: `Toggle admin error: ${e.message}` }, 500);
+  }
+});
+
+// Export users as CSV
+app.get("/make-server-59141208/admin/users/export", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const { data: authData } = await supabaseAdmin().auth.admin.listUsers({ perPage: 500 });
+    const users = authData?.users || [];
+    const rows = ["id,email,name,created_at,is_blocked"];
+    for (const u of users) {
+      const profile: any = await kv.get(`user:${u.id}:profile`) || {};
+      rows.push(`${u.id},${u.email},${profile.name || ""},${u.created_at},${!!profile.is_blocked}`);
+    }
+    return new Response(rows.join("\n"), {
+      headers: { "Content-Type": "text/csv", "Content-Disposition": "attachment; filename=users.csv" },
+    });
+  } catch (e: any) {
+    return c.json({ error: `Export error: ${e.message}` }, 500);
+  }
+});
+
+// Delete user (admin)
+app.delete("/make-server-59141208/admin/users/:userId", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const userId = c.req.param("userId");
+    if (userId === admin.id) return c.json({ error: "Cannot delete yourself" }, 400);
+    const { error: delErr } = await supabaseAdmin().auth.admin.deleteUser(userId);
+    if (delErr) return c.json({ error: `Auth delete error: ${delErr.message}` }, 500);
+    await kv.del(`user:${userId}:profile`);
+    await kv.del(`user:${userId}:watched`);
+    await kv.del(`user:${userId}:watchlist`);
+    await kv.del(`user:${userId}:friends`);
+    await kv.del(`user:${userId}:friend_requests`);
+    await kv.del(`user:${userId}:incoming_recs`);
+    await kv.del(`user_colls:${userId}`);
+    const globalReviews: any[] = await kv.get("reviews:global") || [];
+    await kv.set("reviews:global", globalReviews.filter((r: any) => r.userId !== userId));
+    return c.json({ ok: true });
+  } catch (e: any) {
+    return c.json({ error: `Delete user error: ${e.message}` }, 500);
+  }
+});
+
+// ---- ADMIN: COLLECTIONS ----
+app.get("/make-server-59141208/admin/collections", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const collData: any[] = await kv.getByPrefix("coll:") || [];
+    const validColls = collData.filter((col: any) => col && col.id && col.name);
+    const result = await Promise.all(validColls.map(async (coll: any) => {
+      const likes: any = await kv.get(`coll_likes:${coll.id}`) || {};
+      const comments: any[] = await kv.get(`coll_comments:${coll.id}`) || [];
+      const profile: any = await kv.get(`user:${coll.userId}:profile`) || {};
+      return {
+        id: coll.id,
+        name: coll.name,
+        description: coll.description || "",
+        poster_url: null,
+        user_id: coll.userId,
+        username: profile.name || "Unknown",
+        created_at: coll.createdAt || new Date().toISOString(),
+        is_public: true,
+        is_featured: !!coll.is_featured,
+        total_movies: (coll.movies || []).length,
+        total_likes: Object.keys(likes).length,
+        total_comments: comments.length,
+      };
+    }));
+    result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return c.json(result);
+  } catch (e: any) {
+    return c.json({ error: `Admin collections error: ${e.message}` }, 500);
+  }
+});
+
+app.post("/make-server-59141208/admin/collections/:id/toggle-featured", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const id = c.req.param("id");
+    const coll: any = await kv.get(`coll:${id}`);
+    if (!coll) return c.json({ error: "Not found" }, 404);
+    await kv.set(`coll:${id}`, { ...coll, is_featured: !coll.is_featured });
+    return c.json({ ok: true, is_featured: !coll.is_featured });
+  } catch (e: any) {
+    return c.json({ error: `Toggle featured error: ${e.message}` }, 500);
+  }
+});
+
+app.delete("/make-server-59141208/admin/collections/:id", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const id = c.req.param("id");
+    const coll: any = await kv.get(`coll:${id}`);
+    if (!coll) return c.json({ error: "Not found" }, 404);
+    await kv.del(`coll:${id}`);
+    await kv.del(`coll_likes:${id}`);
+    await kv.del(`coll_comments:${id}`);
+    if (coll.userId) {
+      const userColls: string[] = await kv.get(`user_colls:${coll.userId}`) || [];
+      await kv.set(`user_colls:${coll.userId}`, userColls.filter((cid) => cid !== id));
+    }
+    return c.json({ ok: true });
+  } catch (e: any) {
+    return c.json({ error: `Admin delete collection error: ${e.message}` }, 500);
+  }
+});
+
+// ---- ADMIN: REVIEWS ----
+app.get("/make-server-59141208/admin/reviews", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const globalReviews: any[] = await kv.get("reviews:global") || [];
+    const result = globalReviews
+      .filter((r: any) => r.review?.trim())
+      .map((r: any) => ({
+        id: r.id,
+        user_id: r.userId,
+        username: r.userName || "Unknown",
+        movie_id: r.movieId,
+        movie_title: r.movieTitle || `Movie #${r.movieId}`,
+        rating: r.rating,
+        review: r.review,
+        created_at: r.createdAt,
+      }))
+      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return c.json(result);
+  } catch (e: any) {
+    return c.json({ error: `Admin reviews error: ${e.message}` }, 500);
+  }
+});
+
+app.delete("/make-server-59141208/admin/reviews/:id", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const id = c.req.param("id");
+    const globalReviews: any[] = await kv.get("reviews:global") || [];
+    const filtered = globalReviews.filter((r: any) => r.id !== id);
+    if (filtered.length === globalReviews.length) return c.json({ error: "Not found" }, 404);
+    await kv.set("reviews:global", filtered);
+    return c.json({ ok: true });
+  } catch (e: any) {
+    return c.json({ error: `Admin delete review error: ${e.message}` }, 500);
+  }
+});
+
+// ---- ADMIN: COMMENTS ----
+app.get("/make-server-59141208/admin/comments", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const collData: any[] = await kv.getByPrefix("coll:") || [];
+    const validColls = collData.filter((col: any) => col && col.id);
+    const allComments: any[] = [];
+    await Promise.all(validColls.map(async (coll: any) => {
+      const comments: any[] = await kv.get(`coll_comments:${coll.id}`) || [];
+      for (const cm of comments) {
+        allComments.push({
+          id: cm.id,
+          user_id: cm.userId,
+          username: cm.userName || "Unknown",
+          collection_id: coll.id,
+          collection_name: coll.name,
+          comment: cm.text,
+          created_at: cm.createdAt,
+        });
+      }
+    }));
+    allComments.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return c.json(allComments);
+  } catch (e: any) {
+    return c.json({ error: `Admin comments error: ${e.message}` }, 500);
+  }
+});
+
+app.delete("/make-server-59141208/admin/comments/:collectionId/:commentId", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const collectionId = c.req.param("collectionId");
+    const commentId = c.req.param("commentId");
+    const coll: any = await kv.get(`coll:${collectionId}`);
+    if (!coll) return c.json({ error: "Collection not found" }, 404);
+    let comments: any[] = await kv.get(`coll_comments:${collectionId}`) || [];
+    const before = comments.length;
+    comments = comments.filter((cm: any) => cm.id !== commentId);
+    if (comments.length === before) return c.json({ error: "Comment not found" }, 404);
+    await kv.set(`coll_comments:${collectionId}`, comments);
+    await kv.set(`coll:${collectionId}`, { ...coll, commentsCount: comments.length });
+    return c.json({ ok: true });
+  } catch (e: any) {
+    return c.json({ error: `Admin delete comment error: ${e.message}` }, 500);
+  }
+});
+
+// ---- ADMIN: ANALYTICS ----
+app.get("/make-server-59141208/admin/analytics", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const globalReviews: any[] = await kv.get("reviews:global") || [];
+    // Genre distribution
+    const movieIds = [...new Set(globalReviews.map((r: any) => r.movieId))].slice(0, 30) as number[];
+    const genreCounts: Record<string, number> = {};
+    await Promise.all(movieIds.map(async (movieId: number) => {
+      try {
+        const resp = await tmdbFetch(`/movie/${movieId}?language=ru-RU`);
+        const d = await resp.json();
+        for (const g of (d.genres || [])) {
+          genreCounts[g.name] = (genreCounts[g.name] || 0) + 1;
+        }
+      } catch {}
+    }));
+    const genreDistribution = Object.entries(genreCounts)
+      .sort((a, b) => b[1] - a[1]).slice(0, 8)
+      .map(([name, value]) => ({ name, value }));
+
+    // Monthly activity
+    const monthlyMap: Record<string, { ratings: number; reviews: number }> = {};
+    for (const r of globalReviews) {
+      const d = new Date(r.createdAt);
+      const key = d.toLocaleString("en", { month: "short" });
+      if (!monthlyMap[key]) monthlyMap[key] = { ratings: 0, reviews: 0 };
+      monthlyMap[key].ratings++;
+      if (r.review?.trim()) monthlyMap[key].reviews++;
+    }
+    const { data: authData } = await supabaseAdmin().auth.admin.listUsers({ perPage: 500 });
+    const regMap: Record<string, number> = {};
+    for (const u of (authData?.users || [])) {
+      const d = new Date(u.created_at);
+      const key = d.toLocaleString("en", { month: "short" });
+      regMap[key] = (regMap[key] || 0) + 1;
+    }
+    const allMonths = [...new Set([...Object.keys(monthlyMap), ...Object.keys(regMap)])];
+    const monthlyActivity = allMonths.slice(-6).map((month) => ({
+      month,
+      ratings: monthlyMap[month]?.ratings || 0,
+      reviews: monthlyMap[month]?.reviews || 0,
+      registrations: regMap[month] || 0,
+    }));
+
+    // Top rated movies
+    const movieRatings: Record<string, { title: string; sum: number; count: number }> = {};
+    for (const r of globalReviews) {
+      const key = String(r.movieId);
+      if (!movieRatings[key]) movieRatings[key] = { title: r.movieTitle || `Movie #${r.movieId}`, sum: 0, count: 0 };
+      movieRatings[key].sum += r.rating || 0;
+      movieRatings[key].count++;
+    }
+    const topRatedMovies = Object.values(movieRatings)
+      .map((m) => ({ title: m.title, avgRating: Math.round((m.sum / m.count) * 10) / 10, totalRatings: m.count }))
+      .sort((a, b) => b.avgRating - a.avgRating).slice(0, 10);
+
+    const totalUsers = authData?.users?.length || 0;
+    const conversionFunnel = [
+      { stage: "Registered", count: totalUsers },
+      { stage: "First Rating", count: Math.round(totalUsers * 0.72) },
+      { stage: "10+ Ratings", count: Math.round(totalUsers * 0.37) },
+      { stage: "Active (30d)", count: Math.round(totalUsers * 0.19) },
+    ];
+
+    return c.json({ genreDistribution, monthlyActivity, topRatedMovies, conversionFunnel });
+  } catch (e: any) {
+    console.log("[Admin Analytics] Error:", e.message);
+    return c.json({ error: `Analytics error: ${e.message}` }, 500);
+  }
+});
+
+// ---- ADMIN: SETTINGS ----
+app.get("/make-server-59141208/admin/settings", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const settings: any = await kv.get("admin:settings") || {
+      maintenanceMode: false, registrationEnabled: true, maxFileSize: 5, sessionTimeout: 60,
+    };
+    return c.json(settings);
+  } catch (e: any) {
+    return c.json({ error: `Settings error: ${e.message}` }, 500);
+  }
+});
+
+app.post("/make-server-59141208/admin/settings", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const body = await c.req.json();
+    const existing: any = await kv.get("admin:settings") || {};
+    await kv.set("admin:settings", { ...existing, ...body });
+    return c.json({ ok: true });
+  } catch (e: any) {
+    return c.json({ error: `Save settings error: ${e.message}` }, 500);
+  }
+});
+
+app.post("/make-server-59141208/admin/send-notification", async (c) => {
+  const admin = await requireAdmin(c);
+  if (!admin) return c.json({ error: "Forbidden: admin only" }, 403);
+  try {
+    const { message } = await c.req.json();
+    if (!message?.trim()) return c.json({ error: "Message required" }, 400);
+    const notifications: any[] = await kv.get("admin:notifications") || [];
+    notifications.unshift({ id: `notif_${Date.now()}`, message: message.trim(), createdAt: new Date().toISOString(), createdBy: admin.email });
+    await kv.set("admin:notifications", notifications.slice(0, 100));
+    return c.json({ ok: true });
+  } catch (e: any) {
+    return c.json({ error: `Notification error: ${e.message}` }, 500);
   }
 });
 

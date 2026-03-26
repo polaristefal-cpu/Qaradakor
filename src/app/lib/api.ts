@@ -300,15 +300,22 @@ export async function getWatched() {
   return request("/watched");
 }
 
-export async function addWatched(movieId: number, rating: number, review?: string, movieTitle?: string, posterPath?: string | null) {
+export async function addWatched(
+  movieId: number,
+  rating: number,
+  review?: string,
+  movieTitle?: string,
+  posterPath?: string | null,
+  mediaType: "movie" | "tv" = "movie"
+) {
   return request("/watched", {
     method: "POST",
-    body: JSON.stringify({ movieId, rating, review, movieTitle, posterPath }),
+    body: JSON.stringify({ movieId, rating, review, movieTitle, posterPath, mediaType }),
   });
 }
 
-export async function removeWatched(movieId: number) {
-  return request(`/watched/${movieId}`, { method: "DELETE" });
+export async function removeWatched(movieId: number, mediaType: "movie" | "tv" = "movie") {
+  return request(`/watched/${movieId}?type=${mediaType}`, { method: "DELETE" });
 }
 
 // Watchlist
@@ -322,6 +329,7 @@ export async function addToWatchlist(movie: {
   poster_path: string | null;
   release_date: string;
   vote_average: number;
+  mediaType?: "movie" | "tv";
 }) {
   return request("/watchlist", {
     method: "POST",
@@ -329,8 +337,28 @@ export async function addToWatchlist(movie: {
   });
 }
 
-export async function removeFromWatchlist(movieId: number) {
-  return request(`/watchlist/${movieId}`, { method: "DELETE" });
+export async function removeFromWatchlist(movieId: number, mediaType: "movie" | "tv" = "movie") {
+  return request(`/watchlist/${movieId}?type=${mediaType}`, { method: "DELETE" });
+}
+
+// Recommendations
+export async function getRecommendations(params?: {
+  exclude?: number[];
+  page?: number;
+  seed?: number;
+}) {
+  const queryParams = new URLSearchParams();
+  if (params?.exclude?.length) {
+    queryParams.append("exclude", params.exclude.join(","));
+  }
+  if (params?.page) {
+    queryParams.append("page", params.page.toString());
+  }
+  if (params?.seed) {
+    queryParams.append("seed", params.seed.toString());
+  }
+  const query = queryParams.toString();
+  return request(`/recommendations${query ? `?${query}` : ""}`);
 }
 
 // Friends
@@ -402,7 +430,7 @@ export async function sendRecommendation(friendId: string, movieId: number, note
   } catch (e: any) {
     // If route not yet deployed, throw a user-friendly message
     if (e.message?.includes("404") || e.message?.includes("Маршрут не найден")) {
-      throw new Error("Маршрут рекомедаций ещё не задеплоен. Выполните: supabase functions deploy make-server-59141208");
+      throw new Error("Маршрут рекмедаций ещё не задеплоен. Выполните: supabase functions deploy make-server-59141208");
     }
     throw e;
   }
@@ -484,6 +512,73 @@ export async function deleteReview(reviewId: string) {
   return request(`/reviews/${reviewId}`, { method: "DELETE" });
 }
 
+// ---- TV SHOWS (TMDB) ----
+export async function searchTVShows(query: string, page = 1) {
+  return request(`/tmdb/search/tv?query=${encodeURIComponent(query)}&language=${getTmdbLang()}&page=${page}`);
+}
+
+export async function getTVShow(id: number) {
+  return request(`/tmdb/tv/${id}?language=${getTmdbLang()}&append_to_response=credits`);
+}
+
+export async function getTVShowBasic(id: number) {
+  return request(`/tmdb/tv/${id}?language=${getTmdbLang()}`);
+}
+
+export async function getTVShowVideos(id: number) {
+  const data = await request(`/tmdb/tv/${id}/videos?language=en-US`);
+  if (!data?.results?.length) {
+    return request(`/tmdb/tv/${id}/videos`);
+  }
+  return data;
+}
+
+export async function getTrendingTV() {
+  return request(`/tmdb/trending/tv/week?language=${getTmdbLang()}`);
+}
+
+export async function getPopularTV(page = 1) {
+  return request(`/tmdb/tv/popular?language=${getTmdbLang()}&page=${page}`);
+}
+
+export async function getTopRatedTV(page = 1) {
+  return request(`/tmdb/tv/top_rated?language=${getTmdbLang()}&page=${page}`);
+}
+
+export async function getAiringToday(page = 1) {
+  return request(`/tmdb/tv/airing_today?language=${getTmdbLang()}&page=${page}`);
+}
+
+export async function getOnAirTV(page = 1) {
+  return request(`/tmdb/tv/on_the_air?language=${getTmdbLang()}&page=${page}`);
+}
+
+export async function getTVGenres() {
+  return request(`/tmdb/genre/tv/list?language=${getTmdbLang()}`);
+}
+
+export async function getTVShowsByGenre(genreId: number, page = 1) {
+  return request(`/tmdb/discover/tv?with_genres=${genreId}&language=${getTmdbLang()}&sort_by=popularity.desc&page=${page}`);
+}
+
+export async function getTVSeasonDetails(tvId: number, seasonNumber: number) {
+  return request(`/tmdb/tv/${tvId}/season/${seasonNumber}?language=${getTmdbLang()}`);
+}
+
+// ---- KAZAKH CINEMA (TMDB discover with origin country KZ) ----
+export async function getKazakhMoviesTopRated(page = 1) {
+  return request(`/tmdb/discover/movie?with_origin_country=KZ&sort_by=vote_average.desc&vote_count.gte=5&language=${getTmdbLang()}&page=${page}`);
+}
+
+export async function getKazakhMoviesNew(page = 1) {
+  return request(`/tmdb/discover/movie?with_origin_country=KZ&sort_by=release_date.desc&language=${getTmdbLang()}&page=${page}`);
+}
+
+export async function getKazakhMoviesGoldenAge(page = 1) {
+  // Golden Age: Kazakh Soviet cinema (1960s–80s) + Kazakh New Wave (1988–2005)
+  return request(`/tmdb/discover/movie?with_origin_country=KZ&sort_by=vote_average.desc&primary_release_date.lte=2005-12-31&vote_count.gte=2&language=${getTmdbLang()}&page=${page}`);
+}
+
 // ---- PEOPLE (TMDB) ----
 export async function searchPeople(query: string, page = 1) {
   return request(`/tmdb/search/person?query=${encodeURIComponent(query)}&language=${getTmdbLang()}&page=${page}`);
@@ -519,7 +614,32 @@ export async function aiAnalyzeReview(movieId: number, review: string) {
   });
 }
 
-// ---- CONTENT RECOMMENDATIONS ----
-export async function getRecommendations() {
-  return request("/recommendations");
+// ---- ADMIN API (real server routes) ----
+export const api = {
+  get: async <T = any>(path: string): Promise<T> => {
+    return request(path) as Promise<T>;
+  },
+  post: async <T = any>(path: string, body: any): Promise<T> => {
+    return request(path, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }) as Promise<T>;
+  },
+  delete: async <T = any>(path: string): Promise<T> => {
+    return request(path, { method: "DELETE" }) as Promise<T>;
+  },
+};
+
+// Check admin status
+export async function checkAdminStatus(): Promise<{ isAdmin: boolean; email?: string }> {
+  try {
+    return await request("/admin/check");
+  } catch {
+    return { isAdmin: false };
+  }
+}
+
+// Bootstrap first admin (call once when no admin exists)
+export async function bootstrapAdmin(): Promise<{ ok: boolean; message?: string; email?: string; error?: string }> {
+  return request("/admin/bootstrap", { method: "POST", body: JSON.stringify({}) });
 }

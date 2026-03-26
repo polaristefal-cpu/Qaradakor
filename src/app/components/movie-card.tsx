@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { TMDB_IMG } from "../lib/api";
-import { Star, Film, Bookmark, BookmarkCheck, Check, Loader2, Play } from "lucide-react";
+import { Star, Film, Bookmark, BookmarkCheck, Check, Loader2, Play, Tv } from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "../lib/auth-context";
 import { useUserData } from "../lib/user-data-context";
@@ -12,9 +12,10 @@ interface MovieCardProps {
   rating?: number;
   compact?: boolean;
   showQuickActions?: boolean;
+  mediaType?: "movie" | "tv";
 }
 
-export function MovieCard({ movie, rating, compact, showQuickActions = true }: MovieCardProps) {
+export function MovieCard({ movie, rating, compact, showQuickActions = true, mediaType: mediaTypeProp }: MovieCardProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { session } = useAuth();
@@ -25,8 +26,19 @@ export function MovieCard({ movie, rating, compact, showQuickActions = true }: M
   const [actionLoading, setActionLoading] = useState(false);
   const [showTrailer, setShowTrailer] = useState(false);
 
-  const watchedEntry = userData?.watchedMap[movie.id];
-  const inWatchlist = userData?.watchlistSet.has(movie.id);
+  // Detect media type from prop, movie.media_type, or by presence of 'name' vs 'title'
+  const isTV = mediaTypeProp === "tv" || movie.media_type === "tv" || (!movie.title && !!movie.name);
+  const effectiveType: "movie" | "tv" = isTV ? "tv" : "movie";
+
+  const displayTitle = movie.title || movie.name || "";
+  const displayDate = movie.release_date || movie.first_air_date || "";
+
+  const watchedEntry = isTV
+    ? userData?.tvWatchedMap[movie.id]
+    : userData?.watchedMap[movie.id];
+  const inWatchlist = isTV
+    ? userData?.tvWatchlistSet.has(movie.id)
+    : userData?.watchlistSet.has(movie.id);
   const isWatched = !!watchedEntry;
 
   const handleWatchlistToggle = async (e: React.MouseEvent) => {
@@ -35,15 +47,16 @@ export function MovieCard({ movie, rating, compact, showQuickActions = true }: M
     setActionLoading(true);
     try {
       if (inWatchlist) {
-        await userData.removeFromWatchlistFn(movie.id);
+        await userData.removeFromWatchlistFn(movie.id, effectiveType);
         toast.success("Удалено из «Хочу посмотреть»");
       } else {
         await userData.addToWatchlistFn({
           movieId: movie.id,
-          title: movie.title,
+          title: displayTitle,
           poster_path: movie.poster_path,
-          release_date: movie.release_date,
+          release_date: displayDate,
           vote_average: movie.vote_average,
+          mediaType: effectiveType,
         });
         toast.success("Добавлено в «Хочу посмотреть»!");
       }
@@ -54,24 +67,32 @@ export function MovieCard({ movie, rating, compact, showQuickActions = true }: M
     }
   };
 
+  const handleClick = () => {
+    const path = isTV ? `/tv/${movie.id}` : `/movie/${movie.id}`;
+    navigate(path, { state: { from: location.pathname + location.search } });
+  };
+
   const userRating = rating ?? watchedEntry?.rating;
 
   return (
     <div
-      onClick={() => navigate(`/movie/${movie.id}`, { state: { from: location.pathname + location.search } })}
+      onClick={handleClick}
       className={`group cursor-pointer relative rounded-xl overflow-hidden bg-card border border-border shadow-sm transition-all duration-300 hover:scale-[1.04] hover:shadow-lg hover:border-primary/40 ${compact ? "w-32" : "w-full"}`}
     >
       {/* Poster */}
       {movie.poster_path ? (
         <img
           src={`${TMDB_IMG}/w342${movie.poster_path}`}
-          alt={movie.title}
+          alt={displayTitle}
           className="w-full aspect-[2/3] object-cover"
           loading="lazy"
         />
       ) : (
         <div className="w-full aspect-[2/3] bg-muted flex items-center justify-center">
-          <Film className="w-10 h-10 text-muted-foreground/30" />
+          {isTV
+            ? <Tv className="w-10 h-10 text-muted-foreground/30" />
+            : <Film className="w-10 h-10 text-muted-foreground/30" />
+          }
         </div>
       )}
 
@@ -91,9 +112,9 @@ export function MovieCard({ movie, rating, compact, showQuickActions = true }: M
 
       {/* Title + year at bottom on hover */}
       <div className="absolute bottom-0 left-0 right-0 px-2.5 pb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-        <p className="text-white text-[11px] font-semibold line-clamp-2 leading-tight">{movie.title}</p>
-        {movie.release_date && (
-          <p className="text-white/55 text-[9px] mt-0.5">{movie.release_date.slice(0, 4)}</p>
+        <p className="text-white text-[11px] font-semibold line-clamp-2 leading-tight">{displayTitle}</p>
+        {displayDate && (
+          <p className="text-white/55 text-[9px] mt-0.5">{displayDate.slice(0, 4)}</p>
         )}
       </div>
 
@@ -134,6 +155,14 @@ export function MovieCard({ movie, rating, compact, showQuickActions = true }: M
         </div>
       )}
 
+      {/* TV badge */}
+      {isTV && (
+        <div className="absolute bottom-1.5 right-1.5 bg-black/70 backdrop-blur-sm rounded-md px-1.5 py-0.5 flex items-center gap-1">
+          <Tv className="w-2.5 h-2.5 text-primary" />
+          <span className="text-white text-[9px] font-bold">TV</span>
+        </div>
+      )}
+
       {/* TMDB rating badge — top left */}
       {movie.vote_average > 0 && !userRating && (
         <div className="absolute top-1.5 left-1.5 bg-black/70 backdrop-blur-sm rounded-md px-1.5 py-0.5 flex items-center gap-1">
@@ -161,7 +190,8 @@ export function MovieCard({ movie, rating, compact, showQuickActions = true }: M
       {showTrailer && (
         <TrailerModal
           movieId={movie.id}
-          movieTitle={movie.title}
+          movieTitle={displayTitle}
+          mediaType={effectiveType}
           onClose={() => setShowTrailer(false)}
         />
       )}

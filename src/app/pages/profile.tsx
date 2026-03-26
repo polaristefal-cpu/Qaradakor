@@ -145,7 +145,7 @@ export function ProfilePage() {
       setEditing(false);
       toast.success("Профиль обнолён");
     } catch {
-      toast.error("Не удалось обновить профиль");
+      toast.error("Не удал��сь обновить профиль");
     } finally {
       setSaving(false);
     }
@@ -403,6 +403,77 @@ export function ProfilePage() {
         </div>
       </div>
 
+      {/* ── Quick Actions ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <button
+          onClick={() => navigate("/my-collection")}
+          className="flex flex-col items-center gap-2.5 p-4 bg-card border border-border rounded-2xl hover:border-primary/40 hover:shadow-md transition-all group"
+        >
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+            <Library className="w-6 h-6 text-primary" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+              Моя коллекция
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              {totalMovies} фильмов
+            </p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => navigate("/friends")}
+          className="flex flex-col items-center gap-2.5 p-4 bg-card border border-border rounded-2xl hover:border-primary/40 hover:shadow-md transition-all group"
+        >
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+            <Users className="w-6 h-6 text-primary" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+              Друзья
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Найти друзей
+            </p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => navigate("/ai-recommendations")}
+          className="flex flex-col items-center gap-2.5 p-4 bg-card border border-border rounded-2xl hover:border-primary/40 hover:shadow-md transition-all group"
+        >
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+            <Sparkles className="w-6 h-6 text-primary" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+              AI & Реки
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Рекомендации
+            </p>
+          </div>
+        </button>
+
+        <button
+          onClick={() => navigate("/collections")}
+          className="flex flex-col items-center gap-2.5 p-4 bg-card border border-border rounded-2xl hover:border-primary/40 hover:shadow-md transition-all group"
+        >
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+            <Bookmark className="w-6 h-6 text-primary" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+              Подборки
+            </p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Сообщество
+            </p>
+          </div>
+        </button>
+      </div>
+
       {/* ─── 2FA Section ───────────────────────────────────────────────────────────── */}
       <TwoFASection />
 
@@ -511,26 +582,6 @@ export function ProfilePage() {
           </div>
         </div>
       )}
-
-      {/* ── Quick links ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {[
-          { to: "/watchlist", icon: Bookmark, label: "Вотчлист", desc: "Список к просмотру" },
-          { to: "/recommendations", icon: Sparkles, label: "Рекомендации", desc: "Персональная подборка AI" },
-          { to: "/ai", icon: Bot, label: "AI-ассистент", desc: "Чат по фильмам" },
-          { to: "/friends", icon: Users, label: "Друзья", desc: "Список друзей" },
-        ].map(({ to, icon: Icon, label, desc }) => (
-          <button
-            key={to}
-            onClick={() => navigate(to)}
-            className="bg-card border border-border rounded-2xl p-4 text-left hover:border-primary/30 hover:bg-muted/30 hover:shadow-sm transition-all group"
-          >
-            <Icon className="w-5 h-5 text-primary mb-2.5 group-hover:scale-110 transition-transform" />
-            <p className="text-foreground text-sm font-bold">{label}</p>
-            <p className="text-muted-foreground text-xs mt-0.5 leading-snug">{desc}</p>
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
