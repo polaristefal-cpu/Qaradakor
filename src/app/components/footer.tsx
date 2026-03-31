@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { Clapperboard, Heart, Github, Mail, Instagram, MessageCircle } from "lucide-react";
-import iconQara from "../../imports/iconqara.svg";
+import { Logo } from "./logo";
 
 export function Footer() {
   const year = 2026;
@@ -15,8 +15,8 @@ export function Footer() {
           {/* Brand */}
           <div className="flex flex-col gap-3 max-w-xs">
             <Link to="/" className="flex items-center gap-2.5 group w-fit">
-              <div className="w-8 h-8 rounded-xl overflow-hidden group-hover:scale-105 transition-transform shrink-0 shadow-md">
-                <img src={iconQara} alt="qaradakor" className="w-full h-full object-cover" />
+              <div className="w-8 h-8 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+                <Logo className="w-full h-full text-foreground" />
               </div>
               <div className="leading-none">
                 <span className="text-foreground font-black tracking-tight text-sm">qaradakor</span>

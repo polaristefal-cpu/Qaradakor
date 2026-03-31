@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { TMDB_IMG } from "../lib/api";
-import { Star, Film, Check, Loader2, X, Play, Eye } from "lucide-react";
+import { Star, Film, Check, Loader2, X, Play, Eye, Clapperboard, Users, Pen, Calendar, Tag } from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "../lib/auth-context";
 import { useUserData } from "../lib/user-data-context";
@@ -60,6 +60,15 @@ export function RecommendationCard({ movie, onSkip }: RecommendationCardProps) {
     e.stopPropagation();
     setMode("idle");
     setHoveredRating(0);
+  };
+
+  // Signal icon map
+  const SIGNAL_ICONS: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
+    director: { icon: <Clapperboard className="w-2.5 h-2.5" />, label: "Режиссёр", color: "bg-white/20 text-white" },
+    actor:    { icon: <Users className="w-2.5 h-2.5" />,       label: "Актёр",    color: "bg-white/20 text-white" },
+    writer:   { icon: <Pen className="w-2.5 h-2.5" />,         label: "Сценарист", color: "bg-white/20 text-white" },
+    genre:    { icon: <Tag className="w-2.5 h-2.5" />,          label: "Жанр",     color: "bg-white/20 text-white" },
+    era:      { icon: <Calendar className="w-2.5 h-2.5" />,     label: "Эпоха",    color: "bg-white/20 text-white" },
   };
 
   return (
@@ -206,6 +215,31 @@ export function RecommendationCard({ movie, onSkip }: RecommendationCardProps) {
             <p className="text-white/55 text-[9px] mt-0.5">
               {movie.release_date.slice(0, 4)}
             </p>
+          )}
+          {/* Signal tags */}
+          {Array.isArray(movie._signals) && movie._signals.length > 0 && (
+            <div className="flex flex-wrap gap-0.5 mt-1.5">
+              {(movie._signals as string[]).map((sig) => {
+                const s = SIGNAL_ICONS[sig];
+                if (!s) return null;
+                // Build tooltip with matched names
+                let tooltip = s.label;
+                if (sig === "director" && movie._matchedDirectors?.length) tooltip += `: ${movie._matchedDirectors.join(", ")}`;
+                if (sig === "actor" && movie._matchedActors?.length)    tooltip += `: ${movie._matchedActors.join(", ")}`;
+                if (sig === "writer" && movie._matchedWriters?.length)   tooltip += `: ${movie._matchedWriters.join(", ")}`;
+                if (sig === "era" && movie._releaseYear)                 tooltip += ` ${Math.floor(movie._releaseYear / 10) * 10}–х`;
+                return (
+                  <span
+                    key={sig}
+                    title={tooltip}
+                    className="flex items-center gap-0.5 px-1 py-0.5 rounded text-[8px] font-semibold backdrop-blur-sm bg-white/15 text-white/90 leading-none"
+                  >
+                    {s.icon}
+                    {s.label}
+                  </span>
+                );
+              })}
+            </div>
           )}
         </div>
       )}

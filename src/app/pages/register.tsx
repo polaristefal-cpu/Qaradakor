@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { signup, login } from "../lib/api";
 import { useLang } from "../lib/lang-context";
-import { Clapperboard, UserPlus } from "lucide-react";
+import { UserPlus } from "lucide-react";
+import { Logo } from "../components/logo";
 
 export function RegisterPage() {
   const [name, setName] = useState("");
@@ -41,8 +42,8 @@ export function RegisterPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-md shadow-primary/25 group-hover:scale-105 transition-transform">
-              <Clapperboard className="w-5 h-5 text-primary-foreground" />
+            <div className="w-10 h-10 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <Logo className="w-full h-full text-foreground" />
             </div>
             <span className="text-2xl font-black text-foreground">
               qaradakor<span className="text-primary text-lg">.kz</span>

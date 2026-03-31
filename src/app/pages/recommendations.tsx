@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { getRecommendations } from "../lib/api";
 import { RecommendationCard } from "../components/recommendation-card";
 import { useLang } from "../lib/lang-context";
-import { Sparkles, Loader2, Film, Library, BookOpen, RefreshCw, RotateCcw, Shuffle, Filter } from "lucide-react";
+import { Sparkles, Loader2, Film, Library, BookOpen, RefreshCw, RotateCcw, Shuffle, Filter, Clapperboard, Users, Pen, Calendar, Tag as TagIcon } from "lucide-react";
 import { Link } from "react-router";
 
 const STORAGE_KEY = "qaradakor_rec_history";
@@ -219,6 +219,25 @@ export function RecommendationsPage() {
           </span>
         )}
       </div>
+
+      {/* Algorithm signals legend */}
+      {movies.length > 0 && (
+        <div className="mb-5 flex flex-wrap items-center gap-2 px-3 py-2.5 rounded-xl border border-border bg-muted/40">
+          <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Сигналы подбора:</span>
+          {[
+            { icon: <Clapperboard className="w-3 h-3" />, label: "Режиссёр", desc: "20%" },
+            { icon: <Users className="w-3 h-3" />,        label: "Актёр",    desc: "12%" },
+            { icon: <Pen className="w-3 h-3" />,           label: "Сценарист", desc: "8%" },
+            { icon: <TagIcon className="w-3 h-3" />,       label: "Жанр",     desc: "25%" },
+            { icon: <Calendar className="w-3 h-3" />,      label: "Эпоха",    desc: "5%" },
+          ].map(({ icon, label, desc }) => (
+            <span key={label} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-background border border-border text-[10px] text-muted-foreground">
+              {icon} {label} <span className="text-foreground/40">{desc}</span>
+            </span>
+          ))}
+          <span className="text-[10px] text-muted-foreground/50 ml-auto hidden sm:block">Наведите на постер чтобы увидеть причину</span>
+        </div>
+      )}
 
       {movies.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 gap-5 text-center">

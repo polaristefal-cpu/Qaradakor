@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { motion, AnimatePresence } from "motion/react";
 import {
   getTrending,
   getPopular,
@@ -45,19 +46,27 @@ import {
   Search,
   Shuffle,
   Hash,
-  Library,
   Heart,
-  MessageSquare,
   ArrowRight,
-  Bookmark,
-  BookmarkCheck,
-  Loader2,
   Tv,
   MapPin,
   Trophy,
 } from "lucide-react";
 import { MovieCard } from "../components/movie-card";
 import { TopReviewsSection } from "../components/top-reviews-section";
+
+// ─── Shared Animations ────────────────────────────────────────────────────────
+const FadeIn = ({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 25 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true, margin: "-40px" }}
+    transition={{ duration: 0.5, delay, ease: "easeOut" }}
+    className={className}
+  >
+    {children}
+  </motion.div>
+);
 
 // ─── Home Search Block ─────────────────────────────────────────────────────────
 function HomeSearchBlock() {
@@ -72,31 +81,30 @@ function HomeSearchBlock() {
   };
 
   return (
-    <div className="bg-background border-b border-border">
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        
+    <div className="bg-background border-b border-border sticky top-0 z-40 md:relative md:z-auto">
+      <div className="max-w-7xl mx-auto px-4 py-4 md:py-6">
         <form onSubmit={handleSubmit}>
-          <div className="flex items-center gap-3 bg-card border border-border rounded-2xl px-4 py-3 shadow-sm w-full focus-within:border-primary/50 transition-colors">
-            <Search className="w-4.5 h-4.5 text-muted-foreground shrink-0" />
+          <div className="flex items-center gap-3 bg-card border border-border rounded-2xl px-4 py-3 shadow-sm w-full focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+            <Search className="w-5 h-5 text-muted-foreground shrink-0" />
             <input
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("searchPlaceholder")}
-              className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground text-sm outline-none"
+              className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground text-base md:text-sm outline-none"
             />
             {query && (
               <button
                 type="button"
                 onClick={() => setQuery("")}
-                className="text-muted-foreground hover:text-foreground transition-colors p-0.5"
+                className="text-muted-foreground hover:text-foreground transition-colors p-1"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             )}
             <button
               type="submit"
-              className="px-5 py-1.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all shrink-0"
+              className="px-5 py-2 md:py-1.5 bg-primary text-primary-foreground rounded-xl text-sm font-bold hover:bg-primary/90 transition-all shrink-0 active:scale-95"
             >
               {t("searchBtn")}
             </button>
@@ -134,7 +142,6 @@ const GENRE_MAP = [
   { id: 10752, tKey: "genreWar" as const },
 ];
 
-// Keep the old GENRES for TMDB genre matching (hero section uses genre_ids)
 const GENRES = [
   { id: 28,    name: "Action" },
   { id: 12,    name: "Adventure" },
@@ -150,9 +157,6 @@ const GENRES = [
   { id: 10752, name: "War" },
 ];
 
-// ─── Poster Card ──────────────────────────────────────────────────────────────
-// removed — using MovieCard instead
-
 // ─── Section Header ────────────────────────────────────────────────────────────
 function SectionHeader({
   icon: Icon,
@@ -164,10 +168,10 @@ function SectionHeader({
   iconClass?: string;
 }) {
   return (
-    <div className="flex items-center gap-2.5 mb-5">
-      <div className={`w-0.5 h-5 rounded-full bg-primary`} />
-      <Icon className={`w-4.5 h-4.5 ${iconClass}`} />
-      <h2 className="text-lg font-bold text-foreground tracking-tight">{label}</h2>
+    <div className="flex items-center gap-3 mb-6">
+      <div className={`w-1 h-6 rounded-full bg-primary`} />
+      <Icon className={`w-5 h-5 ${iconClass}`} />
+      <h2 className="text-xl md:text-2xl font-black text-foreground tracking-tight">{label}</h2>
     </div>
   );
 }
@@ -197,35 +201,33 @@ function MovieRow({
   return (
     <section>
       <SectionHeader icon={icon} label={label} iconClass={iconClass} />
-      <div className="relative group/row">
-        {/* Scroll arrows */}
+      <div className="relative group/row -mx-4 px-4 sm:mx-0 sm:px-0">
         <button
           onClick={() => scroll("left")}
-          className="absolute left-0 top-1/3 z-20 w-8 h-8 rounded-full bg-card border border-border shadow-md flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/50 opacity-0 group-hover/row:opacity-100 -translate-x-3 group-hover/row:translate-x-0 transition-all duration-200"
+          className="hidden md:flex absolute left-0 top-[40%] z-20 w-10 h-10 rounded-full bg-card/90 backdrop-blur border border-border shadow-lg items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/50 opacity-0 group-hover/row:opacity-100 -translate-x-4 group-hover/row:translate-x-0 transition-all duration-300"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-5 h-5" />
         </button>
         <button
           onClick={() => scroll("right")}
-          className="absolute right-0 top-1/3 z-20 w-8 h-8 rounded-full bg-card border border-border shadow-md flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/50 opacity-0 group-hover/row:opacity-100 translate-x-3 group-hover/row:translate-x-0 transition-all duration-200"
+          className="hidden md:flex absolute right-0 top-[40%] z-20 w-10 h-10 rounded-full bg-card/90 backdrop-blur border border-border shadow-lg items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/50 opacity-0 group-hover/row:opacity-100 translate-x-4 group-hover/row:translate-x-0 transition-all duration-300"
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-5 h-5" />
         </button>
 
         <div
           ref={scrollRef}
-          className="flex gap-3 overflow-x-auto pb-2 scroll-smooth"
-          style={{ scrollbarWidth: "none" }}
+          className="flex gap-4 overflow-x-auto pb-6 pt-2 snap-x snap-mandatory scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         >
           {movies.map((m) => {
             const displayTitle = m.title || m.name || "";
             const displayDate = m.release_date || m.first_air_date || "";
             return (
-              <div key={m.id} className="shrink-0 w-32 sm:w-36 group/item">
+              <div key={m.id} className="snap-start shrink-0 w-[130px] sm:w-[150px] group/item flex flex-col">
                 <MovieCard movie={m} mediaType={mediaType} />
-                <p className="mt-1.5 text-xs font-medium text-foreground line-clamp-1 px-0.5 group-hover/item:text-primary transition-colors">{displayTitle}</p>
+                <p className="mt-2.5 text-sm font-bold text-foreground line-clamp-1 px-0.5 group-hover/item:text-primary transition-colors">{displayTitle}</p>
                 {displayDate && (
-                  <p className="text-[10px] text-muted-foreground px-0.5">{displayDate.slice(0, 4)}</p>
+                  <p className="text-[11px] font-medium text-muted-foreground px-0.5 mt-0.5">{displayDate.slice(0, 4)}</p>
                 )}
               </div>
             );
@@ -246,11 +248,14 @@ function TrailerModal({ videoKey, onClose }: { videoKey: string; onClose: () => 
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
       onClick={onClose}
     >
-      <div
-        className="relative w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl border border-border"
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl border border-white/10"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="aspect-video bg-black">
@@ -263,11 +268,11 @@ function TrailerModal({ videoKey, onClose }: { videoKey: string; onClose: () => 
         </div>
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black transition-colors"
+          className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black transition-colors backdrop-blur-sm"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5" />
         </button>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -282,7 +287,6 @@ function HeroSection({ movies }: { movies: Movie[] }) {
   const [trailerLoading, setTrailerLoading] = useState(false);
   const [fadeIn, setFadeIn] = useState(true);
   
-  // Touch handling for mobile swipe
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   
@@ -299,7 +303,7 @@ function HeroSection({ movies }: { movies: Movie[] }) {
       }, 300);
     }, 7000);
     return () => clearInterval(timer);
-  }, [featured.length]);
+  }, [featured.length, idx]);
 
   const handleTrailer = async () => {
     if (!movie) return;
@@ -320,7 +324,6 @@ function HeroSection({ movies }: { movies: Movie[] }) {
     }
   };
   
-  // Touch swipe handlers
   const minSwipeDistance = 50;
   
   const onTouchStart = (e: React.TouchEvent) => {
@@ -339,11 +342,9 @@ function HeroSection({ movies }: { movies: Movie[] }) {
     const isRightSwipe = distance < -minSwipeDistance;
     
     if (isLeftSwipe) {
-      // Swipe left - next slide
       changeSlideTo((idx + 1) % featured.length);
     }
     if (isRightSwipe) {
-      // Swipe right - previous slide
       changeSlideTo((idx - 1 + featured.length) % featured.length);
     }
   };
@@ -354,16 +355,6 @@ function HeroSection({ movies }: { movies: Movie[] }) {
       setIdx(newIdx);
       setFadeIn(true);
     }, 300);
-  };
-  
-  const goNext = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    changeSlideTo((idx + 1) % featured.length);
-  };
-  
-  const goPrev = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    changeSlideTo((idx - 1 + featured.length) % featured.length);
   };
 
   if (!movie) return null;
@@ -380,132 +371,124 @@ function HeroSection({ movies }: { movies: Movie[] }) {
       )}
 
       <section
-        className="relative h-screen min-h-[600px] overflow-hidden cursor-pointer group"
+        className="relative h-[80svh] md:h-[90vh] min-h-[550px] overflow-hidden cursor-pointer group"
         onClick={() => navigate(`/movie/${movie.id}`)}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
-        {/* Backdrop - Desktop: horizontal, Mobile: vertical */}
+        {/* Backdrop */}
         <div className="absolute inset-0">
-          {/* Desktop - horizontal backdrop */}
           {movie.backdrop_path ? (
             <img
               key={`${movie.id}-${idx}`}
               src={`${TMDB_IMG}/w1280${movie.backdrop_path}`}
               alt=""
-              className={`hidden md:block w-full h-full object-cover object-center transition-opacity duration-300 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}
+              className={`hidden md:block w-full h-full object-cover object-center transition-opacity duration-500 ease-out ${fadeIn ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
             />
           ) : (
             <div className="hidden md:block w-full h-full bg-muted" />
           )}
           
-          {/* Mobile - vertical poster */}
           {movie.poster_path ? (
             <img
               key={`${movie.id}-${idx}-mobile`}
               src={`${TMDB_IMG}/w780${movie.poster_path}`}
               alt=""
-              className={`md:hidden w-full h-full object-cover object-center transition-opacity duration-300 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}
+              className={`md:hidden w-full h-full object-cover object-center transition-opacity duration-500 ease-out ${fadeIn ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
             />
           ) : movie.backdrop_path ? (
             <img
               key={`${movie.id}-${idx}-fallback`}
               src={`${TMDB_IMG}/w1280${movie.backdrop_path}`}
               alt=""
-              className={`md:hidden w-full h-full object-cover object-center transition-opacity duration-300 ${fadeIn ? 'opacity-100' : 'opacity-0'}`}
+              className={`md:hidden w-full h-full object-cover object-center transition-opacity duration-500 ease-out ${fadeIn ? 'opacity-100 scale-100' : 'opacity-0 scale-105'}`}
             />
           ) : (
             <div className="md:hidden w-full h-full bg-muted" />
           )}
           
-          {/* Gradient overlay */}
-          <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/60 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-transparent to-black/30" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/70 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent md:bg-gradient-to-t md:from-black/95 md:via-transparent md:to-black/30" />
         </div>
         
-        {/* Navigation arrows - Desktop only */}
-        {featured.length > 1 && (
-          <>
-            
-            
-          </>
-        )}
-        
         {/* Content */}
-        <div className="relative z-10 h-full max-w-7xl mx-auto px-4 flex flex-col justify-end pb-10">
-          <div className="max-w-lg">
-            {/* Genres + year */}
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              {genreNames?.map((g) => (
-                <span key={g} className="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-primary/15 text-primary border border-primary/25">
-                  {g}
-                </span>
-              ))}
-              {movie.release_date && (
-                <span className="text-[11px] font-medium px-2.5 py-1 rounded-md bg-white/10 text-white/90 border border-white/20 flex items-center gap-1">
-                  <Calendar className="w-2.5 h-2.5" />
-                  {movie.release_date.slice(0, 4)}
-                </span>
-              )}
-            </div>
-
-            {/* Title */}
-            <h1 className="text-3xl md:text-[2.6rem] font-black text-white leading-[1.15] tracking-tight mb-3">
-              {movie.title}
-            </h1>
-
-            {/* Rating */}
-            {movie.vote_average > 0 && (
-              <div className="flex items-center gap-1.5 mb-3">
-                <Star className="w-4.5 h-4.5 text-primary fill-primary" />
-                <span className="font-bold text-white">{movie.vote_average.toFixed(1)}</span>
-                <span className="text-white/70 text-sm">/ 10</span>
-              </div>
-            )}
-
-            {/* Overview */}
-            {movie.overview && (
-              <p className="text-white/80 text-sm leading-relaxed line-clamp-3 mb-5">
-                {movie.overview}
-              </p>
-            )}
-
-            {/* Buttons */}
-            <div className="flex flex-wrap gap-2.5">
-              <button
-                onClick={(e) => { e.stopPropagation(); handleTrailer(); }}
-                disabled={trailerLoading}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/15 text-white font-semibold text-sm border border-white/25 hover:bg-white/20 transition-all backdrop-blur-sm disabled:opacity-60"
-              >
-                {trailerLoading ? (
-                  <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <Play className="w-4 h-4 fill-white" />
+        <div className="relative z-10 h-full max-w-7xl mx-auto px-4 md:px-8 flex flex-col justify-end pb-12 md:pb-16">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={movie.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+              className="max-w-xl"
+            >
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                {genreNames?.map((g) => (
+                  <span key={g} className="text-xs font-bold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground shadow-sm">
+                    {g}
+                  </span>
+                ))}
+                {movie.release_date && (
+                  <span className="text-xs font-bold px-3 py-1.5 rounded-lg bg-white/10 text-white backdrop-blur-md border border-white/20 flex items-center gap-1.5">
+                    <Calendar className="w-3 h-3" />
+                    {movie.release_date.slice(0, 4)}
+                  </span>
                 )}
-                {t("trailerBtn")}
-              </button>
-              {!session && (
-                <Link
-                  to="/register"
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm border border-primary hover:bg-primary/90 transition-all shadow-md"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  {t("signUp")}
-                </Link>
-              )}
-            </div>
-          </div>
+              </div>
 
-          {/* Dots */}
-          <div className="flex gap-1.5 mt-5">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-[1.1] tracking-tight mb-4 drop-shadow-md">
+                {movie.title}
+              </h1>
+
+              {movie.vote_average > 0 && (
+                <div className="flex items-center gap-2 mb-4 bg-black/40 w-fit px-3 py-1.5 rounded-xl backdrop-blur-md border border-white/10">
+                  <Star className="w-5 h-5 text-primary fill-primary drop-shadow" />
+                  <span className="font-bold text-white text-lg">{movie.vote_average.toFixed(1)}</span>
+                  <span className="text-white/60 text-sm font-medium">/ 10</span>
+                </div>
+              )}
+
+              {movie.overview && (
+                <p className="text-white/80 text-sm md:text-base leading-relaxed line-clamp-3 md:line-clamp-4 mb-8 drop-shadow">
+                  {movie.overview}
+                </p>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleTrailer(); }}
+                  disabled={trailerLoading}
+                  className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-white/15 text-white font-bold text-sm md:text-base border border-white/25 hover:bg-white/25 active:scale-95 transition-all backdrop-blur-md disabled:opacity-60 flex-1 sm:flex-none shadow-lg"
+                >
+                  {trailerLoading ? (
+                    <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Play className="w-5 h-5 fill-white" />
+                  )}
+                  {t("trailerBtn")}
+                </button>
+                {!session && (
+                  <Link
+                    to="/register"
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm md:text-base hover:bg-primary/90 active:scale-95 transition-all shadow-lg flex-1 sm:flex-none"
+                  >
+                    <UserPlus className="w-5 h-5" />
+                    {t("signUp")}
+                  </Link>
+                )}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          <div className="flex gap-2 mt-8 md:mt-10">
             {featured.map((_, i) => (
               <button
                 key={i}
-                onClick={(e) => { e.stopPropagation(); setIdx(i); }}
-                className={`h-1 rounded-full transition-all duration-300 ${
-                  i === idx ? "bg-primary w-7" : "bg-white/30 w-3 hover:bg-white/50"
+                onClick={(e) => { e.stopPropagation(); changeSlideTo(i); }}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === idx ? "bg-primary w-8" : "bg-white/30 w-3 hover:bg-white/60"
                 }`}
               />
             ))}
@@ -538,15 +521,14 @@ function GenreSection() {
     <section>
       <SectionHeader icon={Clapperboard} label={t("byGenreSection")} />
 
-      {/* Genre pills */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap gap-2.5 mb-8">
         {GENRE_MAP.map((g) => (
           <button
             key={g.id}
             onClick={() => pick(g.id)}
-            className={`px-3.5 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+            className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all active:scale-95 ${
               active === g.id
-                ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20"
+                ? "bg-primary text-primary-foreground border-primary shadow-md"
                 : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground hover:bg-muted"
             }`}
           >
@@ -555,19 +537,31 @@ function GenreSection() {
         ))}
       </div>
 
-      {loading && (
-        <div className="flex justify-center py-10">
-          <div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
-
-      {!loading && genreMovies.length > 0 && (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-          {genreMovies.slice(0, 16).map((m) => (
-            <MovieCard key={m.id} movie={m} />
-          ))}
-        </div>
-      )}
+      <AnimatePresence mode="wait">
+        {loading ? (
+          <motion.div
+            key="loader"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex justify-center py-12"
+          >
+            <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+          </motion.div>
+        ) : genreMovies.length > 0 ? (
+          <motion.div
+            key="grid"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4"
+          >
+            {genreMovies.slice(0, 16).map((m) => (
+              <MovieCard key={m.id} movie={m} />
+            ))}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </section>
   );
 }
@@ -576,42 +570,39 @@ function GenreSection() {
 function GuestCTA() {
   const { t } = useLang();
   return (
-    <div className="rounded-2xl overflow-hidden border border-border relative bg-white">
-      <div className="relative z-10 p-7 md:p-10 flex flex-col md:flex-row items-start md:items-center gap-6">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-primary text-xs font-bold uppercase tracking-widest">qaradakor.kz</span>
+    <div className="rounded-3xl overflow-hidden border border-border relative bg-card shadow-sm group">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+      <div className="relative z-10 p-6 md:p-12 flex flex-col lg:flex-row items-start lg:items-center gap-10 lg:gap-16">
+        <div className="flex-1 w-full">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles className="w-5 h-5 text-foreground" />
+            <span className="text-foreground text-sm font-black uppercase tracking-widest">qaradakor.kz</span>
           </div>
-          <h2 className="text-xl md:text-2xl font-black mb-2 leading-tight" style={{ color: "#0A0A0A" }}>
+          <h2 className="text-[28px] md:text-5xl font-black mb-4 leading-tight text-foreground tracking-tight">
             {t("ctaTitle")}
           </h2>
-          <p className="text-sm leading-relaxed mb-5" style={{ color: "#6B6B6B" }}>
+          <p className="text-[15px] md:text-lg leading-relaxed mb-8 text-muted-foreground max-w-xl">
             {t("ctaDesc")}
           </p>
-          <div className="flex flex-wrap gap-2.5">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full lg:max-w-md">
             <Link
               to="/register"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all shadow-md"
+              className="flex items-center justify-center gap-2 px-6 py-4 rounded-full bg-foreground text-background font-bold text-base hover:opacity-90 active:scale-95 transition-all w-full"
             >
-              <UserPlus className="w-4 h-4" />
+              <UserPlus className="w-5 h-5" />
               {t("createAccount")}
             </Link>
             <Link
               to="/login"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm border transition-all"
-              style={{ color: "#0A0A0A", borderColor: "#D4D4D4", backgroundColor: "transparent" }}
-              onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#F3F3F3")}
-              onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+              className="flex items-center justify-center gap-2 px-6 py-4 rounded-full font-bold text-base border border-border text-foreground hover:bg-border/20 active:scale-95 transition-all w-full"
             >
-              <LogIn className="w-4 h-4" />
+              <LogIn className="w-5 h-5" />
               {t("signIn")}
             </Link>
           </div>
         </div>
 
-        {/* Features */}
-        <div className="grid grid-cols-2 gap-2.5 shrink-0">
+        <div className="grid grid-cols-2 gap-3 w-full lg:w-[480px] shrink-0 mt-4 lg:mt-0">
           {[
             { icon: Star, labelKey: "featureRatings" as const },
             { icon: Sparkles, labelKey: "featureAI" as const },
@@ -620,11 +611,10 @@ function GuestCTA() {
           ].map(({ icon: Icon, labelKey }) => (
             <div
               key={labelKey}
-              className="flex items-center gap-2 rounded-xl px-3 py-2"
-              style={{ backgroundColor: "#F5F5F5", border: "1px solid #E5E5E5" }}
+              className="flex flex-row items-center gap-2 sm:gap-3 rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-border bg-transparent hover:bg-border/20 transition-colors"
             >
-              <Icon className="w-3.5 h-3.5 text-primary shrink-0" />
-              <span className="text-xs font-medium" style={{ color: "#0A0A0A" }}>{t(labelKey)}</span>
+              <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-foreground shrink-0" />
+              <span className="text-xs sm:text-sm font-bold text-foreground leading-tight flex-1 min-w-0 break-words">{t(labelKey)}</span>
             </div>
           ))}
         </div>
@@ -643,43 +633,46 @@ function Top10Section({ movies }: { movies: Movie[] }) {
   return (
     <section>
       <SectionHeader icon={Hash} label={t("top10Section")} iconClass="text-primary" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {top.map((m, i) => (
-          <button
-            key={m.id}
-            onClick={() => navigate(`/movie/${m.id}`)}
-            className="flex items-center gap-3 bg-card border border-border rounded-xl p-3 hover:border-primary/40 hover:bg-muted transition-all text-left group"
-          >
-            <span className="text-2xl font-black text-primary/60 w-8 text-center shrink-0 group-hover:text-primary transition-colors">
-              {i + 1}
-            </span>
-            {m.poster_path ? (
-              <img
-                src={`${TMDB_IMG}/w92${m.poster_path}`}
-                alt={m.title}
-                className="w-10 h-14 rounded-md object-cover shrink-0"
-              />
-            ) : (
-              <div className="w-10 h-14 rounded-md bg-muted shrink-0 flex items-center justify-center">
-                <Film className="w-4 h-4 text-muted-foreground" />
+          <FadeIn key={m.id} delay={i * 0.05}>
+            <button
+              onClick={() => navigate(`/movie/${m.id}`)}
+              className="flex items-center gap-4 bg-card border border-border rounded-2xl p-4 hover:border-primary/40 hover:bg-accent/30 transition-all text-left group w-full shadow-sm hover:shadow-md"
+            >
+              <span className="text-3xl font-black text-foreground w-10 text-center shrink-0 group-hover:text-primary transition-colors">
+                {i + 1}
+              </span>
+              {m.poster_path ? (
+                <img
+                  src={`${TMDB_IMG}/w92${m.poster_path}`}
+                  alt={m.title}
+                  className="w-14 h-20 rounded-xl object-cover shrink-0 shadow-sm"
+                />
+              ) : (
+                <div className="w-14 h-20 rounded-xl bg-muted shrink-0 flex items-center justify-center">
+                  <Film className="w-6 h-6 text-muted-foreground" />
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-black text-foreground line-clamp-1 mb-1.5">{m.title}</p>
+                <div className="flex items-center gap-3">
+                  {m.vote_average > 0 && (
+                    <span className="flex items-center gap-1.5 text-xs font-bold text-muted-foreground bg-background px-2.5 py-1 rounded-md border border-border">
+                      <Star className="w-3.5 h-3.5 text-primary fill-primary" />
+                      {m.vote_average.toFixed(1)}
+                    </span>
+                  )}
+                  {m.release_date && (
+                    <span className="text-xs font-bold text-muted-foreground bg-background px-2.5 py-1 rounded-md border border-border">
+                      {m.release_date.slice(0, 4)}
+                    </span>
+                  )}
+                </div>
               </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground line-clamp-1">{m.title}</p>
-              <div className="flex items-center gap-2 mt-0.5">
-                {m.vote_average > 0 && (
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Star className="w-3 h-3 text-primary fill-primary" />
-                    {m.vote_average.toFixed(1)}
-                  </span>
-                )}
-                {m.release_date && (
-                  <span className="text-xs text-muted-foreground">{m.release_date.slice(0, 4)}</span>
-                )}
-              </div>
-            </div>
-            <ArrowRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-          </button>
+              <ArrowRight className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all shrink-0 mr-2" />
+            </button>
+          </FadeIn>
         ))}
       </div>
     </section>
@@ -692,137 +685,75 @@ function RandomMovieCard({ movies }: { movies: Movie[] }) {
   const { session } = useAuth();
   const { t } = useLang();
   const [movie, setMovie] = useState<Movie | null>(null);
-  const [inWatchlist, setInWatchlist] = useState(false);
-  const [watchlistLoading, setWatchlistLoading] = useState(false);
 
   const pickRandom = () => {
     if (!movies.length) return;
     const m = movies[Math.floor(Math.random() * movies.length)];
     setMovie(m);
-    setInWatchlist(false); // Reset watchlist status
   };
 
   useEffect(() => { pickRandom(); }, [movies.length]);
-
-  // Check if movie is in watchlist
-  useEffect(() => {
-    if (!movie || !session) return;
-    (async () => {
-      try {
-        const wl = await getWatchlist();
-        setInWatchlist(wl?.some((w: any) => w.movieId === movie.id) || false);
-      } catch {
-        setInWatchlist(false);
-      }
-    })();
-  }, [movie?.id, session]);
-
-  const handleToggleWatchlist = async () => {
-    if (!movie || !session) return;
-    setWatchlistLoading(true);
-    try {
-      if (inWatchlist) {
-        await removeFromWatchlist(movie.id);
-        setInWatchlist(false);
-      } else {
-        await addToWatchlist({
-          movieId: movie.id,
-          title: movie.title,
-          poster_path: movie.poster_path,
-          release_date: movie.release_date,
-          vote_average: movie.vote_average,
-        });
-        setInWatchlist(true);
-      }
-    } catch (err) {
-      console.error("Watchlist toggle error:", err);
-    } finally {
-      setWatchlistLoading(false);
-    }
-  };
 
   if (!movie) return null;
 
   return (
     <section>
       <SectionHeader icon={Shuffle} label={t("randomMovieSection")} iconClass="text-primary" />
-      <div className="flex flex-col sm:flex-row gap-4 bg-card border border-border rounded-2xl p-5 overflow-hidden">
-        {/* Image - visible on all screens */}
+      <div className="flex flex-col sm:flex-row gap-5 bg-card border border-border rounded-3xl p-5 md:p-6 shadow-sm">
         {movie.backdrop_path ? (
           <img
             src={`${TMDB_IMG}/w780${movie.backdrop_path}`}
             alt={movie.title}
-            className="w-full sm:w-64 h-36 rounded-xl object-cover shrink-0"
+            className="w-full sm:w-72 aspect-video sm:aspect-auto sm:h-48 rounded-2xl object-cover shrink-0 shadow-sm"
           />
         ) : movie.poster_path ? (
           <img
             src={`${TMDB_IMG}/w342${movie.poster_path}`}
             alt={movie.title}
-            className="w-full sm:w-64 h-36 rounded-xl object-cover shrink-0"
+            className="w-full sm:w-72 aspect-video sm:aspect-auto sm:h-48 rounded-2xl object-cover shrink-0 shadow-sm"
           />
-        ) : null}
+        ) : (
+          <div className="w-full sm:w-72 aspect-video sm:aspect-auto sm:h-48 rounded-2xl bg-muted shrink-0 flex items-center justify-center">
+            <Film className="w-10 h-10 text-muted-foreground" />
+          </div>
+        )}
         
-        <div className="flex-1 flex flex-col justify-between min-w-0">
+        <div className="flex-1 flex flex-col justify-between min-w-0 py-1">
           <div>
-            <h3 className="text-lg font-bold text-foreground mb-1">{movie.title}</h3>
-            <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-xl md:text-2xl font-black text-foreground mb-3">{movie.title}</h3>
+            <div className="flex flex-wrap items-center gap-2 mb-4">
               {movie.vote_average > 0 && (
-                <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                  <Star className="w-3.5 h-3.5 text-primary fill-primary" />
+                <span className="flex items-center gap-1.5 text-xs font-bold text-foreground bg-accent px-3 py-1.5 rounded-lg border border-border">
+                  <Star className="w-4 h-4 text-primary fill-primary" />
                   {movie.vote_average.toFixed(1)}
                 </span>
               )}
               {movie.release_date && (
-                <span className="text-sm text-muted-foreground">{movie.release_date.slice(0, 4)}</span>
+                <span className="text-xs font-bold text-foreground bg-accent px-3 py-1.5 rounded-lg border border-border">
+                  {movie.release_date.slice(0, 4)}
+                </span>
               )}
             </div>
             {movie.overview && (
-              <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">{movie.overview}</p>
+              <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed mb-4">
+                {movie.overview}
+              </p>
             )}
           </div>
-          
-          {/* Buttons - Responsive layout */}
-          <div className="flex flex-wrap gap-2 mt-3">
-            {/* Details button */}
+          <div className="flex flex-wrap gap-3">
             <button
               onClick={() => navigate(`/movie/${movie.id}`)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:bg-primary/90 transition-all"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:bg-primary/90 transition-all active:scale-95"
             >
-              <Info className="w-3.5 h-3.5" />
-              {t("details")}
+              <Info className="w-4 h-4" />
+              {t("moreInfo")}
             </button>
-            
-            {/* Watchlist button - Only for logged in users */}
-            {session && (
-              <button
-                onClick={handleToggleWatchlist}
-                disabled={watchlistLoading}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
-                  inWatchlist
-                    ? "bg-primary/10 text-primary border-primary/30 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
-                    : "bg-card text-foreground border-border hover:border-primary/40"
-                }`}
-              >
-                {watchlistLoading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : inWatchlist ? (
-                  <BookmarkCheck className="w-3.5 h-3.5" />
-                ) : (
-                  <Bookmark className="w-3.5 h-3.5" />
-                )}
-                <span className="hidden sm:inline">
-                  {inWatchlist ? t("inWatchlist") : t("addToWatchlist")}
-                </span>
-              </button>
-            )}
-            
-            {/* Shuffle button */}
             <button
               onClick={pickRandom}
-              className="flex items-center gap-1.5 px-4 py-2 bg-foreground/10 text-foreground rounded-xl text-sm font-medium border border-border hover:bg-foreground/15 transition-all"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-border font-bold text-sm text-foreground hover:bg-accent hover:border-primary/30 transition-all active:scale-95"
             >
-              <Shuffle className="w-3.5 h-3.5" />
-              {t("another")}
+              <Shuffle className="w-4 h-4" />
+              Roll Again
             </button>
           </div>
         </div>
@@ -831,7 +762,7 @@ function RandomMovieCard({ movies }: { movies: Movie[] }) {
   );
 }
 
-// ─── Platform Stats ─────────────────────────────────────────────────────────────
+// ─── Platform Stats ──────────────────────────────────────────────────────��──────
 function PlatformStats() {
   const { t } = useLang();
   const stats = [
@@ -842,13 +773,17 @@ function PlatformStats() {
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {stats.map((s) => (
-        <div key={s.labelKey} className="bg-card border border-border rounded-xl p-4 text-center hover:border-primary/30 transition-colors">
-          <s.icon className="w-5 h-5 text-primary mx-auto mb-2" />
-          <p className="text-xl font-black text-foreground">{s.value}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{t(s.labelKey)}</p>
-        </div>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {stats.map((s, i) => (
+        <FadeIn key={s.labelKey} delay={i * 0.1}>
+          <div className="bg-card border border-border rounded-3xl p-6 md:p-8 text-center hover:border-primary/50 hover:bg-accent/20 transition-colors group shadow-sm">
+            <div className="w-12 h-12 md:w-16 md:h-16 mx-auto bg-primary/10 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <s.icon className="w-6 h-6 md:w-8 md:h-8 text-primary" />
+            </div>
+            <p className="text-2xl md:text-3xl font-black text-foreground mb-1">{s.value}</p>
+            <p className="text-xs md:text-sm font-bold text-muted-foreground">{t(s.labelKey)}</p>
+          </div>
+        </FadeIn>
       ))}
     </div>
   );
@@ -867,14 +802,20 @@ function HowItWorks() {
   return (
     <section>
       <SectionHeader icon={Info} label={t("howItWorksSection")} iconClass="text-primary" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {steps.map((s, i) => (
-          <div key={s.titleKey} className="bg-card border border-border rounded-xl p-5 relative group hover:border-primary/30 transition-colors">
-            <span className="absolute top-3 right-3 text-xs font-bold text-primary/30">{i + 1}</span>
-            <s.icon className="w-5 h-5 text-primary mb-3" />
-            <h3 className="text-sm font-bold text-foreground mb-1">{t(s.titleKey)}</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">{t(s.descKey)}</p>
-          </div>
+          <FadeIn key={s.titleKey} delay={i * 0.1}>
+            <div className="bg-card border border-border rounded-3xl p-6 relative group hover:border-primary/40 hover:bg-accent/20 transition-all shadow-sm h-full">
+              <span className="absolute top-5 right-5 text-4xl font-black text-foreground group-hover:text-primary transition-colors">
+                {i + 1}
+              </span>
+              <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center mb-5">
+                <s.icon className="w-6 h-6 text-primary" />
+              </div>
+              <h3 className="text-base font-black text-foreground mb-2 pr-6">{t(s.titleKey)}</h3>
+              <p className="text-sm font-medium text-muted-foreground leading-relaxed">{t(s.descKey)}</p>
+            </div>
+          </FadeIn>
         ))}
       </div>
     </section>
@@ -909,56 +850,43 @@ function KazakhCinemaSection() {
 
   return (
     <div>
-      {/* Section Banner */}
-      <div className="relative rounded-2xl overflow-hidden mb-8 border border-border">
-        <div className="absolute inset-0 bg-gradient-to-br from-foreground/8 via-foreground/4 to-transparent" />
-        <div className="relative z-10 px-6 py-7 flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="flex items-center justify-center w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 shrink-0">
-            <MapPin className="w-6 h-6 text-primary" />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-primary/70 border border-primary/20 px-2 py-0.5 rounded-md">
-                🇰🇿 Kazakhstan
-              </span>
+      <FadeIn>
+        <div className="relative rounded-3xl overflow-hidden mb-10 border border-border shadow-sm group">
+          <div className="relative z-10 px-6 py-8 md:p-10 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+            
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                
+              </div>
+              <h2 className="text-2xl md:text-3xl font-black text-foreground tracking-tight mb-2">{t("kazakhCinemaSection")}</h2>
+              <p className="text-sm md:text-base font-medium text-muted-foreground">{t("kazakhGoldenAgeDesc")}</p>
             </div>
-            <h2 className="text-xl font-black text-foreground tracking-tight">{t("kazakhCinemaSection")}</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">{t("kazakhGoldenAgeDesc")}</p>
           </div>
         </div>
-      </div>
+      </FadeIn>
 
       {loading ? (
-        <div className="flex justify-center py-10">
-          <div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="flex justify-center py-12">
+          <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
         </div>
       ) : !hasData ? (
-        <div className="text-center py-10 text-muted-foreground text-sm">{t("kazakhCinemaEmpty")}</div>
+        <div className="text-center py-12 text-muted-foreground text-sm font-bold bg-card border border-border rounded-2xl">{t("kazakhCinemaEmpty")}</div>
       ) : (
         <div className="space-y-12">
           {topRated.length > 0 && (
-            <MovieRow
-              label={t("kazakhBestSection")}
-              icon={Trophy}
-              iconClass="text-primary"
-              movies={topRated.slice(0, 20)}
-            />
+            <FadeIn>
+              <MovieRow label={t("kazakhBestSection")} icon={Trophy} iconClass="text-primary" movies={topRated.slice(0, 20)} />
+            </FadeIn>
           )}
           {newReleases.length > 0 && (
-            <MovieRow
-              label={t("kazakhNewSection")}
-              icon={Zap}
-              iconClass="text-primary"
-              movies={newReleases.slice(0, 20)}
-            />
+            <FadeIn>
+              <MovieRow label={t("kazakhNewSection")} icon={Zap} iconClass="text-primary" movies={newReleases.slice(0, 20)} />
+            </FadeIn>
           )}
           {goldenAge.length > 0 && (
-            <MovieRow
-              label={t("kazakhGoldenAgeSection")}
-              icon={Award}
-              iconClass="text-primary"
-              movies={goldenAge.slice(0, 20)}
-            />
+            <FadeIn>
+              <MovieRow label={t("kazakhGoldenAgeSection")} icon={Award} iconClass="text-primary" movies={goldenAge.slice(0, 20)} />
+            </FadeIn>
           )}
         </div>
       )}
@@ -1004,63 +932,88 @@ export function HomePage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-80 gap-3">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        <p className="text-muted-foreground text-sm">{t("loadingCatalog")}</p>
+      <div className="flex flex-col items-center justify-center h-[80vh] gap-4">
+        <div className="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+        <p className="text-muted-foreground font-bold text-sm animate-pulse">{t("loadingCatalog")}</p>
       </div>
     );
   }
 
   return (
-    <div className="pb-16">
-      {/* Hero */}
+    <div className="pb-20">
       <HeroSection movies={trending} />
-
-      {/* Search */}
       <HomeSearchBlock />
 
-      <div className="max-w-7xl mx-auto px-4 mt-10 space-y-12">
-        <MovieRow label={t("trendingSection")} icon={Zap} iconClass="text-primary" movies={trending.slice(0, 20)} />
-        <MovieRow label={t("nowPlayingSection")} icon={Flame} iconClass="text-destructive" movies={nowPlaying.slice(0, 20)} />
+      <div className="max-w-7xl mx-auto px-4 md:px-8 mt-12 md:mt-16 space-y-16 md:space-y-20 overflow-x-hidden">
+        
+        <FadeIn>
+          <MovieRow label={t("trendingSection")} icon={Zap} iconClass="text-primary" movies={trending.slice(0, 20)} />
+        </FadeIn>
+        
+        <FadeIn>
+          <MovieRow label={t("nowPlayingSection")} icon={Flame} iconClass="text-foreground" movies={nowPlaying.slice(0, 20)} />
+        </FadeIn>
 
-        {/* Top Reviews */}
-        <TopReviewsSection />
+        <FadeIn>
+          <TopReviewsSection />
+        </FadeIn>
 
-        <MovieRow label={t("popularSection")} icon={TrendingUp} iconClass="text-secondary" movies={popular.slice(0, 20)} />
+        <FadeIn>
+          <MovieRow label={t("popularSection")} icon={TrendingUp} iconClass="text-muted-foreground" movies={popular.slice(0, 20)} />
+        </FadeIn>
 
-        {/* Guest CTA midway */}
-        {!session && <GuestCTA />}
+        {!session && (
+          <FadeIn>
+            <GuestCTA />
+          </FadeIn>
+        )}
 
-        {/* Platform Stats */}
-        <PlatformStats />
+        <FadeIn>
+          <PlatformStats />
+        </FadeIn>
 
-        <MovieRow label={t("topRatedSection")} icon={Award} iconClass="text-primary" movies={topRated.slice(0, 20)} />
+        <FadeIn>
+          <MovieRow label={t("topRatedSection")} icon={Award} iconClass="text-primary" movies={topRated.slice(0, 20)} />
+        </FadeIn>
 
-        {/* Top-10 */}
         <Top10Section movies={topRated} />
 
-        {/* Random Movie */}
-        <RandomMovieCard movies={[...popular, ...topRated, ...trending]} />
+        <FadeIn>
+          <RandomMovieCard movies={[...popular, ...topRated, ...trending]} />
+        </FadeIn>
 
-        <MovieRow label={t("upcomingSection")} icon={Clock} iconClass="text-secondary" movies={upcoming.slice(0, 20)} />
+        <FadeIn>
+          <MovieRow label={t("upcomingSection")} icon={Clock} iconClass="text-muted-foreground" movies={upcoming.slice(0, 20)} />
+        </FadeIn>
 
-        {/* Genre browser */}
-        <GenreSection />
+        <FadeIn>
+          <GenreSection />
+        </FadeIn>
 
         {/* ── TV Shows Section ── */}
-        <div>
-          <div className="flex items-center gap-3 mb-8 pb-4 border-b border-border">
-            <div className="w-0.5 h-6 rounded-full bg-primary" />
-            <Tv className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-black text-foreground tracking-tight">{t("tvShowsSection")}</h2>
+        <FadeIn>
+          <div>
+            <div className="flex items-center gap-3 mb-8 pb-4 border-b border-border">
+              <div className="w-1 h-6 rounded-full bg-primary" />
+              <Tv className="w-6 h-6 text-primary" />
+              <h2 className="text-2xl font-black text-foreground tracking-tight">{t("tvShowsSection")}</h2>
+            </div>
+            <div className="space-y-12">
+              <FadeIn>
+                <MovieRow label={t("trendingTVSection")} icon={Zap} iconClass="text-primary" movies={tvTrending.slice(0, 20)} mediaType="tv" />
+              </FadeIn>
+              <FadeIn>
+                <MovieRow label={t("airingTodaySection")} icon={Flame} iconClass="text-foreground" movies={tvAiring.slice(0, 20)} mediaType="tv" />
+              </FadeIn>
+              <FadeIn>
+                <MovieRow label={t("popularTVSection")} icon={TrendingUp} iconClass="text-muted-foreground" movies={tvPopular.slice(0, 20)} mediaType="tv" />
+              </FadeIn>
+              <FadeIn>
+                <MovieRow label={t("topRatedTVSection")} icon={Award} iconClass="text-primary" movies={tvTopRated.slice(0, 20)} mediaType="tv" />
+              </FadeIn>
+            </div>
           </div>
-          <div className="space-y-12">
-            <MovieRow label={t("trendingTVSection")} icon={Zap} iconClass="text-primary" movies={tvTrending.slice(0, 20)} mediaType="tv" />
-            <MovieRow label={t("airingTodaySection")} icon={Flame} iconClass="text-destructive" movies={tvAiring.slice(0, 20)} mediaType="tv" />
-            <MovieRow label={t("popularTVSection")} icon={TrendingUp} iconClass="text-secondary" movies={tvPopular.slice(0, 20)} mediaType="tv" />
-            <MovieRow label={t("topRatedTVSection")} icon={Award} iconClass="text-primary" movies={tvTopRated.slice(0, 20)} mediaType="tv" />
-          </div>
-        </div>
+        </FadeIn>
 
         {/* ── Kazakh Cinema Section ── */}
         <KazakhCinemaSection />
@@ -1070,24 +1023,26 @@ export function HomePage() {
 
         {/* Bottom CTA */}
         {!session && (
-          <div className="flex flex-col sm:flex-row items-center gap-4 bg-card border border-border rounded-2xl p-5 shadow-sm">
-            <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-              <Sparkles className="w-5.5 h-5.5 text-primary" />
+          <FadeIn>
+            <div className="flex flex-col sm:flex-row items-center gap-5 bg-card border-2 border-border rounded-3xl p-6 md:p-8 shadow-sm group hover:border-primary/30 transition-colors">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <Sparkles className="w-8 h-8 text-primary" />
+              </div>
+              <div className="flex-1 text-center sm:text-left">
+                <p className="font-black text-foreground text-lg md:text-xl mb-1">{t("ctaTitle")}</p>
+                <p className="text-muted-foreground text-sm font-medium">
+                  {t("ctaDesc")}
+                </p>
+              </div>
+              <Link
+                to="/register"
+                className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-primary text-primary-foreground font-black text-sm hover:bg-primary/90 transition-all shadow-md w-full sm:w-auto active:scale-95"
+              >
+                <UserPlus className="w-5 h-5" />
+                {t("createAccount")}
+              </Link>
             </div>
-            <div className="flex-1 text-center sm:text-left">
-              <p className="font-semibold text-foreground text-sm">{t("ctaTitle")}</p>
-              <p className="text-muted-foreground text-xs mt-0.5">
-                {t("ctaDesc")}
-              </p>
-            </div>
-            <Link
-              to="/register"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-all shadow-sm shrink-0"
-            >
-              <UserPlus className="w-4 h-4" />
-              {t("createAccount")}
-            </Link>
-          </div>
+          </FadeIn>
         )}
       </div>
     </div>

@@ -597,11 +597,16 @@ app.post("/make-server-59141208/friends/recommendations/:recId/seen", async (c) 
   return c.json({ ok: true });
 });
 
-// ---- RECOMMENDATIONS (Content-Based Filtering with Weighted Scoring) ----
+// ---- RECOMMENDATIONS (Multi-Signal Content-Based Filtering v2) ----
 app.get("/make-server-59141208/recommendations", async (c) => {
   const user = await getUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   try {
+    const excludeParam = new URL(c.req.url).searchParams.get("exclude");
+    const excludeIds = excludeParam
+      ? new Set(excludeParam.split(",").map(Number).filter(Boolean))
+      : new Set<number>();
+
     const watched: any[] = await kv.get(`user:${user.id}:watched`) || [];
     if (watched.length === 0) {
       const resp = await tmdbFetch("/movie/popular?language=ru-RU");
@@ -609,165 +614,261 @@ app.get("/make-server-59141208/recommendations", async (c) => {
       return c.json(data.results?.slice(0, 20) || []);
     }
 
-    // --- Step 1: Build user taste profile from ALL watched movies ---
-    // Fetch details for all watched movies (genre info, credits)
+    // ── Step 1: Build multi-signal taste profile ──────────────────────────────
+    // All signals weighted by user's own rating for each movie
     const movieDetails = new Map<number, any>();
-    const detailPromises = watched.map(async (w: any) => {
-      try {
-        const resp = await tmdbFetch(`/movie/${w.movieId}?language=ru-RU&append_to_response=credits`);
-        const d = await resp.json();
-        if (d.id) movieDetails.set(w.movieId, d);
-      } catch {}
-    });
-    await Promise.all(detailPromises);
+    await Promise.all(
+      watched.map(async (w: any) => {
+        try {
+          const resp = await tmdbFetch(`/movie/${w.movieId}?language=ru-RU&append_to_response=credits`);
+          const d = await resp.json();
+          if (d.id) movieDetails.set(w.movieId, d);
+        } catch {}
+      })
+    );
 
-    // Genre preference vector: sum of (rating/10) per genre
-    const genreScores: Record<number, { score: number; name: string; count: number }> = {};
-    // Director/actor frequency for highly rated movies (≥7)
-    const directorCounts: Record<string, number> = {};
-    const actorCounts: Record<string, number> = {};
+    const genreScores: Record<number, number> = {};    // genre_id → Σ(rating/10)
+    const directorScores: Record<string, number> = {}; // director → Σ(rating/10)
+    const actorScores: Record<string, number> = {};    // actor → Σ(rating/10 * pos_weight)
+    const writerScores: Record<string, number> = {};   // writer → Σ(rating/10 * 0.8)
+    const eraScores: Record<number, number> = {};      // decade → Σ(rating/10)
 
     for (const w of watched) {
       const detail = movieDetails.get(w.movieId);
       if (!detail) continue;
-      const normalizedRating = (w.rating || 5) / 10;
+      const rw = Math.max((w.rating || 5) / 10, 0.1);
 
-      // Accumulate genre scores
       for (const g of (detail.genres || [])) {
-        if (!genreScores[g.id]) genreScores[g.id] = { score: 0, name: g.name, count: 0 };
-        genreScores[g.id].score += normalizedRating;
-        genreScores[g.id].count += 1;
+        genreScores[g.id] = (genreScores[g.id] || 0) + rw;
       }
 
-      // Track directors & actors from highly rated movies
-      if ((w.rating || 0) >= 7) {
-        const directors = detail.credits?.crew?.filter((cr: any) => cr.job === "Director") || [];
-        for (const d of directors) {
-          directorCounts[d.name] = (directorCounts[d.name] || 0) + 1;
-        }
-        const topActors = detail.credits?.cast?.slice(0, 5) || [];
-        for (const a of topActors) {
-          actorCounts[a.name] = (actorCounts[a.name] || 0) + 1;
-        }
+      const directors = detail.credits?.crew?.filter((cr: any) => cr.job === "Director") || [];
+      for (const d of directors) {
+        directorScores[d.name] = (directorScores[d.name] || 0) + rw;
+      }
+
+      const writers = detail.credits?.crew?.filter((cr: any) =>
+        ["Screenplay", "Story", "Writer", "Novel"].includes(cr.job)
+      ) || [];
+      for (const wr of writers) {
+        writerScores[wr.name] = (writerScores[wr.name] || 0) + rw * 0.8;
+      }
+
+      // Actors: top-5 cast, lead actor gets full weight, 5th gets 52%
+      const cast = detail.credits?.cast?.slice(0, 5) || [];
+      cast.forEach((a: any, i: number) => {
+        actorScores[a.name] = (actorScores[a.name] || 0) + rw * (1 - i * 0.12);
+      });
+
+      const year = parseInt((detail.release_date || "0").slice(0, 4));
+      if (year > 1900) {
+        const decade = Math.floor(year / 10) * 10;
+        eraScores[decade] = (eraScores[decade] || 0) + rw;
       }
     }
 
-    // Normalize genre weights to [0..1]
-    const maxGenreScore = Math.max(...Object.values(genreScores).map(g => g.score), 1);
-    const genreWeights: Record<number, number> = {};
-    for (const [gid, g] of Object.entries(genreScores)) {
-      genreWeights[Number(gid)] = g.score / maxGenreScore;
-    }
+    // Normalize all profiles to [0..1]
+    const normalizeMap = (scores: Record<string | number, number>): Record<string | number, number> => {
+      const max = Math.max(...Object.values(scores), 0.001);
+      const out: Record<string | number, number> = {};
+      for (const [k, v] of Object.entries(scores)) out[k] = v / max;
+      return out;
+    };
 
-    // Favorite directors/actors (appear in ≥2 highly rated movies)
-    const favDirectors = new Set(Object.entries(directorCounts).filter(([, c]) => c >= 2).map(([n]) => n));
-    const favActors = new Set(Object.entries(actorCounts).filter(([, c]) => c >= 2).map(([n]) => n));
+    const genreW = normalizeMap(genreScores);
+    const directorW = normalizeMap(directorScores);
+    const actorW = normalizeMap(actorScores);
+    const writerW = normalizeMap(writerScores);
+    const eraW = normalizeMap(eraScores);
 
-    console.log("[Recs] Genre weights:", JSON.stringify(genreScores));
-    console.log("[Recs] Fav directors:", [...favDirectors]);
-    console.log("[Recs] Fav actors:", [...favActors].slice(0, 10));
+    const topGenreIds = Object.entries(genreScores)
+      .sort(([, a], [, b]) => b - a).slice(0, 3).map(([id]) => Number(id));
 
-    // --- Step 2: Gather candidates from top 8 rated movies ---
+    console.log("[Recs v2] genres:", topGenreIds,
+      "| directors:", Object.entries(directorScores).sort(([,a],[,b])=>b-a).slice(0,3).map(([n])=>n),
+      "| actors:", Object.entries(actorScores).sort(([,a],[,b])=>b-a).slice(0,3).map(([n])=>n),
+      "| writers:", Object.entries(writerScores).sort(([,a],[,b])=>b-a).slice(0,3).map(([n])=>n),
+      "| eras:", Object.entries(eraScores).sort(([,a],[,b])=>b-a).slice(0,2).map(([d])=>`${d}s`));
+
+    // ── Step 2: Gather candidates from multiple sources ───────────────────────
     const watchedIds = new Set(watched.map((w: any) => w.movieId));
-    const topRated = [...watched].sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 8);
+    const allExclude = new Set([...watchedIds, ...excludeIds]);
+    const topRated = [...watched].sort((a, b) => (b.rating || 0) - (a.rating || 0)).slice(0, 12);
     const candidateMap = new Map<number, { movie: any; sourceRating: number }>();
 
-    const recPromises = topRated.map(async (w: any) => {
-      try {
-        // Use both /recommendations and /similar for broader coverage
-        const [recResp, simResp] = await Promise.all([
-          tmdbFetch(`/movie/${w.movieId}/recommendations?language=ru-RU`),
-          tmdbFetch(`/movie/${w.movieId}/similar?language=ru-RU`),
-        ]);
-        const recData = await recResp.json();
-        const simData = await simResp.json();
-        const allResults = [...(recData.results || []), ...(simData.results || [])];
-        for (const r of allResults) {
-          if (!watchedIds.has(r.id) && !candidateMap.has(r.id)) {
-            candidateMap.set(r.id, { movie: r, sourceRating: w.rating || 5 });
+    const addCandidate = (r: any, sourceRating: number) => {
+      if (r?.id && !allExclude.has(r.id) && !candidateMap.has(r.id)) {
+        candidateMap.set(r.id, { movie: r, sourceRating });
+      }
+    };
+
+    // Source 1: TMDB recommendations + similar for top-12 rated movies
+    await Promise.all(
+      topRated.map(async (w: any) => {
+        try {
+          const [rr, sr] = await Promise.all([
+            tmdbFetch(`/movie/${w.movieId}/recommendations?language=ru-RU`),
+            tmdbFetch(`/movie/${w.movieId}/similar?language=ru-RU`),
+          ]);
+          const rd = await rr.json();
+          const sd = await sr.json();
+          for (const r of [...(rd.results || []), ...(sd.results || [])]) {
+            addCandidate(r, w.rating || 5);
           }
-        }
-      } catch {}
-    });
-    await Promise.all(recPromises);
+        } catch {}
+      })
+    );
 
-    // --- Step 3: Score each candidate ---
-    // Fetch credits for candidates to check director/actor bonus
-    const candidateIds = [...candidateMap.keys()];
+    // Source 2: TMDB discover by top genres (breaks single-genre tunnel)
+    await Promise.all(
+      topGenreIds.map(async (gid) => {
+        try {
+          const resp = await tmdbFetch(
+            `/discover/movie?with_genres=${gid}&sort_by=vote_average.desc&vote_count.gte=100&language=ru-RU`
+          );
+          const data = await resp.json();
+          for (const r of (data.results || [])) addCandidate(r, 6);
+        } catch {}
+      })
+    );
+
+    // Source 3: Filmography of favourite directors
+    const topDirectors = Object.entries(directorScores)
+      .sort(([, a], [, b]) => b - a).slice(0, 3).map(([name]) => name);
+
+    await Promise.all(
+      topDirectors.map(async (dirName) => {
+        try {
+          const sr = await tmdbFetch(`/search/person?query=${encodeURIComponent(dirName)}&language=ru-RU`);
+          const sd = await sr.json();
+          const person = sd.results?.[0];
+          if (!person?.id) return;
+          const cr = await tmdbFetch(`/person/${person.id}/movie_credits?language=ru-RU`);
+          const cd = await cr.json();
+          for (const r of (cd.crew || []).filter((c: any) => c.job === "Director")) {
+            addCandidate(r, 7);
+          }
+        } catch {}
+      })
+    );
+
+    // ── Step 3: Fetch candidate details for full signal evaluation ────────────
     const creditMap = new Map<number, any>();
-    const creditPromises = candidateIds.slice(0, 60).map(async (id) => {
-      try {
-        const resp = await tmdbFetch(`/movie/${id}?language=ru-RU&append_to_response=credits`);
-        const d = await resp.json();
-        if (d.id) creditMap.set(id, d);
-      } catch {}
-    });
-    await Promise.all(creditPromises);
+    await Promise.all(
+      [...candidateMap.keys()].slice(0, 80).map(async (id) => {
+        try {
+          const resp = await tmdbFetch(`/movie/${id}?language=ru-RU&append_to_response=credits`);
+          const d = await resp.json();
+          if (d.id) creditMap.set(id, d);
+        } catch {}
+      })
+    );
 
-    const scored: { movie: any; score: number; breakdown: any }[] = [];
+    // ── Step 4: Multi-signal scoring ─────────────────────────────────────────
+    // Genre 25% | Director 20% | Actor 12% | Writer 8%
+    // Source 10% | Quality 12% | VoteConf 5% | Era 5% | Pop 3%
+    const scored: { movie: any; score: number; signals: string[] }[] = [];
 
-    for (const [id, { movie, sourceRating }] of candidateMap) {
-      const detail = creditMap.get(id);
+    for (const [, { movie, sourceRating }] of candidateMap) {
+      const detail = creditMap.get(movie.id);
+      const voteAvg = movie.vote_average || detail?.vote_average || 0;
+      const voteCount = movie.vote_count || detail?.vote_count || 0;
+      const releaseDate = detail?.release_date || movie.release_date || "";
+      const year = parseInt(releaseDate.slice(0, 4)) || 0;
+      const decade = Math.floor(year / 10) * 10;
 
-      // 1. Genre Match (0..1): average of genre weights for this movie's genres
-      const movieGenreIds = (movie.genre_ids || detail?.genres?.map((g: any) => g.id) || []);
-      let genreMatch = 0;
-      if (movieGenreIds.length > 0) {
-        const sum = movieGenreIds.reduce((acc: number, gid: number) => acc + (genreWeights[gid] || 0), 0);
-        genreMatch = sum / movieGenreIds.length;
-      }
+      const movieGenreIds: number[] = movie.genre_ids || detail?.genres?.map((g: any) => g.id) || [];
+      const genreMatch = movieGenreIds.length > 0
+        ? movieGenreIds.reduce((s: number, gid: number) => s + (Number(genreW[gid]) || 0), 0) / movieGenreIds.length
+        : 0;
 
-      // 2. Source Weight (0..1): rating of the movie that generated this rec
+      const dirs = detail?.credits?.crew?.filter((cr: any) => cr.job === "Director") || [];
+      const directorMatch = dirs.length > 0
+        ? Math.max(...dirs.map((d: any) => Number(directorW[d.name]) || 0))
+        : 0;
+
+      const cast5 = detail?.credits?.cast?.slice(0, 5) || [];
+      const actorMatch = cast5.length > 0
+        ? Math.max(...cast5.map((a: any) => Number(actorW[a.name]) || 0))
+        : 0;
+
+      const wrtrs = detail?.credits?.crew?.filter((cr: any) =>
+        ["Screenplay", "Story", "Writer", "Novel"].includes(cr.job)
+      ) || [];
+      const writerMatch = wrtrs.length > 0
+        ? Math.max(...wrtrs.map((w: any) => Number(writerW[w.name]) || 0))
+        : 0;
+
       const sourceWeight = sourceRating / 10;
+      const quality = Math.min(voteAvg / 10, 1);
+      const voteConf = Math.min(Math.log10(Math.max(voteCount, 1)) / Math.log10(1000), 1);
+      const eraMatch = year > 0 ? (Number(eraW[decade]) || 0) : 0;
+      const popScore = Math.min(Math.log10(Math.max(movie.popularity || detail?.popularity || 1, 1)) / 3, 1);
 
-      // 3. Popularity / Quality (0..1): TMDB vote average
-      const popularity = Math.min((movie.vote_average || 0) / 10, 1);
+      const score =
+        genreMatch    * 0.25 +
+        directorMatch * 0.20 +
+        actorMatch    * 0.12 +
+        writerMatch   * 0.08 +
+        sourceWeight  * 0.10 +
+        quality       * 0.12 +
+        voteConf      * 0.05 +
+        eraMatch      * 0.05 +
+        popScore      * 0.03;
 
-      // 4. Vote count confidence: penalize movies with very few votes
-      const voteConfidence = Math.min((movie.vote_count || 0) / 100, 1);
+      if (score < 0.28 || voteAvg < 5.0) continue;
 
-      // 5. Director/Actor bonus
-      let crewBonus = 0;
-      if (detail?.credits) {
-        const dirs = detail.credits.crew?.filter((cr: any) => cr.job === "Director") || [];
-        if (dirs.some((d: any) => favDirectors.has(d.name))) crewBonus += 0.15;
-        const actors = detail.credits.cast?.slice(0, 5) || [];
-        if (actors.some((a: any) => favActors.has(a.name))) crewBonus += 0.10;
-      }
+      const signals: string[] = [];
+      if (genreMatch > 0.45) signals.push("genre");
+      if (directorMatch > 0.25) signals.push("director");
+      if (actorMatch > 0.25) signals.push("actor");
+      if (writerMatch > 0.25) signals.push("writer");
+      if (eraMatch > 0.45) signals.push("era");
 
-      // Final score formula
-      const finalScore =
-        (genreMatch * 0.35) +
-        (sourceWeight * 0.20) +
-        (popularity * 0.20) +
-        (voteConfidence * 0.10) +
-        crewBonus +
-        // Small bonus for higher TMDB popularity (log scale)
-        (Math.min(Math.log10(Math.max(movie.popularity || 1, 1)) / 3, 1) * 0.05);
-
-      // Minimum quality threshold
-      if (finalScore >= 0.45 && (movie.vote_average || 0) >= 5.5) {
-        scored.push({
-          movie: { ...movie, _score: Math.round(finalScore * 100) },
-          score: finalScore,
-          breakdown: { genreMatch, sourceWeight, popularity, voteConfidence, crewBonus },
-        });
-      }
+      scored.push({
+        movie: {
+          ...movie,
+          _score: Math.round(score * 100),
+          _signals: signals,
+          _matchedDirectors: dirs.filter((d: any) => (Number(directorW[d.name]) || 0) > 0.2).map((d: any) => d.name).slice(0, 2),
+          _matchedActors: cast5.filter((a: any) => (Number(actorW[a.name]) || 0) > 0.2).map((a: any) => a.name).slice(0, 2),
+          _matchedWriters: wrtrs.filter((w: any) => (Number(writerW[w.name]) || 0) > 0.2).map((w: any) => w.name).slice(0, 2),
+          _releaseYear: year || undefined,
+        },
+        score,
+        signals,
+      });
     }
 
-    // Sort by score descending
     scored.sort((a, b) => b.score - a.score);
 
-    console.log(`[Recs] ${candidateMap.size} candidates → ${scored.length} passed threshold, returning top 20`);
-    if (scored.length > 0) {
-      console.log("[Recs] Top 3:", scored.slice(0, 3).map(s => ({
-        title: s.movie.title,
-        score: s.score.toFixed(3),
-        ...s.breakdown,
+    // ── Step 5: Diversity — max 3 per director, max 7 per top genre ──────────
+    const dirCount: Record<string, number> = {};
+    const genreCount: Record<number, number> = {};
+    const final: typeof scored = [];
+
+    for (const item of scored) {
+      const itemDirs: string[] = item.movie._matchedDirectors || [];
+      const itemGenres: number[] = item.movie.genre_ids || [];
+
+      if (itemDirs.some((d: string) => (dirCount[d] || 0) >= 3)) continue;
+      const topGenre = topGenreIds[0];
+      if (topGenre && itemGenres.includes(topGenre) && (genreCount[topGenre] || 0) >= 7) continue;
+
+      for (const d of itemDirs) dirCount[d] = (dirCount[d] || 0) + 1;
+      for (const gid of itemGenres) genreCount[gid] = (genreCount[gid] || 0) + 1;
+      final.push(item);
+      if (final.length >= 24) break;
+    }
+
+    console.log(`[Recs v2] ${candidateMap.size} candidates → ${scored.length} scored → ${final.length} after diversity`);
+    if (final.length > 0) {
+      console.log("[Recs v2] Top 3:", final.slice(0, 3).map(s => ({
+        title: s.movie.title, score: s.score.toFixed(3), signals: s.signals,
       })));
     }
 
-    return c.json(scored.slice(0, 20).map(s => s.movie));
+    return c.json(final.map(s => s.movie));
   } catch (e: any) {
     console.log("[Recs] Error:", e.message);
     return c.json({ error: `Recommendations error: ${e.message}` }, 500);

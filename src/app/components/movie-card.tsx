@@ -166,7 +166,7 @@ export function MovieCard({ movie, rating, compact, showQuickActions = true, med
       {/* TMDB rating badge — top left */}
       {movie.vote_average > 0 && !userRating && (
         <div className="absolute top-1.5 left-1.5 bg-black/70 backdrop-blur-sm rounded-md px-1.5 py-0.5 flex items-center gap-1">
-          <Star className="w-2.5 h-2.5 text-primary fill-primary" />
+          <Star className="w-2.5 h-2.5 text-white fill-white" />
           <span className="text-white text-[10px] font-semibold">{movie.vote_average.toFixed(1)}</span>
         </div>
       )}
