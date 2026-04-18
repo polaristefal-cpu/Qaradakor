@@ -23,6 +23,7 @@ import {
 } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
 import { useLang } from "../lib/lang-context";
+import { SEO, generateOrganizationStructuredData, generateWebSiteStructuredData } from "../components/seo";
 import {
   Zap,
   Award,
@@ -762,7 +763,7 @@ function RandomMovieCard({ movies }: { movies: Movie[] }) {
   );
 }
 
-// ─── Platform Stats ──────────────────────────────────────────────────────��──────
+// ─── Platform Stats ────────────────────────────────────────────────────────────
 function PlatformStats() {
   const { t } = useLang();
   const stats = [
@@ -897,7 +898,7 @@ function KazakhCinemaSection() {
 // ── HomePage ──────────────────────────────────────────────────────────────────
 export function HomePage() {
   const { session } = useAuth();
-  const { t, tmdbLang } = useLang();
+  const { t, tmdbLang, lang } = useLang();
   const [trending, setTrending] = useState<Movie[]>([]);
   const [popular, setPopular] = useState<Movie[]>([]);
   const [topRated, setTopRated] = useState<Movie[]>([]);
@@ -929,6 +930,15 @@ export function HomePage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [tmdbLang]);
+  
+  // SEO структурированные данные
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      generateOrganizationStructuredData(),
+      generateWebSiteStructuredData()
+    ]
+  };
 
   if (loading) {
     return (
@@ -940,111 +950,123 @@ export function HomePage() {
   }
 
   return (
-    <div className="pb-20">
-      <HeroSection movies={trending} />
-      <HomeSearchBlock />
+    <>
+      <SEO
+        title={lang === "ru" ? "Qaradakor.kz — Персональная библиотека фильмов | Кино қазақша" : 
+               lang === "kk" ? "Qaradakor.kz — Жеке кино кітапханасы" : 
+               "Qaradakor.kz — Your Personal Movie Library"}
+        description={lang === "ru" ? "Откройте для себя мир кино с qaradakor.kz — современной платформой для поиска, изучения и отслеживания фильмов и сериалов с AI-рекомендациями на казахском, русском и английском языках. Создавайте списки, оценивайте фильмы, делитесь с друзьями." :
+                     lang === "kk" ? "Qaradakor.kz арқылы кино әлеміне саяхат жасаңыз — фильмдер мен сериалдарды іздеуге, зерттеуге және бақылауға арналған заманауи платформа қазақ, орыс және ағылшын тілдерінде AI ұсыныстарымен." :
+                     "Discover the world of cinema with qaradakor.kz — a modern platform for searching, exploring, and tracking movies and TV shows with AI recommendations in Kazakh, Russian, and English."}
+        keywords={["кино", "фильмы", "сериалы", "библиотека фильмов", "казахстан", "рекомендации фильмов", "qaradakor", "қарадакор", "кино қазақша", "AI рекомендации", "TMDB", "трекинг фильмов", "рецензии фильмов"]}
+        structuredData={structuredData}
+      />
+      <div className="pb-20">
+        <HeroSection movies={trending} />
+        <HomeSearchBlock />
 
-      <div className="max-w-7xl mx-auto px-4 md:px-8 mt-12 md:mt-16 space-y-16 md:space-y-20 overflow-x-hidden">
-        
-        <FadeIn>
-          <MovieRow label={t("trendingSection")} icon={Zap} iconClass="text-primary" movies={trending.slice(0, 20)} />
-        </FadeIn>
-        
-        <FadeIn>
-          <MovieRow label={t("nowPlayingSection")} icon={Flame} iconClass="text-foreground" movies={nowPlaying.slice(0, 20)} />
-        </FadeIn>
-
-        <FadeIn>
-          <TopReviewsSection />
-        </FadeIn>
-
-        <FadeIn>
-          <MovieRow label={t("popularSection")} icon={TrendingUp} iconClass="text-muted-foreground" movies={popular.slice(0, 20)} />
-        </FadeIn>
-
-        {!session && (
+        <div className="max-w-7xl mx-auto px-4 md:px-8 mt-12 md:mt-16 space-y-16 md:space-y-20 overflow-x-hidden">
+          
           <FadeIn>
-            <GuestCTA />
+            <MovieRow label={t("trendingSection")} icon={Zap} iconClass="text-primary" movies={trending.slice(0, 20)} />
           </FadeIn>
-        )}
-
-        <FadeIn>
-          <PlatformStats />
-        </FadeIn>
-
-        <FadeIn>
-          <MovieRow label={t("topRatedSection")} icon={Award} iconClass="text-primary" movies={topRated.slice(0, 20)} />
-        </FadeIn>
-
-        <Top10Section movies={topRated} />
-
-        <FadeIn>
-          <RandomMovieCard movies={[...popular, ...topRated, ...trending]} />
-        </FadeIn>
-
-        <FadeIn>
-          <MovieRow label={t("upcomingSection")} icon={Clock} iconClass="text-muted-foreground" movies={upcoming.slice(0, 20)} />
-        </FadeIn>
-
-        <FadeIn>
-          <GenreSection />
-        </FadeIn>
-
-        {/* ── TV Shows Section ── */}
-        <FadeIn>
-          <div>
-            <div className="flex items-center gap-3 mb-8 pb-4 border-b border-border">
-              <div className="w-1 h-6 rounded-full bg-primary" />
-              <Tv className="w-6 h-6 text-primary" />
-              <h2 className="text-2xl font-black text-foreground tracking-tight">{t("tvShowsSection")}</h2>
-            </div>
-            <div className="space-y-12">
-              <FadeIn>
-                <MovieRow label={t("trendingTVSection")} icon={Zap} iconClass="text-primary" movies={tvTrending.slice(0, 20)} mediaType="tv" />
-              </FadeIn>
-              <FadeIn>
-                <MovieRow label={t("airingTodaySection")} icon={Flame} iconClass="text-foreground" movies={tvAiring.slice(0, 20)} mediaType="tv" />
-              </FadeIn>
-              <FadeIn>
-                <MovieRow label={t("popularTVSection")} icon={TrendingUp} iconClass="text-muted-foreground" movies={tvPopular.slice(0, 20)} mediaType="tv" />
-              </FadeIn>
-              <FadeIn>
-                <MovieRow label={t("topRatedTVSection")} icon={Award} iconClass="text-primary" movies={tvTopRated.slice(0, 20)} mediaType="tv" />
-              </FadeIn>
-            </div>
-          </div>
-        </FadeIn>
-
-        {/* ── Kazakh Cinema Section ── */}
-        <KazakhCinemaSection />
-
-        {/* How it works (guest) */}
-        {!session && <HowItWorks />}
-
-        {/* Bottom CTA */}
-        {!session && (
+          
           <FadeIn>
-            <div className="flex flex-col sm:flex-row items-center gap-5 bg-card border-2 border-border rounded-3xl p-6 md:p-8 shadow-sm group hover:border-primary/30 transition-colors">
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                <Sparkles className="w-8 h-8 text-primary" />
+            <MovieRow label={t("nowPlayingSection")} icon={Flame} iconClass="text-foreground" movies={nowPlaying.slice(0, 20)} />
+          </FadeIn>
+
+          <FadeIn>
+            <TopReviewsSection />
+          </FadeIn>
+
+          <FadeIn>
+            <MovieRow label={t("popularSection")} icon={TrendingUp} iconClass="text-muted-foreground" movies={popular.slice(0, 20)} />
+          </FadeIn>
+
+          {!session && (
+            <FadeIn>
+              <GuestCTA />
+            </FadeIn>
+          )}
+
+          <FadeIn>
+            <PlatformStats />
+          </FadeIn>
+
+          <FadeIn>
+            <MovieRow label={t("topRatedSection")} icon={Award} iconClass="text-primary" movies={topRated.slice(0, 20)} />
+          </FadeIn>
+
+          <Top10Section movies={topRated} />
+
+          <FadeIn>
+            <RandomMovieCard movies={[...popular, ...topRated, ...trending]} />
+          </FadeIn>
+
+          <FadeIn>
+            <MovieRow label={t("upcomingSection")} icon={Clock} iconClass="text-muted-foreground" movies={upcoming.slice(0, 20)} />
+          </FadeIn>
+
+          <FadeIn>
+            <GenreSection />
+          </FadeIn>
+
+          {/* ── TV Shows Section ── */}
+          <FadeIn>
+            <div>
+              <div className="flex items-center gap-3 mb-8 pb-4 border-b border-border">
+                <div className="w-1 h-6 rounded-full bg-primary" />
+                <Tv className="w-6 h-6 text-primary" />
+                <h2 className="text-2xl font-black text-foreground tracking-tight">{t("tvShowsSection")}</h2>
               </div>
-              <div className="flex-1 text-center sm:text-left">
-                <p className="font-black text-foreground text-lg md:text-xl mb-1">{t("ctaTitle")}</p>
-                <p className="text-muted-foreground text-sm font-medium">
-                  {t("ctaDesc")}
-                </p>
+              <div className="space-y-12">
+                <FadeIn>
+                  <MovieRow label={t("trendingTVSection")} icon={Zap} iconClass="text-primary" movies={tvTrending.slice(0, 20)} mediaType="tv" />
+                </FadeIn>
+                <FadeIn>
+                  <MovieRow label={t("airingTodaySection")} icon={Flame} iconClass="text-foreground" movies={tvAiring.slice(0, 20)} mediaType="tv" />
+                </FadeIn>
+                <FadeIn>
+                  <MovieRow label={t("popularTVSection")} icon={TrendingUp} iconClass="text-muted-foreground" movies={tvPopular.slice(0, 20)} mediaType="tv" />
+                </FadeIn>
+                <FadeIn>
+                  <MovieRow label={t("topRatedTVSection")} icon={Award} iconClass="text-primary" movies={tvTopRated.slice(0, 20)} mediaType="tv" />
+                </FadeIn>
               </div>
-              <Link
-                to="/register"
-                className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-primary text-primary-foreground font-black text-sm hover:bg-primary/90 transition-all shadow-md w-full sm:w-auto active:scale-95"
-              >
-                <UserPlus className="w-5 h-5" />
-                {t("createAccount")}
-              </Link>
             </div>
           </FadeIn>
-        )}
+
+          {/* ── Kazakh Cinema Section ── */}
+          <KazakhCinemaSection />
+
+          {/* How it works (guest) */}
+          {!session && <HowItWorks />}
+
+          {/* Bottom CTA */}
+          {!session && (
+            <FadeIn>
+              <div className="flex flex-col sm:flex-row items-center gap-5 bg-card border-2 border-border rounded-3xl p-6 md:p-8 shadow-sm group hover:border-primary/30 transition-colors">
+                <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Sparkles className="w-8 h-8 text-primary" />
+                </div>
+                <div className="flex-1 text-center sm:text-left">
+                  <p className="font-black text-foreground text-lg md:text-xl mb-1">{t("ctaTitle")}</p>
+                  <p className="text-muted-foreground text-sm font-medium">
+                    {t("ctaDesc")}
+                  </p>
+                </div>
+                <Link
+                  to="/register"
+                  className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-primary text-primary-foreground font-black text-sm hover:bg-primary/90 transition-all shadow-md w-full sm:w-auto active:scale-95"
+                >
+                  <UserPlus className="w-5 h-5" />
+                  {t("createAccount")}
+                </Link>
+              </div>
+            </FadeIn>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
