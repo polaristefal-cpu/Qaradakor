@@ -128,7 +128,7 @@ export function Sidebar() {
   // ── Desktop Sidebar Content ───────────────────────────────────────────────
   function DesktopSidebar() {
     return (
-      <div className="absolute inset-0 bg-background border border-border shadow-2xl flex flex-col overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
+      <div className="liquid-glass-panel absolute inset-0 flex flex-col overflow-hidden transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
            style={{ borderRadius: collapsed ? '3.5rem' : '2rem' }}>
         
         {/* Logo Section */}
@@ -313,7 +313,7 @@ export function Sidebar() {
           >
             <div
               aria-hidden="true"
-              className="absolute inset-0 bg-background/75 backdrop-blur-sm"
+              className="absolute inset-0 bg-background/45 backdrop-blur-md"
               onClick={() => setMobileMenuOpen(false)}
             />
             <motion.div
@@ -321,11 +321,11 @@ export function Sidebar() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ duration: 0.22, ease: "easeOut" }}
-              className="absolute right-0 top-0 flex h-full w-[min(22rem,calc(100vw-2rem))] flex-col border-l border-border bg-background shadow-2xl"
+              className="liquid-glass-panel absolute right-0 top-0 flex h-full w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-l-[2rem]"
             >
               <div className="flex items-center justify-between border-b border-border px-5 py-4">
                 <div className="flex items-center gap-2.5">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground text-background">
+                  <div className="liquid-glass-active relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl">
                     <Logo className="h-5 w-5" />
                   </div>
                   <div>
@@ -335,7 +335,7 @@ export function Sidebar() {
                 </div>
                 <button
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition hover:text-foreground"
+                  className="liquid-glass-control relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl text-muted-foreground transition hover:text-foreground"
                   aria-label={t("close")}
                 >
                   <X className="h-4 w-4" />
@@ -352,10 +352,10 @@ export function Sidebar() {
                       <Link
                         key={item.to}
                         to={item.to}
-                        className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold transition ${
+                        className={`relative flex items-center gap-3 overflow-hidden rounded-2xl px-3 py-3 text-sm font-bold transition ${
                           active
-                            ? "bg-foreground text-background"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            ? "liquid-glass-active"
+                            : "text-muted-foreground hover:bg-white/10 hover:text-foreground"
                         }`}
                       >
                         <Icon className="h-4 w-4 shrink-0" />
@@ -377,7 +377,7 @@ export function Sidebar() {
                 <div className="border-t border-border p-4">
                   <button
                     onClick={handleLogout}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm font-bold text-muted-foreground transition hover:border-destructive/30 hover:text-destructive"
+                    className="liquid-glass-control relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-4 py-3 text-sm font-bold text-muted-foreground transition hover:text-destructive"
                   >
                     <LogOut className="h-4 w-4" />
                     {t("logout")}
@@ -420,11 +420,11 @@ export function Sidebar() {
 
       {/* ── Mobile top bar ── */}
       <header
-        className="lg:hidden fixed top-0 left-0 right-0 z-40 h-16 flex items-center justify-between px-4 bg-background/80 backdrop-blur-xl border-b border-border shadow-sm"
+        className="liquid-glass lg:hidden fixed top-3 left-3 right-3 z-40 h-14 flex items-center justify-between rounded-[1.75rem] px-3"
       >
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 flex items-center justify-center rounded-xl bg-foreground text-background group-hover:scale-105 transition-transform">
+          <div className="liquid-glass-active relative w-9 h-9 flex items-center justify-center overflow-hidden rounded-xl group-hover:scale-105 transition-transform">
             <Logo className="w-5 h-5" />
           </div>
           <div className="flex flex-col">
@@ -436,20 +436,20 @@ export function Sidebar() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setMobileMenuOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-accent/50 text-foreground shadow-sm transition-all hover:bg-accent"
+            className="liquid-glass-control relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl text-foreground transition-all hover:bg-white/10"
             aria-label={t("menu")}
           >
             <Menu className="h-4 w-4" />
           </button>
           {/* Mobile lang switcher */}
           <MobileLangPicker />
-          <div className="w-9 h-9 flex items-center justify-center rounded-xl bg-accent/50 border border-border text-foreground">
+          <div className="liquid-glass-control relative w-9 h-9 flex items-center justify-center overflow-hidden rounded-xl text-foreground">
              <ThemeToggle />
           </div>
           {session && (
             <Link
               to="/profile"
-              className="relative w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center shadow-sm border border-border"
+              className="liquid-glass-control relative w-9 h-9 rounded-xl overflow-hidden flex items-center justify-center"
             >
               {avatarUrl ? (
                 <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
@@ -466,9 +466,9 @@ export function Sidebar() {
 
       {/* ── Mobile Bottom Navigation Bar ── */}
       <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/90 backdrop-blur-xl border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.05)]"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pointer-events-none"
       >
-        <div className="flex items-center justify-around gap-1 px-1 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="liquid-glass pointer-events-auto relative flex items-center justify-around gap-1 overflow-hidden rounded-[2rem] px-1.5 pt-1.5 pb-2">
           {mobileNav.map((item) => {
             const active = isActive(item.to);
             const Icon = item.icon;
@@ -480,12 +480,12 @@ export function Sidebar() {
                 className="relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-1 py-1.5 transition-all"
               >
                 <div className={`relative w-12 h-10 flex items-center justify-center rounded-2xl transition-all duration-300 ${
-                  active ? "bg-foreground text-background shadow-md scale-105" : "hover:bg-accent text-muted-foreground"
+                  active ? "liquid-glass-active scale-105" : "text-muted-foreground hover:bg-white/10"
                 }`}>
                   <Icon className={`w-5 h-5 transition-transform duration-300`} />
                   {badge !== undefined && badge > 0 && (
                     <span className={`absolute -top-1 -right-1 w-4.5 h-4.5 text-[9px] font-black rounded-full flex items-center justify-center border-2 border-background ${
-                      active ? "bg-background text-foreground" : "bg-primary text-primary-foreground"
+                      active ? "bg-background text-foreground" : "liquid-glass-active"
                     }`}>
                       {badge > 99 ? "99+" : badge}
                     </span>
@@ -497,12 +497,6 @@ export function Sidebar() {
                   {item.label}
                 </span>
                 
-                {active && (
-                  <motion.div 
-                    layoutId="mobileNavDot"
-                    className="absolute -bottom-1 w-1 h-1 rounded-full bg-foreground"
-                  />
-                )}
               </Link>
             );
           })}
@@ -523,7 +517,7 @@ function MobileLangPicker() {
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center justify-center w-9 h-9 rounded-xl bg-accent/50 border border-border text-foreground hover:bg-accent transition-all shadow-sm"
+        className="liquid-glass-control relative flex items-center justify-center w-9 h-9 overflow-hidden rounded-xl text-foreground hover:bg-white/10 transition-all"
       >
         <span className="text-base leading-none">{current?.flag}</span>
       </button>
@@ -536,13 +530,13 @@ function MobileLangPicker() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
               transition={{ duration: 0.15 }}
-              className="absolute bottom-full mb-2 right-0 bg-card border border-border rounded-2xl shadow-xl z-50 overflow-hidden min-w-[120px] p-1.5"
+              className="liquid-glass-panel absolute bottom-full mb-2 right-0 rounded-2xl z-50 overflow-hidden min-w-[120px] p-1.5"
             >
               {LANGS.map(l => (
                 <button
                   key={l.code}
                   onClick={() => { setLang(l.code); setOpen(false); }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${lang === l.code ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${lang === l.code ? "liquid-glass-active" : "text-muted-foreground hover:text-foreground hover:bg-white/10"}`}
                 >
                   <span className="text-lg leading-none">{l.flag}</span>
                   <span>{l.label}</span>

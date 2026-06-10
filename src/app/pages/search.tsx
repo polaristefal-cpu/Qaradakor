@@ -176,7 +176,7 @@ export function SearchPage() {
       <h1 className="text-2xl font-black text-foreground mb-6">{pageTitle}</h1>
 
       {/* Search form */}
-      <form onSubmit={handleSubmit} className="flex gap-2.5 mb-6">
+      <form onSubmit={handleSubmit} className="liquid-glass-card relative flex gap-2.5 mb-6 overflow-hidden rounded-[1.75rem] p-1.5">
         <div className="relative flex-1">
           <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-muted-foreground" />
           <input
@@ -184,7 +184,7 @@ export function SearchPage() {
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
             placeholder={t("searchInputPlaceholder")}
-            className="w-full bg-card border border-border rounded-2xl pl-10 pr-10 py-3 text-foreground placeholder:text-muted-foreground/50 text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition shadow-sm"
+            className="w-full bg-transparent rounded-2xl pl-10 pr-10 py-3 text-foreground placeholder:text-muted-foreground/50 text-sm focus:outline-none focus:ring-2 focus:ring-primary/15 transition"
             autoFocus
           />
           {inputVal && (
@@ -206,7 +206,7 @@ export function SearchPage() {
         </div>
         <button
           type="submit"
-          className="px-5 py-2.5 bg-primary text-primary-foreground rounded-2xl font-semibold text-sm hover:bg-primary/90 transition-all shadow-sm"
+          className="liquid-glass-active relative overflow-hidden px-5 py-2.5 rounded-2xl font-semibold text-sm transition-all hover:scale-[1.02]"
         >
           {t("searchBtn")}
         </button>
@@ -219,10 +219,10 @@ export function SearchPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-semibold border transition-all ${
+              className={`relative flex items-center gap-1.5 overflow-hidden px-3.5 py-1.5 rounded-xl text-sm font-semibold border transition-all ${
                 activeTab === tab.id
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card text-muted-foreground border-border hover:border-primary/40 hover:text-foreground"
+                  ? "liquid-glass-active"
+                  : "liquid-glass-control text-muted-foreground hover:text-foreground"
               }`}
             >
               <tab.icon className="w-3.5 h-3.5" />
@@ -273,10 +273,10 @@ export function SearchPage() {
                   <button
                     key={person.id}
                     onClick={() => handlePersonClick(person)}
-                    className={`group bg-card border rounded-xl overflow-hidden text-left shadow-sm transition-all hover:shadow-md ${
+                    className={`group liquid-glass-card relative rounded-xl overflow-hidden text-left transition-all hover:shadow-md ${
                       selectedPerson?.id === person.id
-                        ? "border-primary ring-2 ring-primary/20"
-                        : "border-border hover:border-primary/40"
+                        ? "ring-2 ring-primary/20"
+                        : "hover:border-primary/40"
                     }`}
                   >
                     {person.profile_path ? (

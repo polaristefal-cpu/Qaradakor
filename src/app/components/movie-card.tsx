@@ -77,7 +77,7 @@ export function MovieCard({ movie, rating, compact, showQuickActions = true, med
   return (
     <div
       onClick={handleClick}
-      className={`group cursor-pointer relative rounded-xl overflow-hidden bg-card border border-border shadow-sm transition-all duration-300 hover:scale-[1.04] hover:shadow-lg hover:border-primary/40 ${compact ? "w-32" : "w-full"}`}
+      className={`group liquid-glass-card cursor-pointer relative rounded-xl overflow-hidden transition-all duration-300 hover:scale-[1.04] hover:border-primary/40 ${compact ? "w-32" : "w-full"}`}
     >
       {/* Poster */}
       {movie.poster_path ? (
@@ -104,7 +104,7 @@ export function MovieCard({ movie, rating, compact, showQuickActions = true, med
         <button
           onClick={(e) => { e.stopPropagation(); setShowTrailer(true); }}
           title="Смотреть трейлер"
-          className="pointer-events-auto w-11 h-11 rounded-full bg-primary/90 hover:bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/40 hover:scale-110 transition-all backdrop-blur-sm"
+          className="liquid-glass-active pointer-events-auto relative w-11 h-11 overflow-hidden rounded-full flex items-center justify-center hover:scale-110 transition-all"
         >
           <Play className="w-5 h-5 fill-current ml-0.5" />
         </button>
@@ -140,8 +140,8 @@ export function MovieCard({ movie, rating, compact, showQuickActions = true, med
               title={inWatchlist ? "Убрать из вотчлиста" : "Хочу посмотреть"}
               className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all shadow-md ${
                 inWatchlist
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-black/60 backdrop-blur text-white hover:bg-primary"
+                  ? "liquid-glass-active relative overflow-hidden"
+                  : "liquid-glass-control relative overflow-hidden text-white hover:bg-white/15"
               }`}
             >
               {actionLoading
