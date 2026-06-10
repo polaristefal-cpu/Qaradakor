@@ -128,7 +128,7 @@ export function WatchlistPage() {
       {/* Toolbar */}
       {items.length > 0 && (
         <div className="flex flex-col sm:flex-row gap-2.5 mb-5">
-          <div className="relative flex-1 max-w-xs">
+          <div className="relative flex-1 sm:max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input
               value={search}
@@ -174,7 +174,8 @@ export function WatchlistPage() {
           </select>
           <button
             onClick={() => setSortAsc(!sortAsc)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border rounded-xl text-muted-foreground hover:text-foreground hover:border-primary/30 transition text-sm"
+            className="flex h-10 w-10 shrink-0 items-center justify-center self-start rounded-xl border border-border bg-card text-muted-foreground transition hover:border-primary/30 hover:text-foreground"
+            title={sortAsc ? t("sortAsc") : t("sortDesc")}
           >
             {sortAsc ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
           </button>

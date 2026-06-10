@@ -123,7 +123,7 @@ export function RecommendationsPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-32 gap-3">
+      <div className="flex min-h-[calc(100svh-13rem)] flex-col items-center justify-center gap-3 py-24 md:min-h-[420px]">
         <Loader2 className="w-9 h-9 text-primary animate-spin" />
         <p className="text-muted-foreground text-sm">{t("analyzingTastes")}</p>
         {history.generation > 0 && (

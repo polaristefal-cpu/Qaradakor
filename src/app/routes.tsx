@@ -46,8 +46,8 @@ function AppShell() {
     <div className="min-h-screen bg-background flex">
       <Sidebar />
       <main
-        className={`flex-1 min-w-0 transition-all duration-300 ease-in-out pt-16 md:pt-0 pb-20 md:pb-0 flex flex-col ${
-          collapsed ? "md:ml-28" : "md:ml-[280px]"
+        className={`flex-1 min-w-0 transition-all duration-300 ease-in-out pt-16 lg:pt-0 pb-28 lg:pb-0 flex flex-col overflow-x-clip ${
+          collapsed ? "lg:ml-28" : "lg:ml-[280px]"
         }`}
       >
         <div className="flex-1">

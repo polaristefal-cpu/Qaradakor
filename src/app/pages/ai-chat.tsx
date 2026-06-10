@@ -88,7 +88,9 @@ export function AiChatPage() {
   ];
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > 0) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
 
   const handleSend = async (text?: string) => {
@@ -116,7 +118,7 @@ export function AiChatPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-56px)] md:h-screen max-w-3xl mx-auto">
+    <div className="flex h-[calc(100svh-11rem)] min-h-[520px] w-full max-w-3xl flex-col mx-auto lg:h-screen lg:min-h-0">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-border bg-background/80 backdrop-blur-sm shrink-0">
         <div className="flex items-center gap-3">

@@ -11,7 +11,7 @@ import {
   Clapperboard, Search, Users, Sparkles, Library,
   LogOut, LogIn, Bot, UserPlus, User, Bookmark,
   ChevronLeft, ChevronRight, Home, Globe, Layers,
-  Settings
+  Settings, Menu, X
 } from "lucide-react";
 import { useUserData } from "../lib/user-data-context";
 import { motion, AnimatePresence } from "motion/react";
@@ -31,6 +31,7 @@ export function Sidebar() {
   const { t, lang, setLang } = useLang();
   const [profile, setProfile] = useState<{ name?: string; email?: string } | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Watchlist count badge
   const userData = (() => { try { return useUserData(); } catch { return null; } })();
@@ -45,6 +46,10 @@ export function Sidebar() {
       setAvatarUrl(null);
     }
   }, [session]);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -81,10 +86,10 @@ export function Sidebar() {
 
   const mobileAuthNav = [
     { to: "/", icon: Home, label: t("navHome"), badge: 0 },
-    { to: "/collections", icon: Layers, label: t("navCollections"), badge: 0 },
-    { to: "/my-collection", icon: Library, label: t("navMyCollection"), badge: 0 },
-    { to: "/ai-recommendations", icon: Sparkles, label: t("navAiRecs"), badge: 0 },
-    { to: "/profile", icon: User, label: t("profileTitle"), badge: 0 },
+    { to: "/search", icon: Search, label: t("navSearch"), badge: 0 },
+    { to: "/watchlist", icon: Bookmark, label: t("tabWatchlist"), badge: watchlistCount },
+    { to: "/recommendations", icon: Sparkles, label: t("tabRecommendations"), badge: 0 },
+    { to: "/ai", icon: Bot, label: t("tabAiChat"), badge: 0 },
   ];
 
   const mobileGuestNav = [
@@ -95,6 +100,24 @@ export function Sidebar() {
   ];
 
   const mobileNav = session ? mobileAuthNav : mobileGuestNav;
+
+  const mobileMenuLinks = [
+    ...publicLinks,
+    { to: "/search", icon: Search, label: t("navSearch") },
+    ...(session ? [
+      { to: "/library", icon: Library, label: t("navLibrary"), badge: 0 },
+      { to: "/watchlist", icon: Bookmark, label: t("navWatchlist"), badge: watchlistCount },
+      { to: "/recommendations", icon: Sparkles, label: t("navRecommendations"), badge: 0 },
+      { to: "/ai", icon: Bot, label: t("navAiChat"), badge: 0 },
+      { to: "/friends", icon: Users, label: t("navFriends"), badge: 0 },
+      { to: "/my-collection", icon: Library, label: t("navMyCollection"), badge: 0 },
+      { to: "/ai-recommendations", icon: Sparkles, label: t("navAiRecs"), badge: 0 },
+      { to: "/profile", icon: User, label: t("profileTitle"), badge: 0 },
+    ] : [
+      { to: "/login", icon: LogIn, label: t("signIn"), badge: 0 },
+      { to: "/register", icon: UserPlus, label: t("signUp"), badge: 0 },
+    ]),
+  ];
 
   const cycleLang = () => {
     const idx = LANGS.findIndex(l => l.code === lang);
@@ -277,6 +300,97 @@ export function Sidebar() {
     );
   }
 
+  function MobileMenuPanel() {
+    return (
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-0 z-50 lg:hidden"
+          >
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 bg-background/75 backdrop-blur-sm"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              className="absolute right-0 top-0 flex h-full w-[min(22rem,calc(100vw-2rem))] flex-col border-l border-border bg-background shadow-2xl"
+            >
+              <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground text-background">
+                    <Logo className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-black leading-none text-foreground">qaradakor.kz</p>
+                    <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{t("menu")}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-muted-foreground transition hover:text-foreground"
+                  aria-label={t("close")}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-3 py-4">
+                <div className="grid gap-1">
+                  {mobileMenuLinks.map((item) => {
+                    const active = isActive(item.to);
+                    const Icon = item.icon;
+                    const badge = "badge" in item ? item.badge : 0;
+                    return (
+                      <Link
+                        key={item.to}
+                        to={item.to}
+                        className={`flex items-center gap-3 rounded-2xl px-3 py-3 text-sm font-bold transition ${
+                          active
+                            ? "bg-foreground text-background"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4 shrink-0" />
+                        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                        {badge !== undefined && badge > 0 && (
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
+                            active ? "bg-background text-foreground" : "bg-primary text-primary-foreground"
+                          }`}>
+                            {badge > 99 ? "99+" : badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {session ? (
+                <div className="border-t border-border p-4">
+                  <button
+                    onClick={handleLogout}
+                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-card px-4 py-3 text-sm font-bold text-muted-foreground transition hover:border-destructive/30 hover:text-destructive"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    {t("logout")}
+                  </button>
+                </div>
+              ) : null}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
+  }
+
   return (
     <>
       {/* ── Desktop Sidebar Container ── */}
@@ -284,7 +398,7 @@ export function Sidebar() {
         initial={false}
         animate={{ width: collapsed ? 112 : 280 }}
         transition={{ type: "spring", bounce: 0, duration: 0.5 }}
-        className="hidden md:flex h-screen fixed top-0 left-0 z-40"
+        className="hidden lg:flex h-screen fixed top-0 left-0 z-40"
       >
         <div className="relative w-full h-full p-4 flex">
           
@@ -306,7 +420,7 @@ export function Sidebar() {
 
       {/* ── Mobile top bar ── */}
       <header
-        className="md:hidden fixed top-0 left-0 right-0 z-40 h-16 flex items-center justify-between px-4 bg-background/80 backdrop-blur-xl border-b border-border shadow-sm"
+        className="lg:hidden fixed top-0 left-0 right-0 z-40 h-16 flex items-center justify-between px-4 bg-background/80 backdrop-blur-xl border-b border-border shadow-sm"
       >
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2.5 group">
@@ -320,6 +434,13 @@ export function Sidebar() {
         </Link>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-accent/50 text-foreground shadow-sm transition-all hover:bg-accent"
+            aria-label={t("menu")}
+          >
+            <Menu className="h-4 w-4" />
+          </button>
           {/* Mobile lang switcher */}
           <MobileLangPicker />
           <div className="w-9 h-9 flex items-center justify-center rounded-xl bg-accent/50 border border-border text-foreground">
@@ -345,9 +466,9 @@ export function Sidebar() {
 
       {/* ── Mobile Bottom Navigation Bar ── */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-xl border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.05)]"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/90 backdrop-blur-xl border-t border-border shadow-[0_-10px_40px_rgba(0,0,0,0.05)]"
       >
-        <div className="flex items-center justify-around px-2 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="flex items-center justify-around gap-1 px-1 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {mobileNav.map((item) => {
             const active = isActive(item.to);
             const Icon = item.icon;
@@ -356,7 +477,7 @@ export function Sidebar() {
               <Link
                 key={item.to}
                 to={item.to}
-                className="relative flex flex-col items-center gap-1 px-3 py-1.5 rounded-2xl transition-all min-w-[3.5rem]"
+                className="relative flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-1 py-1.5 transition-all"
               >
                 <div className={`relative w-12 h-10 flex items-center justify-center rounded-2xl transition-all duration-300 ${
                   active ? "bg-foreground text-background shadow-md scale-105" : "hover:bg-accent text-muted-foreground"
@@ -370,7 +491,7 @@ export function Sidebar() {
                     </span>
                   )}
                 </div>
-                <span className={`text-[10px] font-bold transition-colors duration-200 leading-none capitalize ${
+                <span className={`max-w-full truncate whitespace-nowrap text-[9px] sm:text-[10px] font-bold transition-colors duration-200 leading-none capitalize ${
                   active ? "text-foreground" : "text-muted-foreground"
                 }`}>
                   {item.label}
@@ -387,6 +508,8 @@ export function Sidebar() {
           })}
         </div>
       </nav>
+
+      <MobileMenuPanel />
     </>
   );
 }

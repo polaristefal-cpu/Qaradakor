@@ -9,6 +9,7 @@ const t = {
   error: { ru: "Ошибка", en: "Error", kz: "Қате" },
   search: { ru: "Поиск", en: "Search", kz: "Іздеу" },
   close: { ru: "Закрыть", en: "Close", kz: "Жабу" },
+  menu: { ru: "Меню", en: "Menu", kz: "Мәзір" },
   or: { ru: "или", en: "or", kz: "немесе" },
   add: { ru: "Добавить", en: "Add", kz: "Қосу" },
   send: { ru: "Отправить", en: "Send", kz: "Жіберу" },
@@ -23,6 +24,8 @@ const t = {
   noData: { ru: "Нет данных", en: "No data", kz: "Деректер жоқ" },
   readMore: { ru: "Читать полностью", en: "Read more", kz: "Толық оқу" },
   collapse: { ru: "Свернуть", en: "Collapse", kz: "Жию" },
+  sortAsc: { ru: "По возрастанию", en: "Ascending", kz: "Өсу реті" },
+  sortDesc: { ru: "По убыванию", en: "Descending", kz: "Кему реті" },
 
   // ── Sidebar ────────────────────────────────────────────────────────────────
   sectionNav: { ru: "Навигация", en: "Navigation", kz: "Навигация" },
@@ -44,11 +47,11 @@ const t = {
 
   // ── Mobile Navigation (умная группировка) ──────────────────────────────────
   navMyCollection: { ru: "Моя коллекция", en: "My Collection", kz: "Менің жинағым" },
-  navAiRecs: { ru: "AI & Реки", en: "AI & Recs", kz: "AI & Ұсыныстар" },
+  navAiRecs: { ru: "AI-рекомендации", en: "AI Recs", kz: "AI ұсыныстар" },
   tabLibrary: { ru: "Библиотека", en: "Library", kz: "Кітапхана" },
-  tabWatchlist: { ru: "��писок", en: "Watchlist", kz: "Тізім" },
+  tabWatchlist: { ru: "Вотчлист", en: "Watchlist", kz: "Тізім" },
   tabAiChat: { ru: "AI-чат", en: "AI Chat", kz: "AI-чат" },
-  tabRecommendations: { ru: "Рекомендации", en: "Recommendations", kz: "Ұсыныстар" },
+  tabRecommendations: { ru: "Реком.", en: "Recs", kz: "Ұсыныс" },
 
   // ── Home ───────────────────────────────────────────────────────────────────
   searchPlaceholder: { ru: "Введите название фильма или сериала...", en: "Enter movie or series title...", kz: "Фильм немесе сериал атауын енгізіңіз..." },
