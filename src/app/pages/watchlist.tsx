@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { getWatchlist, removeFromWatchlist, TMDB_IMG } from "../lib/api";
+import { getWatchlist, TMDB_IMG } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
 import { useLang } from "../lib/lang-context";
+import { useUserData } from "../lib/user-data-context";
 import {
   Bookmark, Trash2, Loader2, Film, Search,
   Star, Calendar, SortAsc, SortDesc, Tv,
@@ -25,6 +26,7 @@ export function WatchlistPage() {
   const { session } = useAuth();
   const navigate = useNavigate();
   const { t } = useLang();
+  const userData = useUserData();
   const [items, setItems] = useState<WatchlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [removing, setRemoving] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export function WatchlistPage() {
     const key = `${mediaType}-${movieId}`;
     setRemoving(key);
     try {
-      await removeFromWatchlist(movieId, mediaType);
+      await userData.removeFromWatchlistFn(movieId, mediaType);
       setItems((prev) => prev.filter((m) => !(m.movieId === movieId && (m.mediaType || "movie") === mediaType)));
       toast.success(`«${title}» ${t("removedFromList")}`);
     } catch {

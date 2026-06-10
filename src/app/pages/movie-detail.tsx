@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router";
 import {
   getMovie, addWatched, removeWatched, getWatched,
   TMDB_IMG, aiExplain, aiAnalyzeReview,
-  addToWatchlist, removeFromWatchlist, getWatchlist,
+  getWatchlist,
   getFriends, sendRecommendation,
   getMyCollections, addMovieToCollection,
 } from "../lib/api";
@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../lib/auth-context";
 import { useLang } from "../lib/lang-context";
+import { useUserData } from "../lib/user-data-context";
 import { TrailerModal } from "../components/trailer-modal";
 import { MovieReviews } from "../components/movie-reviews";
 import { BackButton } from "../components/back-button";
@@ -174,6 +175,7 @@ export function MovieDetailPage() {
   const navigate = useNavigate();
   const { session } = useAuth();
   const { t, tmdbLang } = useLang();
+  const userData = useUserData();
   const [movie, setMovie] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [watched, setWatched] = useState<any>(null);
@@ -250,7 +252,7 @@ export function MovieDetailPage() {
         setSavedReviewData(null);
       }
       if (inWatchlist) {
-        await removeFromWatchlist(Number(id));
+        await userData.removeFromWatchlistFn(Number(id));
         setInWatchlist(false);
       }
       toast.success(t("addedToLibrary"));
@@ -273,11 +275,11 @@ export function MovieDetailPage() {
     setWatchlistLoading(true);
     try {
       if (inWatchlist) {
-        await removeFromWatchlist(Number(id));
+        await userData.removeFromWatchlistFn(Number(id));
         setInWatchlist(false);
         toast.success(t("removedFromWatchlist"));
       } else {
-        await addToWatchlist({
+        await userData.addToWatchlistFn({
           movieId: Number(id),
           title: movie.title,
           poster_path: movie.poster_path,

@@ -28,6 +28,7 @@ interface UserDataCtx {
   removeFromWatchlistFn: (movieId: number, mediaType?: "movie" | "tv") => Promise<void>;
   addWatchedFn: (movieId: number, rating: number, review?: string, mediaType?: "movie" | "tv") => Promise<void>;
   removeWatchedFn: (movieId: number, mediaType?: "movie" | "tv") => Promise<void>;
+  refreshUserData: () => Promise<void>;
   // TV Shows
   tvWatchedMap: Record<number, WatchedEntry>;
   tvWatchlistSet: Set<number>;
@@ -42,40 +43,46 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   const [tvWatchedMap, setTvWatchedMap] = useState<Record<number, WatchedEntry>>({});
   const [tvWatchlistSet, setTvWatchlistSet] = useState<Set<number>>(new Set());
 
-  useEffect(() => {
+  const clearUserData = useCallback(() => {
+    setWatchedMap({});
+    setWatchlistSet(new Set());
+    setTvWatchedMap({});
+    setTvWatchlistSet(new Set());
+  }, []);
+
+  const refreshUserData = useCallback(async () => {
     if (!session) {
-      setWatchedMap({});
-      setWatchlistSet(new Set());
-      setTvWatchedMap({});
-      setTvWatchlistSet(new Set());
+      clearUserData();
       return;
     }
-    Promise.all([getWatched(), getWatchlist()])
-      .then(([w, wl]) => {
-        const movieMap: Record<number, WatchedEntry> = {};
-        const tvMap: Record<number, WatchedEntry> = {};
-        if (Array.isArray(w)) {
-          w.forEach((e: WatchedEntry) => {
-            if ((e.mediaType || "movie") === "tv") tvMap[e.movieId] = e;
-            else movieMap[e.movieId] = e;
-          });
-        }
-        setWatchedMap(movieMap);
-        setTvWatchedMap(tvMap);
 
-        const movieIds = new Set<number>();
-        const tvIds = new Set<number>();
-        if (Array.isArray(wl)) {
-          wl.forEach((e: any) => {
-            if ((e.mediaType || "movie") === "tv") tvIds.add(e.movieId as number);
-            else movieIds.add(e.movieId as number);
-          });
-        }
-        setWatchlistSet(movieIds);
-        setTvWatchlistSet(tvIds);
-      })
-      .catch(() => {});
-  }, [session]);
+    const [w, wl] = await Promise.all([getWatched(), getWatchlist()]);
+    const movieMap: Record<number, WatchedEntry> = {};
+    const tvMap: Record<number, WatchedEntry> = {};
+    if (Array.isArray(w)) {
+      w.forEach((e: WatchedEntry) => {
+        if ((e.mediaType || "movie") === "tv") tvMap[e.movieId] = e;
+        else movieMap[e.movieId] = e;
+      });
+    }
+    setWatchedMap(movieMap);
+    setTvWatchedMap(tvMap);
+
+    const movieIds = new Set<number>();
+    const tvIds = new Set<number>();
+    if (Array.isArray(wl)) {
+      wl.forEach((e: any) => {
+        if ((e.mediaType || "movie") === "tv") tvIds.add(e.movieId as number);
+        else movieIds.add(e.movieId as number);
+      });
+    }
+    setWatchlistSet(movieIds);
+    setTvWatchlistSet(tvIds);
+  }, [clearUserData, session]);
+
+  useEffect(() => {
+    refreshUserData().catch(() => {});
+  }, [refreshUserData]);
 
   const addToWatchlistFn = useCallback(async (movie: any) => {
     const mt: "movie" | "tv" = movie.mediaType || "movie";
@@ -123,6 +130,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       tvWatchedMap, tvWatchlistSet,
       addToWatchlistFn, removeFromWatchlistFn,
       addWatchedFn, removeWatchedFn,
+      refreshUserData,
     }}>
       {children}
     </Ctx.Provider>

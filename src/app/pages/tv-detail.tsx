@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from "react-router";
 import {
   getTVShow, addWatched, removeWatched, getWatched,
   TMDB_IMG, aiExplain,
-  addToWatchlist, removeFromWatchlist, getWatchlist,
+  getWatchlist,
   getFriends, sendRecommendation,
   getMyCollections, addMovieToCollection,
   getTVSeasonDetails,
@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 import { useAuth } from "../lib/auth-context";
 import { useLang } from "../lib/lang-context";
+import { useUserData } from "../lib/user-data-context";
 import { TrailerModal } from "../components/trailer-modal";
 import { BackButton } from "../components/back-button";
 import { SectionHeader } from "../components/section-header";
@@ -160,6 +161,7 @@ export function TVDetailPage() {
   const navigate = useNavigate();
   const { session } = useAuth();
   const { t, tmdbLang } = useLang();
+  const userData = useUserData();
   const [show, setShow] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [watched, setWatched] = useState<any>(null);
@@ -221,7 +223,7 @@ export function TVDetailPage() {
       if (review.trim()) setSavedReviewData({ review, rating, savedAt: new Date().toISOString() });
       else setSavedReviewData(null);
       if (inWatchlist) {
-        await removeFromWatchlist(Number(id), "tv");
+        await userData.removeFromWatchlistFn(Number(id), "tv");
         setInWatchlist(false);
       }
       toast.success(t("addedToLibrary"));
@@ -244,11 +246,11 @@ export function TVDetailPage() {
     setWatchlistLoading(true);
     try {
       if (inWatchlist) {
-        await removeFromWatchlist(Number(id), "tv");
+        await userData.removeFromWatchlistFn(Number(id), "tv");
         setInWatchlist(false);
         toast.success(t("removedFromWatchlist"));
       } else {
-        await addToWatchlist({
+        await userData.addToWatchlistFn({
           movieId: Number(id),
           title: show?.name || "",
           poster_path: show?.poster_path,
