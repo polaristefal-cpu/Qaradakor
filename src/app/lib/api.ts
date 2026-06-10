@@ -605,10 +605,10 @@ export async function getPersonMovies(personId: number) {
 }
 
 // ---- AI ----
-export async function aiChat(messages: { role: string; content: string }[]) {
+export async function aiChat(message: string, history: { role: string; content: string }[] = []) {
   return request("/ai/chat", {
     method: "POST",
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ message, history }),
   });
 }
 

@@ -1122,6 +1122,10 @@ app.post("/make-server-59141208/ai/chat", async (c) => {
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   try {
     const { message, history } = await c.req.json();
+    const userMessage = typeof message === "string" ? message.trim() : "";
+    if (!userMessage) {
+      return c.json({ error: "Message is required" }, 400);
+    }
 
     // Build user taste context
     const watched: any[] = await kv.get(`user:${user.id}:watched`) || [];
@@ -1166,10 +1170,21 @@ app.post("/make-server-59141208/ai/chat", async (c) => {
 6. Можешь обсуждать режиссёров, актёров, жанры, киноисторию
 7. Если пользователь описывает настроение или ситуацию, подбирай фильмы под это`;
 
+    const safeHistory = Array.isArray(history)
+      ? history
+          .filter((m: any) => (
+            (m?.role === "user" || m?.role === "assistant") &&
+            typeof m?.content === "string" &&
+            m.content.trim().length > 0
+          ))
+          .slice(-10)
+          .map((m: any) => ({ role: m.role, content: m.content.trim() }))
+      : [];
+
     const messages = [
       { role: "system", content: systemPrompt },
-      ...(history || []).slice(-10),
-      { role: "user", content: message },
+      ...safeHistory,
+      { role: "user", content: userMessage },
     ];
 
     const aiResponse = await callOpenAI(messages, 0.8, 1500);
