@@ -1,0 +1,14 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="1200" height="630" fill="#090A0F"/>
+<rect x="72" y="72" width="1056" height="486" rx="36" fill="#11131A" stroke="#2C3140"/>
+<g transform="translate(108 171) scale(2.25)">
+<rect width="128" height="128" fill="black"/>
+<path d="M63.1072 37.064C79.0902 36.0006 92.8942 48.3201 93.9375 64.5789C94.9798 80.8379 82.8679 94.8778 66.8838 95.9366C50.904 96.9951 37.1054 84.6766 36.0626 68.421C35.0197 52.1654 47.1274 38.1271 63.1072 37.064Z" fill="#FEFEFE"/>
+<path d="M63.6541 51.0047C71.3639 50.8002 77.7764 57.3155 77.9943 65.5757C78.2131 73.8359 72.1548 80.7293 64.446 80.9923C56.6982 81.2565 50.2249 74.7257 50.0057 66.4242C49.7865 58.1226 55.9047 51.2102 63.6541 51.0047Z" fill="black"/>
+<path d="M98 37C103.377 37.1418 109.299 37.0202 114.713 37.0199C117.21 41.7197 119.105 46.7661 120.345 52.0198C123.782 66.6752 121.851 82.9709 114.695 95.9999L111.771 95.9951L98.0258 96C99.5744 93.9782 101.016 92.0535 102.282 89.797C111.966 72.5374 109.935 52.1766 98 37Z" fill="#FEFEFE"/>
+<path d="M13.617 37C19.0843 37.1682 25.4862 37.0612 31 37.0102C29.4892 38.8841 28.1442 40.6079 26.876 42.6853C16.9762 58.9036 18.2179 79.0036 29.4238 94.0515L30.976 95.9931L13.6232 96C11.1622 91.6081 9.26549 86.8995 7.98154 81.9947C4.02001 66.8146 6.04861 50.6177 13.617 37Z" fill="#FEFEFE"/>
+</g>
+<text x="456" y="258" fill="#F7F8FB" font-family="Arial, Helvetica, sans-serif" font-size="78" font-weight="700">Qaradakor.kz</text>
+<text x="460" y="324" fill="#B9C0D0" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="500">Personal movie library with AI recommendations</text>
+<text x="460" y="376" fill="#798293" font-family="Arial, Helvetica, sans-serif" font-size="24">Movies, TV shows, watchlists, reviews and collections</text>
+</svg>

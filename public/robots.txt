@@ -1,0 +1,56 @@
+# robots.txt для qaradakor.kz
+# Обновлено: 2025
+
+# Правила для всех роботов
+User-agent: *
+Allow: /
+Allow: /movie/
+Allow: /tv/
+Allow: /person/
+Allow: /collections
+Allow: /search
+
+# Закрываем личные кабинеты и админ-панель от индексации
+Disallow: /login
+Disallow: /register
+Disallow: /profile
+Disallow: /library
+Disallow: /watchlist
+Disallow: /friends
+Disallow: /ai
+Disallow: /ai-recommendations
+Disallow: /my-collection
+Disallow: /admin/
+Disallow: /recommendations-doc
+Disallow: /diploma
+Disallow: /uml
+
+# Закрываем служебные страницы
+Disallow: /api/
+Disallow: /*.json$
+
+# Crawl-delay для защиты от перегрузки
+Crawl-delay: 1
+
+# Sitemap
+Sitemap: https://qaradakor.sofine.kz/sitemap.xml
+Sitemap: https://qaradakor.sofine.kz/sitemap-movies.xml
+Sitemap: https://qaradakor.sofine.kz/sitemap-tv.xml
+Sitemap: https://qaradakor.sofine.kz/sitemap-collections.xml
+
+# Специальные правила для Google
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0.5
+
+# Специальные правила для Yandex (важно для Казахстана)
+User-agent: YandexBot
+Allow: /
+Crawl-delay: 0.5
+
+# Блокируем вредоносных ботов
+User-agent: AhrefsBot
+User-agent: SemrushBot
+User-agent: MJ12bot
+User-agent: DotBot
+Disallow: /

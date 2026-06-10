@@ -1,0 +1,217 @@
+@custom-variant dark (&:is(.dark *));
+
+/* ─── LIGHT MODE ─────────────────────────────────────────────────────────────
+   Pure Black & White - Белый фон, чёрный текст
+   ──────────────────────────────────────────────────────────────────────────── */
+:root {
+  --font-size: 16px;
+
+  /* Surfaces */
+  --background:        #FFFFFF;   /* White */
+  --background-alt:    #F5F5F5;   /* Light Grey */
+  --foreground:        #000000;   /* Pure black text */
+
+  /* Cards / Panels */
+  --card:              #FFFFFF;
+  --card-foreground:   #000000;
+  --popover:           #FFFFFF;
+  --popover-foreground:#000000;
+
+  /* Muted / Subtle */
+  --muted:             #F5F5F5;   /* Light grey */
+  --muted-foreground:  #666666;   /* Medium grey for secondary text */
+
+  /* Accent surface */
+  --accent:            #E5E5E5;   /* Lighter grey */
+  --accent-foreground: #000000;
+
+  /* Borders & Inputs */
+  --border:            #E5E5E5;   /* Light grey borders */
+  --input:             transparent;
+  --input-background:  #FFFFFF;
+  --switch-background: #CCCCCC;   /* Medium grey */
+  --ring:              #000000;   /* Black focus ring */
+
+  /* Primary — Black */
+  --primary:           #000000;   /* Black */
+  --primary-foreground:#FFFFFF;   /* White text on black */
+
+  /* Secondary — Dark Grey */
+  --secondary:         #333333;
+  --secondary-foreground: #FFFFFF;
+
+  /* Status */
+  --destructive:       #000000;   /* Black */
+  --destructive-foreground: #FFFFFF;
+  --success:           #000000;   /* Black */
+  --success-foreground:#FFFFFF;
+
+  /* Charts */
+  --chart-1: #000000;  /* Black */
+  --chart-2: #333333;  /* Dark Grey */
+  --chart-3: #666666;  /* Medium Grey */
+  --chart-4: #999999;  /* Light Grey */
+  --chart-5: #CCCCCC;  /* Lighter Grey */
+
+  /* Layout */
+  --radius: 0.75rem;  /* 12px - базовое значение (md) */
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+
+  /* Nav specific */
+  --nav-bg: rgba(255, 255, 255, 0.96);
+  --nav-border: #E5E5E5;
+
+  /* Sidebar */
+  --sidebar:                #FFFFFF;
+  --sidebar-foreground:     #000000;
+  --sidebar-primary:        #000000;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent:         #F5F5F5;
+  --sidebar-accent-foreground: #000000;
+  --sidebar-border:         #E5E5E5;
+  --sidebar-ring:           #000000;
+}
+
+/* ─── DARK MODE ──────────────────────────────────────────────────────────────
+   Pure Black & White - Чёрный фон, белый текст
+   ──────────────────────────────────────────────────────────────────────────── */
+.dark {
+  /* Surfaces */
+  --background:        #000000;   /* Pure black */
+  --background-alt:    #0a0a0a;   /* Slightly lighter black */
+  --foreground:        #FFFFFF;   /* Pure white text */
+
+  /* Cards / Panels */
+  --card:              #0f0f0f;   /* Very dark grey */
+  --card-foreground:   #FFFFFF;
+  --popover:           #0f0f0f;
+  --popover-foreground:#FFFFFF;
+
+  /* Muted */
+  --muted:             #1a1a1a;   /* Dark grey */
+  --muted-foreground:  #999999;   /* Medium grey for secondary text */
+
+  /* Accent surface */
+  --accent:            #1a1a1a;
+  --accent-foreground: #FFFFFF;
+
+  /* Borders & Inputs */
+  --border:            #2a2a2a;   /* Subtle border */
+  --input:             transparent;
+  --input-background:  #0f0f0f;
+  --switch-background: #2a2a2a;
+  --ring:              #FFFFFF;   /* White focus ring */
+
+  /* Primary — White */
+  --primary:           #FFFFFF;   /* White */
+  --primary-foreground:#000000;   /* Black text on white */
+
+  /* Secondary — Light Grey */
+  --secondary:         #CCCCCC;   /* Light grey */
+  --secondary-foreground: #000000;
+
+  /* Status */
+  --destructive:       #FFFFFF;   /* White */
+  --destructive-foreground: #000000;
+  --success:           #FFFFFF;   /* White */
+  --success-foreground:#000000;
+
+  /* Charts */
+  --chart-1: #FFFFFF;  /* White */
+  --chart-2: #CCCCCC;  /* Light Grey */
+  --chart-3: #999999;  /* Medium Grey */
+  --chart-4: #666666;  /* Dark Grey */
+  --chart-5: #333333;  /* Darker Grey */
+
+  /* Nav */
+  --nav-bg: rgba(0, 0, 0, 0.96);
+  --nav-border: #2a2a2a;
+
+  /* Sidebar */
+  --sidebar:                #000000;   /* Pure black sidebar */
+  --sidebar-foreground:     #FFFFFF;
+  --sidebar-primary:        #FFFFFF;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent:         #0f0f0f;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border:         #1a1a1a;
+  --sidebar-ring:           #FFFFFF;
+}
+
+/* ─── TAILWIND TOKEN MAP ────────────────────────────────────────────────────── */
+@theme inline {
+  --color-background:         var(--background);
+  --color-background-alt:     var(--background-alt);
+  --color-foreground:         var(--foreground);
+  --color-card:               var(--card);
+  --color-card-foreground:    var(--card-foreground);
+  --color-popover:            var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary:            var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary:          var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted:              var(--muted);
+  --color-muted-foreground:   var(--muted-foreground);
+  --color-accent:             var(--accent);
+  --color-accent-foreground:  var(--accent-foreground);
+  --color-destructive:        var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border:             var(--border);
+  --color-input:              var(--input);
+  --color-input-background:   var(--input-background);
+  --color-switch-background:  var(--switch-background);
+  --color-ring:               var(--ring);
+  --color-chart-1:            var(--chart-1);
+  --color-chart-2:            var(--chart-2);
+  --color-chart-3:            var(--chart-3);
+  --color-chart-4:            var(--chart-4);
+  --color-chart-5:            var(--chart-5);
+  --color-nav-bg:             var(--nav-bg);
+  --color-nav-border:         var(--nav-border);
+  --color-sidebar:            var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary:    var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent:     var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border:     var(--sidebar-border);
+  --color-sidebar-ring:       var(--sidebar-ring);
+  
+  /* Border Radius System */
+  --radius-xs:  0.375rem;  /* 6px  - badges, close buttons, tooltips */
+  --radius-sm:  0.5rem;    /* 8px  - small buttons, chips */
+  --radius-md:  0.75rem;   /* 12px - standard buttons, inputs, cards */
+  --radius-lg:  1rem;      /* 16px - modals, large cards */
+  --radius-xl:  1.25rem;   /* 20px - sidebar elements, navigation */
+  --radius-2xl: 1.5rem;    /* 24px - large panels, hero sections */
+}
+
+/* ─── BASE STYLES ───────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    font-size: var(--font-size);
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  h1 { font-size: var(--text-2xl); font-weight: 700; line-height: 1.3; }
+  h2 { font-size: var(--text-xl);  font-weight: 600; line-height: 1.4; }
+  h3 { font-size: var(--text-lg);  font-weight: 600; line-height: 1.4; }
+  h4 { font-size: var(--text-base); font-weight: 600; line-height: 1.5; }
+
+  label  { font-size: var(--text-sm); font-weight: 500; line-height: 1.5; }
+  button { font-size: var(--text-sm); font-weight: 500; line-height: 1.5; }
+  input  { font-size: var(--text-sm); font-weight: 400; line-height: 1.5; }
+  textarea { font-size: var(--text-sm); font-weight: 400; line-height: 1.6; }
+}
