@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { searchMovies, searchTVShows, searchPeople, getPersonMovies, TMDB_IMG } from "../lib/api";
+import { searchMovies, searchTVShows, searchPeople, getPersonMovies, getMoviesByGenre, TMDB_IMG } from "../lib/api";
 import { MovieCard } from "../components/movie-card";
 import { SectionHeader } from "../components/section-header";
 import { useLang } from "../lib/lang-context";
@@ -24,9 +24,12 @@ export function SearchPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
+  const searchParamString = searchParams.toString();
+  const genreId = Number(searchParams.get("genre") || 0);
+  const genreName = searchParams.get("genreName") || "";
+  const isGenreMode = Number.isFinite(genreId) && genreId > 0;
   const { t, tmdbLang } = useLang();
 
-  const [query, setQuery] = useState(initialQuery);
   const [inputVal, setInputVal] = useState(initialQuery);
   const [movieResults, setMovieResults] = useState<any[]>([]);
   const [tvResults, setTvResults] = useState<any[]>([]);
@@ -40,44 +43,88 @@ export function SearchPage() {
   const [personMovies, setPersonMovies] = useState<any[]>([]);
   const [personMoviesLoading, setPersonMoviesLoading] = useState(false);
 
-  const doSearch = async (q: string) => {
-    if (!q.trim()) return;
-    setSearched(true);
-    setLoading(true);
-    setMovieResults([]);
-    setTvResults([]);
-    setPeopleResults([]);
-    setSearchParams({ q: q.trim() });
+  useEffect(() => {
+    let cancelled = false;
 
-    try {
-      const [moviesData, tvData, peopleData] = await Promise.allSettled([
-        searchMovies(q),
-        searchTVShows(q),
-        searchPeople(q),
-      ]);
-      if (moviesData.status === "fulfilled") setMovieResults(moviesData.value?.results || []);
-      if (tvData.status === "fulfilled") setTvResults(tvData.value?.results || []);
-      if (peopleData.status === "fulfilled") {
-        const people = (peopleData.value?.results || []) as PersonResult[];
-        setPeopleResults(people.slice(0, 8));
+    const resetPeople = () => {
+      setSelectedPerson(null);
+      setPersonMovies([]);
+      setPersonMoviesLoading(false);
+    };
+
+    const clearResults = () => {
+      setMovieResults([]);
+      setTvResults([]);
+      setPeopleResults([]);
+      resetPeople();
+    };
+
+    const load = async () => {
+      const params = new URLSearchParams(searchParamString);
+      const q = params.get("q") || "";
+      const currentGenreId = Number(params.get("genre") || 0);
+      const hasGenre = Number.isFinite(currentGenreId) && currentGenreId > 0;
+
+      if (hasGenre) {
+        setInputVal("");
+        setSearched(true);
+        setLoading(true);
+        setActiveTab("movies");
+        clearResults();
+
+        try {
+          const data = await getMoviesByGenre(currentGenreId);
+          if (!cancelled) setMovieResults(data?.results || []);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+        return;
       }
-    } finally {
+
+      if (q.trim()) {
+        setInputVal(q);
+        setSearched(true);
+        setLoading(true);
+        setActiveTab("all");
+        clearResults();
+
+        try {
+          const [moviesData, tvData, peopleData] = await Promise.allSettled([
+            searchMovies(q),
+            searchTVShows(q),
+            searchPeople(q),
+          ]);
+          if (cancelled) return;
+          if (moviesData.status === "fulfilled") setMovieResults(moviesData.value?.results || []);
+          if (tvData.status === "fulfilled") setTvResults(tvData.value?.results || []);
+          if (peopleData.status === "fulfilled") {
+            const people = (peopleData.value?.results || []) as PersonResult[];
+            setPeopleResults(people.slice(0, 8));
+          }
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+        return;
+      }
+
+      setInputVal("");
+      setSearched(false);
       setLoading(false);
-    }
-  };
+      setActiveTab("all");
+      clearResults();
+    };
 
-  useEffect(() => {
-    if (initialQuery) doSearch(initialQuery);
-  }, []);
+    load();
 
-  useEffect(() => {
-    if (query.trim()) doSearch(query);
-  }, [tmdbLang]);
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParamString, tmdbLang]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setQuery(inputVal);
-    doSearch(inputVal);
+    const q = inputVal.trim();
+    if (q) setSearchParams({ q });
   };
 
   const handlePersonClick = async (person: PersonResult) => {
@@ -111,6 +158,11 @@ export function SearchPage() {
   };
 
   const totalResults = movieResults.length + tvResults.length + peopleResults.length;
+  const genreLabel = genreName || t("moviesTab");
+  const pageTitle = isGenreMode
+    ? `${t("bestGenreMovies")}: ${genreLabel}`
+    : t("searchPageTitle");
+  const movieSectionLabel = isGenreMode ? pageTitle : t("moviesTab");
 
   const tabs: { id: SearchTab; label: string; icon: any; count: number }[] = [
     { id: "all", label: t("search"), icon: SearchIcon, count: totalResults },
@@ -121,7 +173,7 @@ export function SearchPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-black text-foreground mb-6">{t("searchPageTitle")}</h1>
+      <h1 className="text-2xl font-black text-foreground mb-6">{pageTitle}</h1>
 
       {/* Search form */}
       <form onSubmit={handleSubmit} className="flex gap-2.5 mb-6">
@@ -138,7 +190,14 @@ export function SearchPage() {
           {inputVal && (
             <button
               type="button"
-              onClick={() => { setInputVal(""); setQuery(""); setMovieResults([]); setTvResults([]); setPeopleResults([]); setSearched(false); }}
+              onClick={() => {
+                setInputVal("");
+                setMovieResults([]);
+                setTvResults([]);
+                setPeopleResults([]);
+                setSearched(false);
+                setSearchParams({});
+              }}
               className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
             >
               <X className="w-4 h-4" />
@@ -271,7 +330,7 @@ export function SearchPage() {
           {/* Movie results */}
           {(activeTab === "all" || activeTab === "movies") && movieResults.length > 0 && (
             <div>
-              <SectionHeader icon={Clapperboard} label={t("moviesTab")} />
+              <SectionHeader icon={Clapperboard} label={movieSectionLabel} />
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 xl:grid-cols-9 gap-2.5">
                 {movieResults.map((movie) => (
                   <MovieCard key={movie.id} movie={movie} mediaType="movie" />

@@ -256,6 +256,8 @@ const t = {
   noResults: { ru: "Ничего не найдено", en: "No results found", kz: "Ешнәрсе табылмады" },
   filmography: { ru: "Фильмография", en: "Filmography", kz: "Фильмография" },
   searchPrompt: { ru: "Введите запрос для поиска", en: "Enter a query to search", kz: "Іздеу үшін сұранысты енгізіңіз" },
+  bestGenreMovies: { ru: "Лучшие фильмы жанра", en: "Best movies by genre", kz: "Жанр бойынша үздік фильмдер" },
+  openGenreMovies: { ru: "Показать лучшие фильмы жанра", en: "Show best movies by genre", kz: "Жанр бойынша үздік фильмдерді көрсету" },
 
   // ── Watchlist ──────────────────────────────────────────────────────────────
   watchlistTitle: { ru: "Хочу посмотреть", en: "Want to Watch", kz: "Қарағым келетіндер" },

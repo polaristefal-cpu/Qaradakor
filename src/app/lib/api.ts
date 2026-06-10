@@ -288,7 +288,7 @@ export async function getGenres() {
 }
 
 export async function getMoviesByGenre(genreId: number, page = 1) {
-  return request(`/tmdb/discover/movie?with_genres=${genreId}&language=${getTmdbLang()}&sort_by=popularity.desc&page=${page}`);
+  return request(`/tmdb/discover/movie?with_genres=${genreId}&language=${getTmdbLang()}&sort_by=vote_average.desc&vote_count.gte=100&page=${page}`);
 }
 
 // Watched

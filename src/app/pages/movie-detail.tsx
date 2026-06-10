@@ -336,6 +336,13 @@ export function MovieDetailPage() {
   const langs = movie.spoken_languages?.map((l: any) => l.name).join(", ");
   const countries = movie.production_countries?.map((c: any) => c.name).join(", ");
   const companies = movie.production_companies?.slice(0, 4) || [];
+  const handleGenreClick = (genre: { id: number; name: string }) => {
+    const params = new URLSearchParams({
+      genre: String(genre.id),
+      genreName: genre.name,
+    });
+    navigate(`/search?${params.toString()}`);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -458,9 +465,15 @@ export function MovieDetailPage() {
             {movie.genres?.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {movie.genres.map((g: any) => (
-                  <span key={g.id} className="text-xs px-2.5 py-1 rounded-md bg-accent text-accent-foreground border border-border hover:border-primary/30 transition-colors">
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => handleGenreClick(g)}
+                    title={`${t("openGenreMovies")}: ${g.name}`}
+                    className="text-xs px-2.5 py-1 rounded-md bg-accent text-accent-foreground border border-border hover:border-primary/40 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 transition-colors"
+                  >
                     {g.name}
-                  </span>
+                  </button>
                 ))}
               </div>
             )}
