@@ -61,6 +61,8 @@ const t = {
   byGenreSection: { ru: "По жанру", en: "By Genre", kz: "Жанр бойынша" },
   top10Section: { ru: "Топ-10 недели", en: "Top 10 of the Week", kz: "Аптаның Топ-10" },
   randomMovieSection: { ru: "Случайный фильм", en: "Random Movie", kz: "Кездейсоқ фильм" },
+  moreInfo: { ru: "Подробнее", en: "More info", kz: "Толығырақ" },
+  rollAgain: { ru: "Ещё раз", en: "Roll again", kz: "Тағы бір" },
   howItWorksSection: { ru: "Как это работает", en: "How It Works", kz: "Қалай жұмыс істейді" },
   loadingCatalog: { ru: "Загружаем каталог...", en: "Loading catalog...", kz: "Каталог жүктелуде..." },
   trailerBtn: { ru: "Трейлер", en: "Trailer", kz: "Трейлер" },

@@ -283,6 +283,22 @@ export async function getNowPlaying(page = 1) {
   return request(`/tmdb/movie/now_playing?language=${getTmdbLang()}&page=${page}`);
 }
 
+export async function getRandomMovieCandidates(page = 1, sortBy = "popularity.desc") {
+  const maxReleaseYear = new Date().getFullYear() - 1;
+  const params = new URLSearchParams({
+    language: getTmdbLang(),
+    sort_by: sortBy,
+    include_adult: "false",
+    include_video: "false",
+    "primary_release_date.gte": "1970-01-01",
+    "primary_release_date.lte": `${maxReleaseYear}-12-31`,
+    "vote_average.gte": "6.4",
+    "vote_count.gte": "250",
+    page: String(page),
+  });
+  return request(`/tmdb/discover/movie?${params.toString()}`);
+}
+
 export async function getGenres() {
   return request(`/tmdb/genre/movie/list?language=${getTmdbLang()}`);
 }

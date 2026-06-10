@@ -7,6 +7,7 @@ import {
   getTopRated,
   getUpcoming,
   getNowPlaying,
+  getRandomMovieCandidates,
   getMoviesByGenre,
   getMovieVideos,
   TMDB_IMG,
@@ -52,6 +53,7 @@ import {
   Tv,
   MapPin,
   Trophy,
+  Loader2,
 } from "lucide-react";
 import { MovieCard } from "../components/movie-card";
 import { TopReviewsSection } from "../components/top-reviews-section";
@@ -680,26 +682,86 @@ function Top10Section({ movies }: { movies: Movie[] }) {
   );
 }
 
+const RANDOM_MOVIE_HISTORY_KEY = "qaradakor_random_movie_history";
+const RANDOM_MOVIE_HISTORY_LIMIT = 30;
+const RANDOM_MOVIE_MAX_PAGE = 80;
+const RANDOM_MOVIE_SORTS = ["popularity.desc", "vote_count.desc", "vote_average.desc"];
+
+function getRandomMovieHistory() {
+  try {
+    const value = localStorage.getItem(RANDOM_MOVIE_HISTORY_KEY);
+    const parsed = value ? JSON.parse(value) : [];
+    return Array.isArray(parsed) ? parsed.filter((id) => Number.isFinite(id)) as number[] : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRandomMovieHistory(id: number) {
+  const next = [id, ...getRandomMovieHistory().filter((movieId) => movieId !== id)]
+    .slice(0, RANDOM_MOVIE_HISTORY_LIMIT);
+  try {
+    localStorage.setItem(RANDOM_MOVIE_HISTORY_KEY, JSON.stringify(next));
+  } catch {}
+}
+
+function chooseRandomMovie(candidates: Movie[], recentIds = getRandomMovieHistory()) {
+  const currentYear = new Date().getFullYear();
+  const eligible = candidates.filter((candidate) => {
+    const year = Number(candidate.release_date?.slice(0, 4));
+    return candidate.id && candidate.title && candidate.vote_average >= 6.4 && (!year || year < currentYear);
+  });
+  const unseen = eligible.filter((candidate) => !recentIds.includes(candidate.id));
+  const pool = unseen.length ? unseen : eligible;
+  if (!pool.length) return null;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 // ─── Random Movie Card ─────────────────────────────────────────────────────────
 function RandomMovieCard({ movies }: { movies: Movie[] }) {
   const navigate = useNavigate();
   const { session } = useAuth();
-  const { t } = useLang();
+  const { t, tmdbLang } = useLang();
   const [movie, setMovie] = useState<Movie | null>(null);
+  const [loadingRandom, setLoadingRandom] = useState(false);
 
-  const pickRandom = () => {
-    if (!movies.length) return;
-    const m = movies[Math.floor(Math.random() * movies.length)];
-    setMovie(m);
+  const pickRandom = async () => {
+    setLoadingRandom(true);
+    try {
+      const page = Math.floor(Math.random() * RANDOM_MOVIE_MAX_PAGE) + 1;
+      const sortBy = RANDOM_MOVIE_SORTS[Math.floor(Math.random() * RANDOM_MOVIE_SORTS.length)];
+      const data = await getRandomMovieCandidates(page, sortBy);
+      const selected = chooseRandomMovie(data?.results || []);
+      if (selected) {
+        setMovie(selected);
+        saveRandomMovieHistory(selected.id);
+        setLoadingRandom(false);
+        return;
+      }
+    } catch {}
+
+    const fallback = chooseRandomMovie(movies);
+    if (fallback) {
+      setMovie(fallback);
+      saveRandomMovieHistory(fallback.id);
+    }
+    setLoadingRandom(false);
   };
 
-  useEffect(() => { pickRandom(); }, [movies.length]);
+  useEffect(() => {
+    pickRandom();
+  }, [tmdbLang]);
 
-  if (!movie) return null;
+  if (!movie && !loadingRandom) return null;
 
   return (
     <section>
       <SectionHeader icon={Shuffle} label={t("randomMovieSection")} iconClass="text-primary" />
+      {!movie ? (
+        <div className="flex items-center justify-center min-h-56 bg-card border border-border rounded-3xl p-6 shadow-sm">
+          <Loader2 className="w-7 h-7 text-primary animate-spin" />
+        </div>
+      ) : (
       <div className="flex flex-col sm:flex-row gap-5 bg-card border border-border rounded-3xl p-5 md:p-6 shadow-sm">
         {movie.backdrop_path ? (
           <img
@@ -750,15 +812,17 @@ function RandomMovieCard({ movies }: { movies: Movie[] }) {
               {t("moreInfo")}
             </button>
             <button
-              onClick={pickRandom}
+              onClick={() => pickRandom()}
+              disabled={loadingRandom}
               className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl border-2 border-border font-bold text-sm text-foreground hover:bg-accent hover:border-primary/30 transition-all active:scale-95"
             >
-              <Shuffle className="w-4 h-4" />
-              Roll Again
+              {loadingRandom ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shuffle className="w-4 h-4" />}
+              {t("rollAgain")}
             </button>
           </div>
         </div>
       </div>
+      )}
     </section>
   );
 }
