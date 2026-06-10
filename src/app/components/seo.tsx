@@ -27,7 +27,7 @@ export function SEO({
   structuredData,
 }: SEOProps) {
   const { lang } = useLang();
-  const baseUrl = "https://qaradakor.sofine.kz";
+  const baseUrl = "https://qaradakor.kz";
   
   // Дефолтные значения
   const defaultTitle = {
@@ -168,7 +168,7 @@ export function generateMovieStructuredData(movie: {
   director?: string;
   actors?: string[];
 }) {
-  const baseUrl = "https://qaradakor.sofine.kz";
+  const baseUrl = "https://qaradakor.kz";
   const imageUrl = movie.poster_path
     ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
     : undefined;
@@ -220,7 +220,7 @@ export function generateTVStructuredData(tv: {
   number_of_seasons?: number;
   number_of_episodes?: number;
 }) {
-  const baseUrl = "https://qaradakor.sofine.kz";
+  const baseUrl = "https://qaradakor.kz";
   const imageUrl = tv.poster_path
     ? `https://image.tmdb.org/t/p/w500${tv.poster_path}`
     : undefined;
@@ -259,7 +259,7 @@ export function generatePersonStructuredData(person: {
   birthday?: string;
   known_for_department?: string;
 }) {
-  const baseUrl = "https://qaradakor.sofine.kz";
+  const baseUrl = "https://qaradakor.kz";
   const imageUrl = person.profile_path
     ? `https://image.tmdb.org/t/p/w500${person.profile_path}`
     : undefined;
@@ -280,7 +280,7 @@ export function generatePersonStructuredData(person: {
  * Генерирует структурированные данные для организации (главная страница)
  */
 export function generateOrganizationStructuredData() {
-  const baseUrl = "https://qaradakor.sofine.kz";
+  const baseUrl = "https://qaradakor.kz";
   
   return {
     "@context": "https://schema.org",
@@ -306,7 +306,7 @@ export function generateOrganizationStructuredData() {
  * Генерирует структурированные данные для WebSite (поиск)
  */
 export function generateWebSiteStructuredData() {
-  const baseUrl = "https://qaradakor.sofine.kz";
+  const baseUrl = "https://qaradakor.kz";
   
   return {
     "@context": "https://schema.org",

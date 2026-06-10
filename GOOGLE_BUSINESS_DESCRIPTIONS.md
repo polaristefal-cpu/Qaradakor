@@ -58,7 +58,7 @@ Join qaradagor.kz and discover new horizons of cinema!
 
 **Категория:** Интернет-компания / Развлекательный сайт / Платформа для фильмов
 
-**Сайт:** https://qaradakor.sofine.kz
+**Сайт:** https://qaradakor.kz
 
 **Язык:** Многоязычный (Казахский, Русский, English)
 

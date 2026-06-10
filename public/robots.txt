@@ -33,10 +33,10 @@ Disallow: /*.json$
 Crawl-delay: 1
 
 # Sitemap
-Sitemap: https://qaradakor.sofine.kz/sitemap.xml
-Sitemap: https://qaradakor.sofine.kz/sitemap-movies.xml
-Sitemap: https://qaradakor.sofine.kz/sitemap-tv.xml
-Sitemap: https://qaradakor.sofine.kz/sitemap-collections.xml
+Sitemap: https://qaradakor.kz/sitemap.xml
+Sitemap: https://qaradakor.kz/sitemap-movies.xml
+Sitemap: https://qaradakor.kz/sitemap-tv.xml
+Sitemap: https://qaradakor.kz/sitemap-collections.xml
 
 # Специальные правила для Google
 User-agent: Googlebot

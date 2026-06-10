@@ -183,7 +183,7 @@ model: "gpt-5.4-mini"
 Проблема: в разных местах встречаются разные домены:
 
 - `qaradakor.kz`
-- `qaradakor.sofine.kz`
+- `qaradakor.kz`
 
 Решение:
 

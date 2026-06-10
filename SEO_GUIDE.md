@@ -109,7 +109,7 @@ export function MovieDetailPage() {
         description={movie.overview}
         ogImage={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
         ogType="video.movie"
-        canonical={`https://qaradakor.sofine.kz/movie/${movie.id}`}
+        canonical={`https://qaradakor.kz/movie/${movie.id}`}
         structuredData={generateMovieStructuredData(movie)}
       />
       {/* Ваш контент */}
@@ -190,8 +190,8 @@ Disallow: /watchlist
 Disallow: /admin/
 
 # Ссылки на sitemap
-Sitemap: https://qaradakor.sofine.kz/sitemap.xml
-Sitemap: https://qaradakor.sofine.kz/sitemap-movies.xml
+Sitemap: https://qaradakor.kz/sitemap.xml
+Sitemap: https://qaradakor.kz/sitemap-movies.xml
 ```
 
 **Расположение:** `/public/robots.txt`
@@ -323,7 +323,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 ### 1. Google Search Console
 
 1. Добавьте сайт: [search.google.com/search-console](https://search.google.com/search-console)
-2. Отправьте sitemap: `https://qaradakor.sofine.kz/sitemap-index.xml`
+2. Отправьте sitemap: `https://qaradakor.kz/sitemap-index.xml`
 3. Мониторьте:
    - Индексацию страниц
    - Ошибки сканирования
@@ -402,8 +402,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
 Если возникли вопросы по SEO настройке, проверьте:
 
-1. Работает ли `/robots.txt` — откройте `https://qaradakor.sofine.kz/robots.txt`
-2. Работают ли sitemap'ы — откройте `https://qaradakor.sofine.kz/sitemap.xml`
+1. Работает ли `/robots.txt` — откройте `https://qaradakor.kz/robots.txt`
+2. Работают ли sitemap'ы — откройте `https://qaradakor.kz/sitemap.xml`
 3. Правильно ли отображаются мета-теги — просмотрите исходный код страницы (Ctrl+U)
 4. Проверьте консоль браузера на ошибки
 

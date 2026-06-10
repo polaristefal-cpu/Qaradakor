@@ -61,7 +61,7 @@ export function MovieDetailPage() {
         ]}
         ogImage={ogImage}
         ogType="video.movie"
-        canonical={`https://qaradakor.sofine.kz/movie/${movie.id}`}
+        canonical={`https://qaradakor.kz/movie/${movie.id}`}
         structuredData={structuredData}
       />
       
@@ -131,7 +131,7 @@ export function TVDetailPage() {
         ]}
         ogImage={ogImage}
         ogType="video.tv_show"
-        canonical={`https://qaradakor.sofine.kz/tv/${tv.id}`}
+        canonical={`https://qaradakor.kz/tv/${tv.id}`}
         structuredData={structuredData}
       />
       
@@ -189,7 +189,7 @@ export function PersonPage() {
         ]}
         ogImage={ogImage}
         ogType="article"
-        canonical={`https://qaradakor.sofine.kz/person/${person.id}`}
+        canonical={`https://qaradakor.kz/person/${person.id}`}
         structuredData={structuredData}
       />
       
@@ -305,7 +305,7 @@ export function CollectionDetailPage() {
         ]}
         // Индексируем только публичные коллекции
         noindex={!collection.is_public}
-        canonical={`https://qaradakor.sofine.kz/collections/${collection.id}`}
+        canonical={`https://qaradakor.kz/collections/${collection.id}`}
       />
       
       {/* Ваш UI */}
@@ -436,7 +436,7 @@ ogImage={`https://image.tmdb.org/t/p/w92${movie.poster_path}`}
 // ✅ Fallback, если нет изображения
 ogImage={movie.backdrop_path 
   ? `https://image.tmdb.org/t/p/w1280${movie.backdrop_path}`
-  : "https://qaradakor.sofine.kz/og-image.jpg"
+  : "https://qaradakor.kz/og-image.jpg"
 }
 ```
 

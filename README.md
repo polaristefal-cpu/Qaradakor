@@ -22,7 +22,16 @@ The static frontend build is generated in `dist/`.
 
 Deploy the contents of `dist/` to your static host. This is a React Router SPA, so the host must rewrite unknown routes to `index.html`.
 
-Netlify fallback is already included through `public/_redirects`.
+Cloudflare Pages settings:
+
+```text
+Framework preset: React (Vite)
+Build command: npm run build
+Build output directory: dist
+Production branch: main
+```
+
+SPA fallback is included through `public/_redirects`.
 
 ## Supabase Edge Function
 

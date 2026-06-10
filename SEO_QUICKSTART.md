@@ -155,9 +155,9 @@ import { SEO, generateTVStructuredData } from "../components/seo";
 
 #### Google Search Console
 1. Перейдите на [search.google.com/search-console](https://search.google.com/search-console)
-2. Добавьте сайт `qaradakor.sofine.kz`
+2. Добавьте сайт `qaradakor.kz`
 3. Подтвердите владение (через HTML файл или DNS)
-4. Отправьте sitemap: `https://qaradakor.sofine.kz/sitemap-index.xml`
+4. Отправьте sitemap: `https://qaradakor.kz/sitemap-index.xml`
 
 #### Yandex Webmaster (важно для Казахстана!)
 1. Перейдите на [webmaster.yandex.ru](https://webmaster.yandex.ru)
@@ -170,9 +170,9 @@ import { SEO, generateTVStructuredData } from "../components/seo";
 ### 5. Проверить работоспособность
 
 Откройте в браузере:
-- `https://qaradakor.sofine.kz/robots.txt` ✅
-- `https://qaradakor.sofine.kz/sitemap.xml` ⚠️ (требует настройки сервера)
-- `https://qaradakor.sofine.kz/site.webmanifest` ✅
+- `https://qaradakor.kz/robots.txt` ✅
+- `https://qaradakor.kz/sitemap.xml` ⚠️ (требует настройки сервера)
+- `https://qaradakor.kz/site.webmanifest` ✅
 
 Проверьте инструментами:
 - [Google Rich Results Test](https://search.google.com/test/rich-results)

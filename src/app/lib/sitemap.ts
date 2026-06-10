@@ -72,7 +72,7 @@ function generateSitemapXml(urls: SitemapUrl[]): string {
  * Генерирует основной sitemap со статическими страницами
  */
 export function generateMainSitemap(): string {
-  const baseUrl = "https://qaradakor.sofine.kz";
+  const baseUrl = "https://qaradakor.kz";
   const now = new Date().toISOString().split("T")[0];
   
   const staticPages: SitemapUrl[] = [
@@ -118,7 +118,7 @@ export function generateMainSitemap(): string {
  * Генерирует sitemap index, который ссылается на все остальные sitemap'ы
  */
 export function generateSitemapIndex(): string {
-  const baseUrl = "https://qaradakor.sofine.kz";
+  const baseUrl = "https://qaradakor.kz";
   const now = new Date().toISOString();
   
   let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
@@ -158,7 +158,7 @@ export async function getPopularMoviesForSitemap(limit = 500): Promise<SitemapUr
       return [];
     }
     
-    const baseUrl = "https://qaradakor.sofine.kz";
+    const baseUrl = "https://qaradakor.kz";
     const uniqueMovieIds = [...new Set(data?.map((item) => item.tmdb_movie_id) || [])];
     
     return uniqueMovieIds.map((id) => ({
@@ -193,7 +193,7 @@ export async function getPopularTVForSitemap(limit = 500): Promise<SitemapUrl[]>
       return [];
     }
     
-    const baseUrl = "https://qaradakor.sofine.kz";
+    const baseUrl = "https://qaradakor.kz";
     const uniqueTVIds = [...new Set(data?.map((item) => item.tmdb_tv_id) || [])];
     
     return uniqueTVIds.map((id) => ({
@@ -229,7 +229,7 @@ export async function getPublicCollectionsForSitemap(limit = 100): Promise<Sitem
       return [];
     }
     
-    const baseUrl = "https://qaradakor.sofine.kz";
+    const baseUrl = "https://qaradakor.kz";
     
     return (data || []).map((collection) => ({
       loc: `${baseUrl}/collections/${collection.id}`,

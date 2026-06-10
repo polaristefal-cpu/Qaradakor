@@ -123,9 +123,9 @@
 ### Проверка файлов
 ```bash
 # Откройте в браузере:
-https://qaradakor.sofine.kz/robots.txt
-https://qaradakor.sofine.kz/site.webmanifest
-https://qaradakor.sofine.kz/sitemap.xml  # после настройки сервера
+https://qaradakor.kz/robots.txt
+https://qaradakor.kz/site.webmanifest
+https://qaradakor.kz/sitemap.xml  # после настройки сервера
 ```
 
 ### Проверка meta-тегов

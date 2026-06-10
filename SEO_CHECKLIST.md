@@ -87,9 +87,9 @@
 
 ### Google Search Console
 - [ ] Зайти на [search.google.com/search-console](https://search.google.com/search-console)
-- [ ] Добавить сайт `qaradakor.sofine.kz`
+- [ ] Добавить сайт `qaradakor.kz`
 - [ ] Подтвердить владение (HTML файл / DNS)
-- [ ] Отправить sitemap: `https://qaradakor.sofine.kz/sitemap-index.xml`
+- [ ] Отправить sitemap: `https://qaradakor.kz/sitemap-index.xml`
 - [ ] Дождаться индексации (1-2 недели)
 
 ### Yandex Webmaster
@@ -109,9 +109,9 @@
 ## 🧪 П��оверка и тестирование
 
 ### Базовая проверка
-- [ ] Открыть `https://qaradakor.sofine.kz/robots.txt` — работает?
-- [ ] Открыть `https://qaradakor.sofine.kz/site.webmanifest` — работает?
-- [ ] Открыть `https://qaradakor.sofine.kz/sitemap.xml` — работает?
+- [ ] Открыть `https://qaradakor.kz/robots.txt` — работает?
+- [ ] Открыть `https://qaradakor.kz/site.webmanifest` — работает?
+- [ ] Открыть `https://qaradakor.kz/sitemap.xml` — работает?
 - [ ] Посмотреть исходный код главной страницы (Ctrl+U)
   - [ ] Есть `<title>` тег?
   - [ ] Есть `<meta name="description">`?

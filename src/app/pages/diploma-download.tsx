@@ -137,7 +137,7 @@ async function buildDocument() {
     emptyLine(),
     centered("Год защиты: 2025", { size: 24, font: "Times New Roman" }),
     emptyLine(), emptyLine(),
-    centered("https://qaradakor.sofine.kz", { size: 24, font: "Times New Roman", color: "6BF1F1" }),
+    centered("https://qaradakor.kz", { size: 24, font: "Times New Roman", color: "6BF1F1" }),
   ];
 
   // ── ANNOTATION ──────────────────────────────────────────────────────────────
@@ -198,13 +198,13 @@ async function buildDocument() {
     bullet("Интегрировать TMDB API для доступа к базе данных 700 000+ фильмов."),
     bullet("Реализовать AI-компоненты: CineBot, Sentiment Analysis, AI Explain, AI Recommendations."),
     bullet("Построить социальный модуль: система дружбы, обмен рекомендациями фильмов."),
-    bullet("Развернуть приложение на VPS с Nginx и SSL (qaradakor.sofine.kz)."),
+    bullet("Развернуть приложение на Cloudflare Pages с автоматическим SSL (qaradakor.kz)."),
     bullet("Провести тестирование функциональности, безопасности и производительности."),
     h2("1.3 Объект и предмет исследования"),
     para("Объект исследования: процесс разработки современных веб-приложений с применением технологий искусственного интеллекта."),
     para("Предмет исследования: архитектурные решения, технологический стек и методы интеграции LLM-моделей в пользовательские веб-приложения на примере платформы Qaradakor.kz."),
     h2("1.4 Практическая значимость"),
-    para("Результатом данной дипломной работы является готовый продукт, развёрнутый в сети Интернет по адресу https://qaradakor.sofine.kz. Приложение доступно реальным пользователям и предоставляет полный набор функций кинотеки с AI-поддержкой."),
+    para("Результатом данной дипломной работы является готовый продукт, развёрнутый в сети Интернет по адресу https://qaradakor.kz. Приложение доступно реальным пользователям и предоставляет полный набор функций кинотеки с AI-поддержкой."),
     para("Архитектурные решения и паттерны, применённые в проекте, могут быть использованы при разработке аналогичных платформ. Опыт интеграции OpenAI GPT демонстрирует практические аспекты применения LLM: проектирование промптов, управление контекстом, обработка ошибок API, оптимизация стоимости запросов."),
     h2("1.5 Общее описание проекта Qaradakor.kz"),
     para(
@@ -334,7 +334,7 @@ async function buildDocument() {
         ["3", "TMDB API интеграция, главная страница, карточка фильма, поиск, трейлеры"],
         ["4", "Библиотека (Watched/Watchlist), оценки, рецензии, 2FA, SMS OTP через Mobizon.kz"],
         ["5", "AI-модули: CineBot, Sentiment Analysis, AI Explain, рекомендации через GPT"],
-        ["6", "Друзья, публичные рецензии, деплой VPS, SSL, Nginx, финальное тестирование"],
+        ["6", "Друзья, публичные рецензии, деплой Cloudflare Pages, SSL, финальное тестирование"],
       ],
       ["Спринт", "Выполненные задачи"]
     ),
@@ -378,9 +378,9 @@ async function buildDocument() {
     h2("3.7 Деплой и DevOps"),
     para(
       "Фронтенд: npm run build → Vite/Rollup бандл → копирование в /var/www/qaradakor/dist/ → " +
-      "Nginx отдаёт статику с try_files $uri /index.html для SPA-маршрутизации. " +
-      "SSL: Let's Encrypt (Certbot). Backend: supabase functions deploy make-server-59141208. " +
-      "Домен: qaradakor.sofine.kz."
+      "Cloudflare Pages отдаёт статическую сборку dist и использует _redirects для SPA-маршрутизации. " +
+      "SSL выпускается Cloudflare автоматически. Backend: supabase functions deploy make-server-59141208. " +
+      "Домен: qaradakor.kz."
     ),
     emptyLine(),
   ];
@@ -428,7 +428,7 @@ async function buildDocument() {
     ),
     emptyLine(),
     h2("4.5 Инфраструктура"),
-    para("VPS: Ubuntu 22.04 LTS. Nginx 1.24. SSL: Let's Encrypt (Certbot). Домен: qaradakor.sofine.kz. " +
+    para("Frontend: Cloudflare Pages. SSL: автоматический сертификат Cloudflare. Домен: qaradakor.kz. " +
       "Frontend build: /var/www/qaradakor/dist/. Backend: Supabase Edge Functions (Cloud)."),
     emptyLine(),
   ];
@@ -573,7 +573,7 @@ async function buildDocument() {
     simpleTable(
       [
         ["Supabase (Free Plan)", "$0"],
-        ["VPS (Hetzner CX11)", "~$4–6"],
+        ["Cloudflare Pages Free", "$0"],
         ["OpenAI API", "~$3–8"],
         ["Mobizon.kz SMS", "~500–1000 тенге"],
         ["TMDB API", "$0 (бесплатный)"],
@@ -607,7 +607,7 @@ async function buildDocument() {
     bullet("Разработаны 4 AI-компонента: CineBot, Sentiment Analysis, AI Explain, AI Recommendations."),
     bullet("Построена социальная сеть: дружба, обмен рекомендациями, просмотр библиотек."),
     bullet("Реализована публичная система рецензий с топ-5, лайками."),
-    bullet("Приложение развёрнуто: https://qaradakor.sofine.kz (VPS + Nginx + SSL)."),
+    bullet("Приложение развёрнуто: https://qaradakor.kz (Cloudflare Pages + SSL)."),
     emptyLine(),
     new Paragraph({ spacing: { after: 80 }, children: [bold("Направления дальнейшего развития:")] }),
     bullet("Казахская локализация интерфейса (i18n / react-i18next)."),
@@ -711,7 +711,7 @@ async function buildDocument() {
     }),
     new Paragraph({
       alignment: AlignmentType.CENTER,
-      children: [bold("Проект: Qaradakor.kz | qaradakor.sofine.kz", 24)],
+      children: [bold("Проект: Qaradakor.kz", 24)],
     }),
   ];
 
