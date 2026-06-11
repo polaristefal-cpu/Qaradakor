@@ -10,6 +10,71 @@ export const supabase = createClient(
   publicAnonKey
 );
 
+const TMDB_TEXT_FALLBACK_LANGS = ["ru-RU", "en-US"];
+const TMDB_TEXT_FIELDS = ["overview", "tagline", "title", "name"] as const;
+
+function hasText(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function itemNeedsTmdbTextFallback(item: any): boolean {
+  if (!item || typeof item !== "object") return false;
+  return (
+    ("overview" in item && !hasText(item.overview)) ||
+    ("tagline" in item && !hasText(item.tagline))
+  );
+}
+
+function dataNeedsTmdbTextFallback(data: any): boolean {
+  if (Array.isArray(data?.results)) {
+    return data.results.some(itemNeedsTmdbTextFallback);
+  }
+  return itemNeedsTmdbTextFallback(data);
+}
+
+function mergeTmdbText<T>(primary: T, fallback: any): T {
+  if (!primary || !fallback || typeof primary !== "object" || typeof fallback !== "object") {
+    return primary;
+  }
+
+  if (Array.isArray((primary as any).results) && Array.isArray(fallback.results)) {
+    const fallbackById = new Map(fallback.results.map((item: any) => [item?.id, item]));
+    return {
+      ...(primary as any),
+      results: (primary as any).results.map((item: any) =>
+        mergeTmdbText(item, fallbackById.get(item?.id))
+      ),
+    };
+  }
+
+  const merged: any = { ...(primary as any) };
+  for (const field of TMDB_TEXT_FIELDS) {
+    if (!hasText(merged[field]) && hasText(fallback[field])) {
+      merged[field] = fallback[field];
+    }
+  }
+  return merged;
+}
+
+async function fillTmdbKazakhTextFallback(path: string, data: any, options: RequestInit): Promise<any> {
+  if (!path.startsWith("/tmdb/") || !path.includes("language=kk-KZ")) return data;
+  if ((options.method || "GET").toUpperCase() !== "GET") return data;
+  if (!dataNeedsTmdbTextFallback(data)) return data;
+
+  let merged = data;
+  for (const lang of TMDB_TEXT_FALLBACK_LANGS) {
+    const fallbackPath = path.replace(/language=kk-KZ/g, `language=${lang}`);
+    try {
+      const fallbackData = await request(fallbackPath, options);
+      merged = mergeTmdbText(merged, fallbackData);
+      if (!dataNeedsTmdbTextFallback(merged)) break;
+    } catch {
+      // Keep the original TMDB response if a fallback locale is unavailable.
+    }
+  }
+  return merged;
+}
+
 async function getToken(): Promise<string> {
   try {
     const { data, error } = await supabase.auth.getSession();
@@ -113,7 +178,7 @@ async function request(path: string, options: RequestInit = {}) {
     console.error(`API error ${path}:`, data);
     throw new Error(data.error || "Request failed");
   }
-  return data;
+  return fillTmdbKazakhTextFallback(path, data, options);
 }
 
 // Auth
