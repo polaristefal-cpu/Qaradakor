@@ -173,6 +173,94 @@ function tmdbFetch(path: string) {
   return fetch(url, { headers });
 }
 
+function hasText(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function isKazakhTmdbDetailPath(path: string) {
+  return path.includes("language=kk-KZ") && /^\/(?:movie|tv)\/\d+(?:\?|$)/.test(path);
+}
+
+function withTmdbLanguage(path: string, language: string) {
+  if (path.includes("language=")) return path.replace(/language=[^&]+/, `language=${language}`);
+  return `${path}${path.includes("?") ? "&" : "?"}language=${language}`;
+}
+
+async function hashText(text: string) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function translateTextToKazakh(text: string, context: string) {
+  const source = text.trim();
+  if (!source) return "";
+
+  const cacheKey = `translation:kk:${await hashText(`${context}\n${source}`)}`;
+  const cached: any = await kv.get(cacheKey);
+  if (hasText(cached?.text)) return cached.text;
+
+  try {
+    const translated = await callOpenAI([
+      {
+        role: "system",
+        content:
+          "Сен кәсіби қазақ тілі аудармашысың. Кино сипаттамасын табиғи, сауатты қазақ тіліне аудар. " +
+          "Адам аттарын, фильм атауларын, сандарды және мағынаны сақта. Тек аударманың өзін қайтар, түсіндірме қоспа.",
+      },
+      {
+        role: "user",
+        content: `Контекст: ${context}\n\nМәтін:\n${source.slice(0, 2000)}`,
+      },
+    ], 0.2, 700);
+
+    const clean = typeof translated === "string" ? translated.trim() : "";
+    if (clean) {
+      await kv.set(cacheKey, { text: clean, createdAt: new Date().toISOString() });
+      return clean;
+    }
+  } catch (e: any) {
+    console.log("[TMDB Kazakh translate] Error:", e.message);
+  }
+
+  return source;
+}
+
+async function getTmdbTextFallback(path: string) {
+  for (const language of ["ru-RU", "en-US"]) {
+    try {
+      const resp = await tmdbFetch(withTmdbLanguage(path, language));
+      const data = await resp.json();
+      if (hasText(data?.overview) || hasText(data?.tagline)) return data;
+    } catch (e: any) {
+      console.log("[TMDB text fallback] Error:", e.message);
+    }
+  }
+  return null;
+}
+
+async function fillKazakhTmdbDetailText(path: string, data: any) {
+  if (!isKazakhTmdbDetailPath(path) || !data || typeof data !== "object") return data;
+  if (hasText(data.overview) && hasText(data.tagline)) return data;
+
+  const fallback = await getTmdbTextFallback(path);
+  if (!fallback) return data;
+
+  const title = data.title || data.name || fallback.title || fallback.name || "movie";
+  const merged = { ...data };
+
+  if (!hasText(merged.overview) && hasText(fallback.overview)) {
+    merged.overview = await translateTextToKazakh(fallback.overview, `${title} overview`);
+  }
+  if (!hasText(merged.tagline) && hasText(fallback.tagline)) {
+    merged.tagline = await translateTextToKazakh(fallback.tagline, `${title} tagline`);
+  }
+
+  return merged;
+}
+
 async function getUser(c: any): Promise<{ id: string; email: string } | null> {
   // Session token is passed via x-user-token header (Authorization is reserved for Supabase gateway)
   const token = c.req.header("x-user-token");
@@ -261,9 +349,12 @@ app.get("/make-server-59141208/tmdb/*", async (c) => {
     if (qs) path += (path.includes("?") ? "&" : "?") + qs;
     
     const resp = await tmdbFetch(path);
-    const data = await resp.json();
+    let data = await resp.json();
     if (!resp.ok) {
       console.log("TMDB error response:", resp.status, path);
+    }
+    if (resp.ok) {
+      data = await fillKazakhTmdbDetailText(path, data);
     }
     return c.json(data, resp.status as any);
   } catch (e: any) {
