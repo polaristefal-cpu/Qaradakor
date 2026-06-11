@@ -35,6 +35,46 @@ const AVATAR_BUCKET = "make-59141208-avatars";
 
 const WAZZUP_CHANNEL_ID = "ac9fd2e0-a8dd-465f-affd-9d5210e2ef0d";
 const wazzupKey = () => Deno.env.get("WAZZUP_API_KEY")!;
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_LOCK_MS = 10 * 60 * 1000;
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function formatOtpWait(seconds: number) {
+  if (seconds >= 60) return `${Math.ceil(seconds / 60)} мин.`;
+  return `${seconds} сек.`;
+}
+
+function getOtpLockWaitSeconds(stored: any) {
+  const lockUntil = Number(stored?.lockUntil || 0);
+  if (!lockUntil || Date.now() >= lockUntil) return 0;
+  return Math.ceil((lockUntil - Date.now()) / 1000);
+}
+
+function clearExpiredOtpLock(stored: any) {
+  if (stored?.lockUntil && Date.now() >= Number(stored.lockUntil)) {
+    stored.attempts = 0;
+    delete stored.lockUntil;
+  }
+  return stored;
+}
+
+function registerOtpFailure(stored: any) {
+  stored.attempts = Number(stored.attempts || 0) + 1;
+  if (stored.attempts >= OTP_MAX_ATTEMPTS) {
+    stored.lockUntil = Date.now() + OTP_LOCK_MS;
+    return { locked: true, left: 0, waitSeconds: Math.ceil(OTP_LOCK_MS / 1000) };
+  }
+  return { locked: false, left: OTP_MAX_ATTEMPTS - stored.attempts, waitSeconds: 0 };
+}
 
 // ---- OTP SENDING: WhatsApp (Wazzup) → SMS (Mobizon) fallback ----
 async function sendOtpCode(phone: string, code: string): Promise<{ channel: "whatsapp" | "sms"; error?: string }> {
@@ -42,37 +82,43 @@ async function sendOtpCode(phone: string, code: string): Promise<{ channel: "wha
   const chatId = phone;
 
   // 1. Try WhatsApp via Wazzup
-  try {
-    const wazzupRes = await fetch("https://api.wazzup24.com/v3/message", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${wazzupKey()}`,
-      },
-      body: JSON.stringify({
-        channelId: WAZZUP_CHANNEL_ID,
-        chatType: "whatsapp",
-        chatId,
-        text: `Qaradakor.kz: ваш код подтверждения — *${code}*\n\nДействителен 5 минут.`,
-      }),
-    });
+  const wazzupApiKey = Deno.env.get("WAZZUP_API_KEY");
+  if (wazzupApiKey) {
+    try {
+      const wazzupRes = await fetchWithTimeout("https://api.wazzup24.com/v3/message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${wazzupKey()}`,
+        },
+        body: JSON.stringify({
+          channelId: WAZZUP_CHANNEL_ID,
+          chatType: "whatsapp",
+          chatId,
+          text: `Qaradakor.kz: ваш код подтверждения — *${code}*\n\nДействителен 5 минут.`,
+        }),
+      }, 4_000);
 
-    const wazzupData = await wazzupRes.json().catch(() => ({}));
+      const wazzupData = await wazzupRes.json().catch(() => ({}));
 
-    if (wazzupRes.ok && !wazzupData.error) {
-      return { channel: "whatsapp" };
+      if (wazzupRes.ok && !wazzupData.error) {
+        return { channel: "whatsapp" };
+      }
+      console.log("[OTP] Wazzup failed, falling back to SMS:", wazzupRes.status);
+    } catch (e: any) {
+      console.log("[OTP] Wazzup exception, falling back to SMS:", e.message);
     }
-    console.log("[OTP] Wazzup failed, falling back to SMS:", wazzupRes.status);
-  } catch (e: any) {
-    console.log("[OTP] Wazzup exception, falling back to SMS:", e.message);
+  } else {
+    console.log("[OTP] WAZZUP_API_KEY missing, using SMS fallback");
   }
 
   // 2. Fallback — SMS via Mobizon
   try {
-    const apiKey = Deno.env.get("MOBIZON_API_KEY")!;
+    const apiKey = Deno.env.get("MOBIZON_API_KEY");
+    if (!apiKey) return { channel: "sms", error: "SMS service is not configured" };
     const text = encodeURIComponent(`Qaradakor.kz: код подтверждения — ${code}. Действителен 5 минут.`);
     const mobizonUrl = `https://api.mobizon.kz/service/Message/SendSmsMessage?output=json&api=v1&apiKey=${apiKey}&recipient=${phone}&text=${text}`;
-    const resp = await fetch(mobizonUrl);
+    const resp = await fetchWithTimeout(mobizonUrl, {}, 12_000);
     const result = await resp.json();
     if (result.code !== 0) {
       return { channel: "sms", error: `Ошибка SMS: ${result.message}` };
@@ -338,9 +384,9 @@ app.post("/make-server-59141208/friends/request", async (c) => {
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const { targetEmail } = await c.req.json();
   // Find user by email
-  const { data, error } = await supabaseAdmin().auth.admin.listUsers();
+  const { data, error } = await supabaseAdmin().auth.admin.listUsers({ perPage: 1000 });
   if (error) return c.json({ error: `List users error: ${error.message}` }, 500);
-  const target = data.users.find((u: any) => u.email === targetEmail);
+  const target = data.users.find((u: any) => u.email?.toLowerCase() === String(targetEmail || "").trim().toLowerCase());
   if (!target) return c.json({ error: "User not found" }, 404);
   if (target.id === user.id) return c.json({ error: "Cannot add yourself" }, 400);
   // Check if already friends
@@ -350,7 +396,13 @@ app.post("/make-server-59141208/friends/request", async (c) => {
   const requests: any[] = await kv.get(`user:${target.id}:friend_requests`) || [];
   if (requests.some((r: any) => r.fromId === user.id)) return c.json({ error: "Request already sent" }, 400);
   const profile = await kv.get(`user:${user.id}:profile`);
-  requests.push({ fromId: user.id, fromName: profile?.name || "Unknown", fromEmail: profile?.email });
+  requests.push({
+    id: `friend_req:${user.id}:${Date.now()}`,
+    fromId: user.id,
+    fromName: profile?.name || user.email || "Unknown",
+    fromEmail: profile?.email || user.email,
+    createdAt: new Date().toISOString(),
+  });
   await kv.set(`user:${target.id}:friend_requests`, requests);
   return c.json({ ok: true });
 });
@@ -366,6 +418,16 @@ app.post("/make-server-59141208/friends/accept", async (c) => {
   const user = await getUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const { fromId } = await c.req.json();
+  if (!fromId || typeof fromId !== "string") {
+    return c.json({ error: "fromId required" }, 400);
+  }
+
+  let requests: any[] = await kv.get(`user:${user.id}:friend_requests`) || [];
+  const requestExists = requests.some((r: any) => r.fromId === fromId);
+  if (!requestExists) {
+    return c.json({ error: "Friend request not found" }, 404);
+  }
+
   // Add to both friends lists
   const myFriends: string[] = await kv.get(`user:${user.id}:friends`) || [];
   const theirFriends: string[] = await kv.get(`user:${fromId}:friends`) || [];
@@ -374,7 +436,6 @@ app.post("/make-server-59141208/friends/accept", async (c) => {
   await kv.set(`user:${user.id}:friends`, myFriends);
   await kv.set(`user:${fromId}:friends`, theirFriends);
   // Remove request
-  let requests: any[] = await kv.get(`user:${user.id}:friend_requests`) || [];
   requests = requests.filter((r: any) => r.fromId !== fromId);
   await kv.set(`user:${user.id}:friend_requests`, requests);
   return c.json({ ok: true });
@@ -384,6 +445,9 @@ app.post("/make-server-59141208/friends/reject", async (c) => {
   const user = await getUser(c);
   if (!user) return c.json({ error: "Unauthorized" }, 401);
   const { fromId } = await c.req.json();
+  if (!fromId || typeof fromId !== "string") {
+    return c.json({ error: "fromId required" }, 400);
+  }
   let requests: any[] = await kv.get(`user:${user.id}:friend_requests`) || [];
   requests = requests.filter((r: any) => r.fromId !== fromId);
   await kv.set(`user:${user.id}:friend_requests`, requests);
@@ -940,7 +1004,11 @@ app.post("/make-server-59141208/auth/2fa-setup-send", async (c) => {
     }
 
     // Rate-limit: не чаще раза в 60 секунд
-    const existingOtp: any = await kv.get(`otp:${normalized}`) || {};
+    const existingOtp: any = clearExpiredOtpLock(await kv.get(`otp:${normalized}`) || {});
+    const setupLockWait = getOtpLockWaitSeconds(existingOtp);
+    if (setupLockWait > 0) {
+      return c.json({ error: `Слишком много неверных кодов. Попробуйте через ${formatOtpWait(setupLockWait)}` }, 429);
+    }
     if (existingOtp.sentAt && Date.now() - existingOtp.sentAt < 60_000) {
       const wait = Math.ceil((60_000 - (Date.now() - existingOtp.sentAt)) / 1000);
       return c.json({ error: `Подождите ${wait} сек. перед повторной отправкой` }, 429);
@@ -980,21 +1048,24 @@ app.post("/make-server-59141208/auth/2fa-setup-confirm", async (c) => {
     const phone: string = profile.phone || "";
     if (!phone) return c.json({ error: "Телефон не найден, начните сначала" }, 400);
 
-    const stored: any = await kv.get(`otp:${phone}`);
-    if (!stored) return c.json({ error: "Код не найден или истёк. Запроси��е новый." }, 400);
+    const stored: any = clearExpiredOtpLock(await kv.get(`otp:${phone}`));
+    if (!stored) return c.json({ error: "Код не найден или истёк. Запросите новый." }, 400);
+    const lockWait = getOtpLockWaitSeconds(stored);
+    if (lockWait > 0) {
+      await kv.set(`otp:${phone}`, stored);
+      return c.json({ error: `Слишком много неверных кодов. Попробуйте через ${formatOtpWait(lockWait)}` }, 429);
+    }
     if (Date.now() > stored.expiresAt) {
       await kv.del(`otp:${phone}`);
       return c.json({ error: "Код истёк. Запросите новый." }, 400);
     }
-    if (stored.attempts >= 3) {
-      await kv.del(`otp:${phone}`);
-      return c.json({ error: "Превышено число попыток. Запросите новый код." }, 400);
-    }
     if (stored.code !== String(code).trim()) {
-      stored.attempts += 1;
+      const failed = registerOtpFailure(stored);
       await kv.set(`otp:${phone}`, stored);
-      const left = 3 - stored.attempts;
-      return c.json({ error: `Неверный код. Осталось попыток: ${left}` }, 400);
+      if (failed.locked) {
+        return c.json({ error: `Слишком много неверных кодов. Попробуйте через ${formatOtpWait(failed.waitSeconds)}` }, 429);
+      }
+      return c.json({ error: `Неверный код. Осталось попыток: ${failed.left}` }, 400);
     }
 
     // OTP correct — enable 2FA
@@ -1047,7 +1118,11 @@ app.post("/make-server-59141208/auth/send-otp", async (c) => {
     if (!profile.twofa_enabled) return c.json({ error: "2FA н включена для этого аккаунта" }, 400);
 
     // Rate-limit: не чаще раза в 60 секунд
-    const existing: any = await kv.get(`otp:login:${phone}`) || {};
+    const existing: any = clearExpiredOtpLock(await kv.get(`otp:login:${phone}`) || {});
+    const loginLockWait = getOtpLockWaitSeconds(existing);
+    if (loginLockWait > 0) {
+      return c.json({ error: `Слишком много неверных кодов. Попробуйте через ${formatOtpWait(loginLockWait)}` }, 429);
+    }
     if (existing.sentAt && Date.now() - existing.sentAt < 60_000) {
       const wait = Math.ceil((60_000 - (Date.now() - existing.sentAt)) / 1000);
       return c.json({ error: `Подождите ${wait} сек. перед повторной отправкой` }, 429);
@@ -1086,8 +1161,13 @@ app.post("/make-server-59141208/auth/verify-otp", async (c) => {
     const phone: string = profile.phone || "";
     if (!phone) return c.json({ error: "Телефон не привязан" }, 400);
 
-    const stored: any = await kv.get(`otp:login:${phone}`);
+    const stored: any = clearExpiredOtpLock(await kv.get(`otp:login:${phone}`));
     if (!stored) return c.json({ error: "Код не найден или истёк. Запросите новый." }, 400);
+    const loginVerifyLockWait = getOtpLockWaitSeconds(stored);
+    if (loginVerifyLockWait > 0) {
+      await kv.set(`otp:login:${phone}`, stored);
+      return c.json({ error: `Слишком много неверных кодов. Попробуйте через ${formatOtpWait(loginVerifyLockWait)}` }, 429);
+    }
     // Ensure this is a login OTP, not a setup OTP
     if (stored.purpose && stored.purpose !== "login") {
       return c.json({ error: "Неверный код. Запросите новый." }, 400);
@@ -1096,15 +1176,13 @@ app.post("/make-server-59141208/auth/verify-otp", async (c) => {
       await kv.del(`otp:login:${phone}`);
       return c.json({ error: "Код истёк. Запросите новый." }, 400);
     }
-    if (stored.attempts >= 3) {
-      await kv.del(`otp:login:${phone}`);
-      return c.json({ error: "Превышено число попыток. Запросите новый код." }, 400);
-    }
     if (stored.code !== String(code).trim()) {
-      stored.attempts += 1;
+      const failed = registerOtpFailure(stored);
       await kv.set(`otp:login:${phone}`, stored);
-      const left = 3 - stored.attempts;
-      return c.json({ error: `Неверный код. Осталось попыток: ${left}` }, 400);
+      if (failed.locked) {
+        return c.json({ error: `Слишком много неверных кодов. Попробуйте через ${formatOtpWait(failed.waitSeconds)}` }, 429);
+      }
+      return c.json({ error: `Неверный код. Осталось попыток: ${failed.left}` }, 400);
     }
 
     // Success — delete OTP
@@ -1433,7 +1511,11 @@ app.post("/make-server-59141208/auth/sms-login-send", async (c) => {
     }
 
     // Rate-limit: не чаще раза в 60 секунд
-    const existing: any = await kv.get(`otp:smslogin:${normalized}`) || {};
+    const existing: any = clearExpiredOtpLock(await kv.get(`otp:smslogin:${normalized}`) || {});
+    const smsLoginLockWait = getOtpLockWaitSeconds(existing);
+    if (smsLoginLockWait > 0) {
+      return c.json({ error: `Слишком много неверных кодов. Попробуйте через ${formatOtpWait(smsLoginLockWait)}` }, 429);
+    }
     if (existing.sentAt && Date.now() - existing.sentAt < 60_000) {
       const wait = Math.ceil((60_000 - (Date.now() - existing.sentAt)) / 1000);
       return c.json({ error: `Подождите ${wait} сек. перед повторной отправкой` }, 429);
@@ -1474,22 +1556,25 @@ app.post("/make-server-59141208/auth/sms-login-verify", async (c) => {
     const digits = phone.replace(/\D/g, "");
     const normalized = digits.startsWith("8") ? "7" + digits.slice(1) : digits;
 
-    const stored: any = await kv.get(`otp:smslogin:${normalized}`);
+    const stored: any = clearExpiredOtpLock(await kv.get(`otp:smslogin:${normalized}`));
     if (!stored) return c.json({ error: "Код не найден или истёк. Запросите новый." }, 400);
+    const smsVerifyLockWait = getOtpLockWaitSeconds(stored);
+    if (smsVerifyLockWait > 0) {
+      await kv.set(`otp:smslogin:${normalized}`, stored);
+      return c.json({ error: `Слишком много неверных кодов. Попробуйте через ${formatOtpWait(smsVerifyLockWait)}` }, 429);
+    }
     if (stored.purpose !== "sms-login") return c.json({ error: "Неверный тип кода." }, 400);
     if (Date.now() > stored.expiresAt) {
       await kv.del(`otp:smslogin:${normalized}`);
       return c.json({ error: "Код истёк. Запросите новый." }, 400);
     }
-    if (stored.attempts >= 3) {
-      await kv.del(`otp:smslogin:${normalized}`);
-      return c.json({ error: "Превышено число попыток. Запросите новый код." }, 400);
-    }
     if (stored.code !== String(code).trim()) {
-      stored.attempts += 1;
+      const failed = registerOtpFailure(stored);
       await kv.set(`otp:smslogin:${normalized}`, stored);
-      const left = 3 - stored.attempts;
-      return c.json({ error: `Неверный код. Осталось попыток: ${left}` }, 400);
+      if (failed.locked) {
+        return c.json({ error: `Слишком много неверных кодов. Попробуйте через ${formatOtpWait(failed.waitSeconds)}` }, 429);
+      }
+      return c.json({ error: `Неверный код. Осталось попыток: ${failed.left}` }, 400);
     }
 
     // OTP correct — create Supabase session for this user

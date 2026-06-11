@@ -177,12 +177,15 @@ function RequestCard({
       <div className="flex gap-2 shrink-0">
         <button
           onClick={onAccept}
+          disabled={loading}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition"
         >
-          <Check className="w-3.5 h-3.5" /> Принять
+          {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+          Принять
         </button>
         <button
           onClick={onDecline}
+          disabled={loading}
           className="w-8 h-8 rounded-lg bg-muted text-muted-foreground hover:bg-destructive/10 hover:text-destructive border border-border flex items-center justify-center transition"
         >
           <X className="w-3.5 h-3.5" />
@@ -242,18 +245,29 @@ export function FriendsPage() {
 
   const handleAccept = async (id: string) => {
     setActionId(id);
-    await acceptFriend(id);
-    toast.success("Друг добавлен!");
-    load();
-    setActionId(null);
+    try {
+      await acceptFriend(id);
+      toast.success("Друг добавлен!");
+      await load();
+      setTab("friends");
+    } catch (err: any) {
+      toast.error(err.message || "Не удалось принять запрос");
+    } finally {
+      setActionId(null);
+    }
   };
 
   const handleDecline = async (id: string) => {
     setActionId(id);
-    await rejectFriend(id);
-    toast.info("Запрос отклонён");
-    load();
-    setActionId(null);
+    try {
+      await rejectFriend(id);
+      toast.info("Запрос отклонён");
+      await load();
+    } catch (err: any) {
+      toast.error(err.message || "Не удалось отклонить запрос");
+    } finally {
+      setActionId(null);
+    }
   };
 
   const handleRemoveFriend = async (id: string) => {
@@ -362,11 +376,11 @@ export function FriendsPage() {
               <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">{t("incomingRequests")}</p>
               {requests.map((r) => (
                 <RequestCard
-                  key={r.id}
+                  key={r.id || r.fromId}
                   request={r}
-                  onAccept={() => handleAccept(r.id)}
-                  onDecline={() => handleDecline(r.id)}
-                  loading={actionId === r.id}
+                  onAccept={() => handleAccept(r.fromId)}
+                  onDecline={() => handleDecline(r.fromId)}
+                  loading={actionId === r.fromId}
                 />
               ))}
             </>

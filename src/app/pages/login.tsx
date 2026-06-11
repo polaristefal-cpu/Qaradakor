@@ -19,6 +19,50 @@ function WhatsAppIcon({ className }: { className?: string }) {
 }
 
 type Step = "credentials" | "checking" | "otp" | "sms-phone" | "sms-otp";
+const LOGIN_ATTEMPTS_KEY = "qaradakor_login_attempts";
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_LOCK_MS = 10 * 60 * 1000;
+
+function waitText(seconds: number) {
+  if (seconds >= 60) return `${Math.ceil(seconds / 60)} мин.`;
+  return `${seconds} сек.`;
+}
+
+function readLoginAttempts(): Record<string, { count: number; lockUntil?: number }> {
+  try {
+    return JSON.parse(localStorage.getItem(LOGIN_ATTEMPTS_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function getLoginLockWait(email: string) {
+  const entry = readLoginAttempts()[email];
+  const lockUntil = Number(entry?.lockUntil || 0);
+  if (!lockUntil || Date.now() >= lockUntil) return 0;
+  return Math.ceil((lockUntil - Date.now()) / 1000);
+}
+
+function clearLoginAttempts(email: string) {
+  const attempts = readLoginAttempts();
+  delete attempts[email];
+  localStorage.setItem(LOGIN_ATTEMPTS_KEY, JSON.stringify(attempts));
+}
+
+function recordLoginFailure(email: string) {
+  const attempts = readLoginAttempts();
+  const current = attempts[email] || { count: 0 };
+  const count = Number(current.count || 0) + 1;
+  attempts[email] = count >= LOGIN_MAX_ATTEMPTS
+    ? { count, lockUntil: Date.now() + LOGIN_LOCK_MS }
+    : { count };
+  localStorage.setItem(LOGIN_ATTEMPTS_KEY, JSON.stringify(attempts));
+  return {
+    locked: count >= LOGIN_MAX_ATTEMPTS,
+    left: Math.max(LOGIN_MAX_ATTEMPTS - count, 0),
+    waitSeconds: Math.ceil(LOGIN_LOCK_MS / 1000),
+  };
+}
 
 // ── OtpBoxes MUST be outside LoginPage to avoid remount on every render ──────
 interface OtpBoxesProps {
@@ -114,9 +158,16 @@ export function LoginPage() {
   const handleCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    const normalizedEmail = email.trim().toLowerCase();
+    const lockWait = getLoginLockWait(normalizedEmail);
+    if (lockWait > 0) {
+      setError(`Слишком много неверных попыток. Попробуйте через ${waitText(lockWait)}`);
+      return;
+    }
     setLoading(true);
     try {
-      await login(email, password);
+      await login(normalizedEmail, password);
+      clearLoginAttempts(normalizedEmail);
       setStep("checking");
       const status = await get2FAStatus();
       if (status.enabled) {
@@ -137,7 +188,12 @@ export function LoginPage() {
         navigate("/");
       }
     } catch (err: any) {
-      setError(err.message);
+      const failed = recordLoginFailure(normalizedEmail);
+      setError(
+        failed.locked
+          ? `Слишком много неверных попыток. Попробуйте через ${waitText(failed.waitSeconds)}`
+          : `${err.message}${failed.left > 0 ? ` Осталось попыток: ${failed.left}` : ""}`
+      );
       setStep("credentials");
       try { await logout(); } catch {}
     } finally {
